@@ -439,6 +439,23 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .jvstep{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
 .reco summary{list-style:none;cursor:pointer}.reco summary::-webkit-details-marker{display:none}
 .reco .li .thumb{width:46px;height:46px;flex:none}
+/* ---- ajustes para teléfonos (iOS y Android) ---- */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overflow-x:hidden;max-width:100%}
+body{min-height:100vh;min-height:100dvh}
+.login{min-height:100vh;min-height:100dvh}
+img,video,canvas,svg{max-width:100%}
+.h1{font-size:clamp(30px,9.4vw,40px);overflow-wrap:break-word}
+.h2{font-size:clamp(23px,7.4vw,30px);overflow-wrap:break-word}
+.mega{font-size:clamp(40px,14vw,64px)}
+header.top.row{flex-wrap:wrap;row-gap:10px}
+header.top.row>div:first-child{flex:1 1 auto;max-width:100%}
+.grid2>.btn,.grid2>label.btn,.grid3>.btn{white-space:normal;min-width:0;height:auto;min-height:48px;padding:10px 12px;line-height:1.2;text-align:center}
+.row{min-width:0}.grow{min-width:0}
+.pills{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.pills::-webkit-scrollbar{display:none}
+/* iPhone hace zoom al escribir si la letra es menor a 16px */
+@media (pointer:coarse){ .inp,input,select,textarea{font-size:16px} .setrow input{font-size:16px} }
+@media (max-width:380px){ .wrap{padding-left:12px;padding-right:12px} .card{padding:14px} .tab{font-size:10px} .gpsstats b{font-size:26px} .gpsstats .big b{font-size:34px} }
 </style>
 </head>
 <body>

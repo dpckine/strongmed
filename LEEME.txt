@@ -1,0 +1,165 @@
+STRONGMED × KIN AT HOME — Cómo publicar la app
+================================================
+
+1) ESTRUCTURA DE CARPETAS
+   Sube todo a la misma carpeta de tu hosting (GitHub Pages, Netlify, Firebase Hosting…):
+
+   index.html              ← la app
+   manifest.webmanifest    ← datos para instalarla en el teléfono
+   sw.js                   ← permite abrirla sin internet
+   icons/                  ← íconos de la app
+   data/ejercicios.json    ← biblioteca de 1.324 ejercicios en español (incluida)
+
+   Las imágenes y animaciones se cargan desde tu biblioteca https://dpon8.github.io/kinathome/
+   (carpetas images/ y videos/), así que no hace falta subirlas otra vez.
+   Recomendado: sube también data/ejercicios.json a la carpeta data/ de ese repositorio;
+   así la biblioteca funciona aunque abras la app desde el computador.
+
+   IMPORTANTE: la app debe estar publicada en una dirección https (GitHub Pages,
+   Netlify o Firebase Hosting). Abriendo el index.html desde una carpeta del
+   computador (file://) NO se puede instalar, no funciona sin internet y no carga
+   la biblioteca de ejercicios.
+
+2) ACCESOS
+   (Contraseñas iniciales: cámbialas en Ajustes después de activar la seguridad)
+   Cuenta principal ....... usuario: strongmed   clave: (ver seguridad/LEEME_SEGURIDAD.txt)
+                            (ve StrongMed + Kin At Home y crea profesionales)
+   Cuenta Kin At Home ..... usuario: kinathome   clave: (ver seguridad/LEEME_SEGURIDAD.txt)
+                            (solo ve y crea personas en el Firebase de Kin At Home)
+   Dra. Nicole Escobar .... usuario: nicole      clave: (ver seguridad/LEEME_SEGURIDAD.txt)
+                            (odontología general: solo ve a sus pacientes; cámbiale
+                            la clave en Ajustes > Cambiar mi contraseña)
+   Profesionales nuevos ... se crean en Profesionales (desde la cuenta principal)
+   Personas ............... RUT + PIN de 4 dígitos, o "Crea tu cuenta"
+
+3) DÓNDE SE GUARDA CADA COSA
+   Firebase "kinathome-asesorias" (StrongMed)
+     evaluaciones/        personas de StrongMed
+     chats/{rut}/mensajes chat de personas StrongMed
+     profesionales/       cuentas de profesionales (usuario y clave)
+     agendas/             disponibilidad cada 30 min, centros (nombre y dirección),
+                          domicilio sí/no, online sí/no, link de pago, RUT de firma,
+                          link de videollamada (lo que ven las personas al agendar)
+     jornadas/            horas trabajadas por profesional y lugar
+     faq/                 conocimiento de KIN IA (respuestas y apuntes del equipo)
+   Firebase "kinathome--ficha-clinica" (Kin At Home)
+     evaluaciones/        personas de Kin At Home (nuevas y editadas)
+     patients/            pacientes de la app antigua (se leen y se migran al editarlos)
+     chats/{rut}/mensajes chat de personas Kin At Home
+
+   IMPORTANTE: en la consola de Firebase de Kin At Home, revisa que las reglas de
+   Firestore permitan leer y escribir "evaluaciones" y "chats" (antes solo se usaba
+   "patients"). Si no, esas personas no se guardarán.
+
+4) SEGURIDAD
+   - La carpeta "seguridad" (fuera de esta carpeta, NO se sube a GitHub) trae las
+     reglas y el paso a paso para que cada persona solo vea su ficha.
+   - Las contraseñas ya no están en el código. Los profesionales las cambian en
+     Ajustes > Cambiar mi contraseña.
+
+5) RESERVAS Y DESBLOQUEO
+   - "Agendar hora" en la pantalla inicial: la persona deja sus datos, elige
+     profesional, día y bloque (mañana/tarde). Se crea su perfil con clave =
+     primeros 4 dígitos del RUT y ve un comprobante "Hora por confirmar".
+   - Al confirmar la hora (Agenda > Solicitudes) la persona ve fecha, hora, lugar,
+     profesional y su perfil. Domicilio: marca "Pago recibido" antes de confirmar.
+   - Al marcar la sesión como Realizada eliges qué app le habilitas
+     (Rehabilitación, Entrenamiento o Mixto).
+   - Bloques: Mañana (AM) 08:00 a 12:00 · Tarde (PM) 13:00 a 19:00.
+   - Cada profesional agrega en Ajustes sus centros (nombre + dirección) y marca si
+     atiende a domicilio u online. Al agendar, la persona elige profesional y solo
+     ve los lugares de ese profesional. Equipo Kin At Home = solo domicilio.
+   - En Agenda > Disponibilidad se pinta cada media hora con el lugar.
+   - Agenda > Día muestra "Pacientes del día" con la hora de cada uno.
+   - El link de pago se configura en Ajustes. El de David ya viene cargado.
+
+6) VIDEOLLAMADAS
+   Por defecto se crea una sala gratuita en meet.jit.si. Jitsi puede pedir que el
+   profesional inicie sesión (Google/GitHub) para abrir la sala. Si prefieres,
+   pega tu link fijo de Google Meet o Zoom en Ajustes.
+   Al tocar "Finalizar llamada" la invitación desaparece y queda como finalizada.
+   (La app no puede detectar sola cuando cuelgas en Jitsi o Meet: usa ese botón.)
+
+6b) ODONTOLOGÍA GENERAL (Dra. Nicole Escobar)
+   - Al agendar, la persona elige primero el servicio: "Servicio de odontología general"
+     o "Servicio de kinesiología o entrenamiento". A la Dra. solo se agenda desde odontología.
+   - Tipos de cita: Evaluación, Control, Limpieza y Tratamientos.
+   - Toda hora de odontología pide pago previo ("Para confirmar tu hora debes registrar
+     el pago previo"). Se informa que la primera evaluación vale $20.000 e incluye
+     evaluación, limpieza y presupuesto; otros tratamientos sujetos a evaluación clínica. La Dra. pone su link de pago
+     en Ajustes (mientras no lo tenga, el paciente ve que ella se lo enviará).
+   - La Dra. solo ve a sus pacientes. Registra anamnesis, plan (sesiones), atenciones
+     y tareas o recomendaciones. Al marcar la primera atención como realizada, el
+     paciente queda habilitado y ve: Agenda, Tratamiento (sesiones restantes,
+     atenciones y tareas), Hoy y Mensajes.
+   - "Compartir" deja al paciente visible para kinesiología. El kine lo ve con la
+     derivación y puede habilitarle su app de kinesiología o entrenamiento.
+   - El lugar viene como "Consulta Dra. Nicole Escobar · Dirección por confirmar":
+     la Dra. lo cambia en Ajustes > centros.
+
+6c) KIN IA
+   - Reemplaza a Preguntas frecuentes. Responde dudas de entrenamiento con: una base
+     de 28 temas (series, descansos, RIR, cargas, cardio, pasos, dolor…), las
+     respuestas y apuntes que cargan los profesionales (KIN IA > Entrenar) y la
+     biblioteca de ejercicios ("ejercicios para glúteo").
+   - No es ChatGPT: busca en ese conocimiento. Si no encuentra nada responde
+     "No tengo la información requerida..." y ofrece escribirle al kinesiólogo.
+
+7) APP INSTALABLE Y SIN INTERNET
+   - Android (Chrome): aparece "Instalar la app" en el perfil y en el inicio de sesión.
+   - iPhone (Safari): Compartir > Agregar a pantalla de inicio (la app lo explica).
+   - Sin internet la app abre igual, muestra los datos ya descargados y guarda los
+     cambios en el teléfono. Al volver la conexión Firebase los sube solo.
+   - Para que funcione sin internet la persona debe haber abierto la app al menos
+     una vez con conexión en ese teléfono.
+
+8) PASOS, GPS Y COMPARTIR
+   - Pasos: cada persona define su meta (Hoy > Anotar pasos o Perfil > Mis medidas).
+     Una página web NO puede leer Google Fit, Samsung Health ni Salud de Apple, así
+     que los pasos se suman de tres formas: contador del teléfono (con la app
+     abierta), pasos estimados de cada trote/caminata con GPS, o anotando el total
+     que marca su reloj o app.
+   - Trote, caminata y bicicleta con GPS: se guarda la ruta, distancia, tiempo y
+     ritmo. La pantalla debe quedar encendida (la app la mantiene encendida):
+     con el teléfono bloqueado el navegador no registra el GPS.
+   - GPS y mapa 100 % gratuitos: la ruta se registra con el GPS del propio teléfono
+     y el mapa usa OpenStreetMap a través de CARTO (si falla, cambia solo a otro
+     servidor gratuito). No requiere claves ni pagos. Cada ruta tiene además un botón
+     gratuito para abrirla en Google Maps.
+   - Compartir: al guardar una actividad o rutina se crea una imagen para historias
+     con los logos de StrongMed y Kin At Home. En el historial está el botón Compartir.
+   - Rutinas: cualquier entrenamiento se puede "Guardar como rutina" para repetirlo
+     (Entrenar > Mis rutinas guardadas) y compartir por WhatsApp. Con la app
+     publicada en https, el mensaje trae un link para guardarla en otra cuenta.
+   - Saltos: Progreso > Saltos > Grabar salto (abre la cámara) o Elegir video.
+     Se marca el despegue y el aterrizaje cuadro a cuadro y calcula la altura.
+   - Medidas: la persona actualiza peso, talla, cintura y % grasa en su perfil; el
+     profesional las ve en el Resumen.
+
+8b) USO DE FIREBASE (cuenta strongmed)
+   - Inicio muestra el % usado hoy de la cuota gratuita y "Más > Uso de Firebase" el
+     detalle por proyecto: lecturas (50.000/día), escrituras (20.000/día), borrados
+     (20.000/día), datos guardados (1 GB) y los últimos 7 días.
+   - La cuota se renueva a medianoche de California (03:00 o 04:00 hora de Chile según
+     el horario de verano); la app muestra cuánto falta.
+   - Los números los cuenta la app y se guardan en la colección "uso". Para el número
+     oficial usa el botón "Ver en Firebase".
+   - Ahorro de lecturas: cada persona descarga solo su ficha (búsqueda por RUT) y la
+     app se resincroniza como máximo cada 5 minutos. Toca "Preparar base" una vez
+     (en Uso de Firebase) para que las fichas antiguas también se encuentren por RUT.
+   - Si varios días pasas del 70 %, cambia al plan Blaze (pago por uso) y pon una
+     alerta de presupuesto en Google Cloud.
+
+8c) ARMAR RUTINA POR MÚSCULOS
+   - Al crear una rutina (profesional en Rutinas, persona en "Crear mi rutina"):
+     "Armar por músculos" → eliges músculos, equipamiento, objetivo y cuántos ejercicios
+     por músculo → la app recomienda ejercicios de la biblioteca (con imagen,
+     explicación y animación), puedes cambiarlos o quitarlos y se agregan con series,
+     repeticiones, RIR y descanso según el objetivo.
+
+9) NOTIFICACIONES
+   Los avisos (rutina nueva, sesión agendada, videollamada) aparecen dentro de la app
+   y como notificación del teléfono cuando la app está abierta o se vuelve a abrir.
+   Para notificaciones con la app cerrada se necesita Firebase Cloud Messaging.
+
+Animaciones de ejercicios © Gym Visual (gymvisual.com). Revisa su licencia de uso.

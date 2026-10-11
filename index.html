@@ -14,8 +14,11 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js">
 <style>
 :root{
   --acc:#ccff33; --acc-ink:#0a0a0a;
@@ -456,6 +459,15 @@ header.top.row>div:first-child{flex:1 1 auto;max-width:100%}
 /* iPhone hace zoom al escribir si la letra es menor a 16px */
 @media (pointer:coarse){ .inp,input,select,textarea{font-size:16px} .setrow input{font-size:16px} }
 @media (max-width:380px){ .wrap{padding-left:12px;padding-right:12px} .card{padding:14px} .tab{font-size:10px} .gpsstats b{font-size:26px} .gpsstats .big b{font-size:34px} }
+/* ---- sensación táctil ---- */
+@keyframes swl{from{transform:translateX(42px);opacity:.35}to{transform:none;opacity:1}}
+@keyframes swr{from{transform:translateX(-42px);opacity:.35}to{transform:none;opacity:1}}
+main.wrap.swl{animation:swl .22s ease-out}main.wrap.swr{animation:swr .22s ease-out}
+html{overscroll-behavior-y:none}
+button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.li:active,.pcard:active,.gpsb:active,button.stat:active,button.card:active{transform:scale(.985);transition:transform .08s}
+.tab:active .icon{transform:scale(.88)}
+@media (hover:none){ .btn:hover,.li:hover{filter:none} }
 </style>
 </head>
 <body>
@@ -632,6 +644,8 @@ function dbName(ref){ const db=ref && (ref.firestore || ref.db || (ref.parent &&
 function usoAdd(proj, k, n){ if(!n) return; const P=USO.pend[proj]=USO.pend[proj]||{}; P[k]=(P[k]||0)+n; const H=USO.hoy[proj]=USO.hoy[proj]||{}; H[k]=(H[k]||0)+n; }
 function medirFB(F){
   const W={...F};
+  if(F.getDocFromCache) W.getDocFromCache = r => F.getDocFromCache(r);
+  if(F.getDocsFromCache) W.getDocsFromCache = q => F.getDocsFromCache(q);
   W.getDocs = async q => { const s=await F.getDocs(q); if(!(s.metadata&&s.metadata.fromCache)) usoAdd(dbName(q),'r',Math.max(1,s.size||0)); return s; };
   if(F.getDoc) W.getDoc = async r => { const s=await F.getDoc(r); if(!(s.metadata&&s.metadata.fromCache)) usoAdd(dbName(r),'r',1); return s; };
   W.setDoc = (r, ...a) => { usoAdd(dbName(r),'w',1); return F.setDoc(r, ...a); };
@@ -648,11 +662,12 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 window.addEventListener('pagehide', usoFlush);
 
 /* cargar solo la ficha de una persona (ahorra lecturas): busca por RUT y, si es una ficha antigua sin rutN, revisa toda la base */
-async function loadPersona(rut){
+async function loadPersona(rut, src){
   if(!(await initFB())){ toast('Sin conexión con la base de datos','err'); return false; }
   const r=normRut(rut), F=S.fb, out=[];
-  await Promise.all(['sm','kah'].map(async org=>{ try{ const sn=await F.getDocs(F.query(F.collection(S.dbs[org],'evaluaciones'), F.where('rutN','==',r))); sn.forEach(d=>{ const x=d.data(); if(x&&x.rut){ x.org=x.org||org; out.push(x); } }); }catch(e){ console.warn(e); } }));
+  await Promise.all(['sm','kah'].map(async org=>{ try{ const sn=await getQ(src, F.query(F.collection(S.dbs[org],'evaluaciones'), F.where('rutN','==',r))); sn.forEach(d=>{ const x=d.data(); if(x&&x.rut){ x.org=x.org||org; out.push(x); } }); }catch(e){ console.warn(e); } }));
   if(out.length){ S.all=out; return true; }
+  if(src==='cache') return false;
   try{ const s=await F.getDoc(F.doc(S.dbs.sm,'ajustes','base')); if(s.exists() && s.data().rutN){ S.all=[]; return true; } }catch(e){}
   const ok=await loadDB(['sm','kah']); if(ok) S.all=S.all.filter(p=>normRut(p.rut)===r); return ok;
 }
@@ -678,22 +693,24 @@ function fromLegacyKAH(x){
     tareasClinicas:(x.extras||[]).map(t=>({id:'x'+t.id, texto:t.desc?`${t.title}: ${t.desc}`:t.title, hecha:false})),
     diarios:[], rutinasAsignadas:[], checkins:[], citas:[], avisos:[] };
 }
-async function loadOrg(org){
+const getQ = (src, q) => src==='cache' && S.fb.getDocsFromCache ? S.fb.getDocsFromCache(q) : S.fb.getDocs(q);
+async function loadOrg(org, src){
   const F=S.fb, db=S.dbs[org], out=[];
-  const snap=await F.getDocs(F.collection(db,'evaluaciones'));
+  const snap=await getQ(src, F.collection(db,'evaluaciones'));
   snap.forEach(d=>{ const x=d.data(); if(x && x.rut){ x.org=x.org||org; out.push(x); } });
   if(org==='kah'){
-    try{ const ruts=new Set(out.map(x=>normRut(x.rut))); const ls=await F.getDocs(F.collection(db,'patients'));
+    try{ const ruts=new Set(out.map(x=>normRut(x.rut))); const ls=await getQ(src, F.collection(db,'patients'));
       ls.forEach(d=>{ const x=d.data(); if(x && x.rut && !ruts.has(normRut(x.rut))) out.push(fromLegacyKAH(x)); }); }
     catch(e){ console.warn('Sin colección antigua patients', e); }
   }
   return out;
 }
-async function loadDB(orgs){
+async function loadDB(orgs, src){
   if(!(await initFB())){ toast('Sin conexión con la base de datos','err'); return false; }
   orgs = orgs || visibleOrgs();
-  const res = await Promise.allSettled(orgs.map(loadOrg));
-  const all=[]; res.forEach((r,i)=>{ if(r.status==='fulfilled') all.push(...r.value); else { console.error(r.reason); toast(`No se pudo cargar ${ORGS[orgs[i]].label}`,'err'); } });
+  const res = await Promise.allSettled(orgs.map(o=>loadOrg(o, src)));
+  const all=[]; res.forEach((r,i)=>{ if(r.status==='fulfilled') all.push(...r.value); else if(src!=='cache'){ console.error(r.reason); toast(`No se pudo cargar ${ORGS[orgs[i]].label}`,'err'); } });
+  if(src==='cache' && !all.length) return false;
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
   else S.all = all; return true;
 }
@@ -871,6 +888,7 @@ async function rutExiste(rut){ const r=normRut(rut); for(const o of ['sm','kah']
 S.pinSync = new Set();
 async function syncPin(p){ if(S.role!=='pro' || !p || !p.rut || p.pin==null) return; const k=`${p.org||'sm'}|${normRut(p.rut)}|${p.pin}`; if(S.pinSync.has(k)) return; S.pinSync.add(k); await registrarRut(p.org, p.rut, p.pin, false); }
 /* profesionales */
+async function accesoDeCache(org, u){ try{ if(!S.fb.getDocFromCache) return false; const s=await S.fb.getDocFromCache(S.fb.doc(S.dbs[org],'acceso',proUser(u))); return s.exists() ? s.data() : false; }catch(e){ return false; } }
 async function accesoDe(org, u){ try{ const s=await S.fb.getDoc(S.fb.doc(S.dbs[org],'acceso',proUser(u))); return s.exists() ? s.data() : false; }catch(e){ return null; } } // null = sin permiso
 async function guardarAcceso(org, u, data){ return fsSet2(org, 'acceso', proUser(u), data); }
 async function fsSet2(org, coll, id, data, merge){ try{ return await fsWrite(S.fb.setDoc(S.fb.doc(S.dbs[org], coll, String(id)), JSON.parse(JSON.stringify(data)), merge?{merge:true}:{})); }catch(e){ console.error(e); return false; } }
@@ -962,7 +980,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
 function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); }
-window.logout = () => { stopChat(); salirAuth(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -1532,8 +1550,10 @@ window.loginPro = async e => { e.preventDefault(); const u=val('l-user').toLower
   const pro=await entrarPro(u, pw);
   if(!pro){ await salirAuth(); b.disabled=false; b.innerHTML=`Entrar al panel ${ic('chevr')}`; return toast('Usuario o contraseña incorrectos','err'); }
   await iniciarPro(pro); };
-async function iniciarPro(pro){ S.pro={...pro}; delete S.pro.h; if(pro.builtin){ try{ Object.assign(S.pro, JSON.parse(localStorage.getItem('sm_pro_'+pro.usuario))||{}); }catch(x){} }
-  S.role='pro'; await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(isAdmin() && S.pros.some(x=>x.clave)) borrarClavesAntiguas(); S.proTab='inicio'; render(); }
+async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.builtin){ try{ Object.assign(S.pro, JSON.parse(localStorage.getItem('sm_pro_'+pro.usuario))||{}); }catch(x){} }
+  S.role='pro';
+  if(rapido && await loadDB(null,'cache')){ S.proTab='inicio'; render(); S._lastSync=Date.now(); await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(S.role==='pro') softRender(); return; }
+  await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(isAdmin() && S.pros.some(x=>x.clave)) borrarClavesAntiguas(); S.proTab='inicio'; render(); }
 
 function shellPro(){
   const t=S.proTab, act=(t==='persona'||t==='evaluar'||t==='informe')?'personas':t;
@@ -2920,6 +2940,46 @@ window.prepararBase = async () => { const ps=people(); if(!confirm(`Se preparar�
   await borrarClavesAntiguas();
   if(await fsSet('ajustes','base',{rutN:true, fecha:todayISO()})){ S.baseLista=true; toast(`Base preparada: ${ps.length} personas`); render(); } };
 
+/* ================= NAVEGACIÓN TÁCTIL: botón Atrás del teléfono y deslizar entre pestañas ================= */
+S.navStack = [];
+const navSnap = () => S.role==='pat' ? {r:'pat', t:S.patTab} : S.role==='pro' ? {r:'pro', t:S.proTab, a:S.proArg, s:S.pSeg} : null;
+const navPush = () => { const c=navSnap(); if(!c) return; const l=S.navStack[S.navStack.length-1]; if(!l || JSON.stringify(l)!==JSON.stringify(c)) S.navStack.push(c); if(S.navStack.length>30) S.navStack.shift(); };
+let navSilencio=false;
+const _go=window.go, _pgo=window.pgo;
+window.go = tab => { if(!navSilencio && tab!==S.patTab) navPush(); _go(tab); };
+window.pgo = (t, arg) => { if(!navSilencio && (t!==S.proTab || arg!==undefined)) navPush(); _pgo(t, arg); };
+/* el botón Atrás: cierra la ventana abierta, vuelve a la pantalla anterior, y recién en Inicio pide confirmar para salir */
+let salirT=0;
+function navAtras(){
+  if($('#sheet')){ closeSheet(); return true; }
+  if(!S.role){ if(['reservar','signup','voucher'].includes(S.loginMode)){ S.loginMode='pat'; render(); return true; } return false; }
+  while(S.navStack.length){ const p=S.navStack.pop(); if(p.r!==S.role) continue;
+    navSilencio=true; try{ if(p.r==='pat') go(p.t); else { S.pSeg=p.s||S.pSeg; pgo(p.t, p.a); } } finally{ navSilencio=false; } return true; }
+  const home = S.role==='pat' ? 'hoy' : 'inicio';
+  if((S.role==='pat'?S.patTab:S.proTab)!==home){ navSilencio=true; try{ S.role==='pat'?go(home):pgo(home); } finally{ navSilencio=false; } return true; }
+  return false; }
+function navInit(){ try{ history.replaceState({sm:'base'}, ''); history.pushState({sm:'app'}, ''); }catch(e){} }
+window.addEventListener('popstate', e=>{
+  if(e.state && e.state.sm==='app') return;
+  if(navAtras()){ history.pushState({sm:'app'}, ''); return; }
+  if(Date.now()-salirT < 2200){ history.back(); return; }   // segundo Atrás: sale de la app
+  salirT=Date.now(); toast('Presiona Atrás otra vez para salir'); history.pushState({sm:'app'}, ''); });
+navInit();
+
+/* deslizar el dedo a la izquierda o derecha para cambiar de pestaña */
+const NO_SWIPE = '.pills,.dchips,.gpsmap,.leaflet-container,canvas,.chart,input,textarea,select,.dgrid,.mgrid,.jvwrap,.kbox,.setrow,.sheet,.tabbar,.week7,.rmres,.exl,[data-noswipe]';
+let tx=null;
+document.addEventListener('touchstart', e=>{ if(e.touches.length!==1 || !S.role || $('#sheet')) { tx=null; return; } const t=e.target; if(!t.closest || !t.closest('main.wrap') || t.closest(NO_SWIPE)){ tx=null; return; }
+  tx={x:e.touches[0].clientX, y:e.touches[0].clientY, t:Date.now()}; }, {passive:true});
+document.addEventListener('touchend', e=>{ if(!tx) return; const c=e.changedTouches[0], dx=c.clientX-tx.x, dy=c.clientY-tx.y, dt=Date.now()-tx.t; tx=null;
+  if(Math.abs(dx)<70 || Math.abs(dy)>Math.abs(dx)*0.6 || dt>700) return;
+  const tabs=[...document.querySelectorAll('.tabbar .tab')].map(b=>{ const m=/go\('([a-z]+)'/.exec(b.getAttribute('onclick')||''); return m && m[1]; }).filter(k=>k && k!=='nueva');
+  const cur = S.role==='pat' ? S.patTab : (S.proTab==='persona'||S.proTab==='evaluar'||S.proTab==='informe' ? 'personas' : S.proTab);
+  const i=tabs.indexOf(cur); if(i<0) return; const j=i+(dx<0?1:-1); if(j<0 || j>=tabs.length) return;
+  if(S.role==='pat') go(tabs[j]); else pgo(tabs[j]);
+  const m=$('main.wrap'); if(m){ m.classList.remove('fade'); m.classList.add(dx<0?'swl':'swr'); }
+  try{ navigator.vibrate && navigator.vibrate(8); }catch(x){} }, {passive:true});
+
 /* ================= SESIÓN Y ARRANQUE ================= */
 const _origRender = render;
 function saveSession(){ try{ if(S.role==='pat' && S.me) localStorage.setItem('sm_session', JSON.stringify({role:'pat', key:S.me}));
@@ -2933,9 +2993,10 @@ async function boot(){
   $('#app').innerHTML = `<div class="login"><div class="login-in center"><div class="row" style="justify-content:center;gap:8px">${logoSM('l')}${logoKAH('l')}</div><p class="muted sm" style="margin-top:14px">Cargando…</p></div></div>`;
   if(!(await initFB())){ if(!navigator.onLine){ $('#app').innerHTML=`<div class="login"><div class="login-in center stack"><div class="row" style="justify-content:center;gap:8px">${logoSM('l')}${logoKAH('l')}</div><p class="muted sm">Sin conexión. Conéctate a internet una vez para terminar de instalar la app.</p><button class="btn pri" onclick="location.reload()">Reintentar</button></div></div>`; return; } localStorage.removeItem('sm_session'); render(); return; }
   try{
-    if(s.role==='pat'){ await loadPersona(splitKey(s.key).rut); if(prof(s.key)){ S.role='pat'; S.me=s.key; S.patTab='hoy'; afterPatLogin(); return; } }
+    if(s.role==='pat'){ const rut=splitKey(s.key).rut; if(await loadPersona(rut,'cache') && prof(s.key)){ S.role='pat'; S.me=s.key; S.patTab='hoy'; S._lastSync=Date.now(); afterPatLogin(); return; }
+      await loadPersona(rut); if(prof(s.key)){ S.role='pat'; S.me=s.key; S.patTab='hoy'; afterPatLogin(); return; } }
     if(s.role==='pro' && s.usuario){ const u=proUser(s.usuario), cu=S.auth?.sm?.currentUser;
-      if(!cu || String(cu.email||'').startsWith(u+'.')){ const acc=await accesoDe('sm', u); if(acc && acc.activo!==false){ await iniciarPro(acc); return; } } }
+      if(!cu || String(cu.email||'').startsWith(u+'.')){ const acc=(await accesoDeCache('sm', u)) || (await accesoDe('sm', u)); if(acc && acc.activo!==false){ await iniciarPro(acc, true); return; } } }
   }catch(e){ console.error(e); }
   localStorage.removeItem('sm_session'); S.role=null; render();
 }

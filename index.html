@@ -970,19 +970,20 @@ function vSignup(){
         <button type="button" class="pcard ${org==='sm'?'on':''}" onclick="S.suOrg='sm';keepSU()">${logoSM()}<b>StrongMed</b><small>Kine y entrenamiento</small></button>
         <button type="button" class="pcard ${org==='kah'?'on':''}" onclick="S.suOrg='kah';keepSU()">${logoKAH()}<b>Kin At Home</b><small>Kine a domicilio</small></button></div></div>
       <div class="grid2"><label class="field"><span class="lbl">Crea tu PIN (4 dígitos) *</span><input class="inp pin" id="su-p" type="password" inputmode="numeric" maxlength="4" required></label><label class="field"><span class="lbl">Repite el PIN *</span><input class="inp pin" id="su-p2" type="password" inputmode="numeric" maxlength="4" required></label></div>
-      <label class="check"><input type="checkbox" id="su-ok" required><span>Acepto que mis datos de salud sean usados por el equipo profesional solo para mi atención y seguimiento.</span></label>
+      ${consentLabel('su-ok')}
       <button class="btn pri block" id="su-btn">Crear mi cuenta</button></form>
   </div></div>`;
 }
 window.keepSU = () => { const k={}; ['su-n','su-r','su-e','su-t','su-m'].forEach(i=>k[i]=val(i)); render(); Object.entries(k).forEach(([i,v])=>{ const e=document.getElementById(i); if(e) e.value=v; }); };
 window.crearCuenta = async e => { e.preventDefault();
   const pin=val('su-p'); if(!/^\d{4}$/.test(pin)) return toast('El PIN debe tener 4 números','err'); if(pin!==val('su-p2')) return toast('Los PIN no coinciden','err');
+  if(!$('#su-ok').checked) return toast('Debes aceptar el consentimiento informado','err');
   const b=$('#su-btn'); b.disabled=true; b.textContent='Creando…';
   const rut=val('su-r').replace(/\s+/g,''); await loadPersona(rut);
   const org=S.suOrg||'sm'; await entrarPaciente(rut, pin);
   if(people().some(p=>normRut(p.rut)===normRut(rut)) || await rutExiste(rut) || !(await registrarRut(org, rut, pin, true))){ b.disabled=false; b.textContent='Crear mi cuenta'; return toast('Ya existe una cuenta con ese RUT. Ingresa con tu PIN','err'); }
   const p={id:Date.now(), org, marca: org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'persona', fecha:todayISO(), nombre:val('su-n'), rut, pin, contacto:val('su-t'), email:val('su-m'), edad:val('su-e'),
-    perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:new Date().toISOString()};
+    perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:consentNuevo()};
   addAviso(p,'bienvenida','¡Bienvenido/a! Completa tu ficha inicial y agenda tu primera sesión.');
   if(!(await save(p))){ b.disabled=false; b.textContent='Crear mi cuenta'; return; }
   S.role='pat'; S.me=keyOf(p); S.patTab='hoy'; toast('Cuenta creada'); afterPatLogin(); };
@@ -991,8 +992,8 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); }
-window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
+window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -1072,7 +1073,8 @@ function citaHTML(c, opts={}){ const d=toISO(c.fecha)?parseISO(toISO(c.fecha)):n
 function proximaCitaCard(p){ const c=proximasCitas(p)[0];
   if(!c) return `<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una sesión</button>`;
   return `<section class="card stack"><div class="row between"><span class="eyebrow">Tu próxima sesión</span><button class="xs b acc-t" onclick="go('agenda')">Ver agenda</button></div>${citaHTML(c,{right: c.lugar==='Online'&&c.link&&c.estado==='confirmada'?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''})}${pagoBox(c,true)}<button class="btn sec sm" onclick="sheetSolicitar()">${ic('plus','s')} Agendar otra sesión</button></section>`; }
-function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes</div><div class="xs muted">Escríbele a ${esc(oralPro(p))}</div></div>${ic('chevr','s chev')}</div></button>`; return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes con tu kine</div><div class="xs muted">${esc(p.klgo||'Tu profesional')} · escríbele tus dudas</div></div>${ic('chevr','s chev')}</div></button>`; }
+function waPro(p){ const c=proximasCitas(p)[0], ag=agendaOf(c?.proId) || (S.agendas||[]).find(a=>a.nombre===p.klgo) || agendaOf(p.org==='kah'?'b-kah':'b-sm'); const l=ag&&waLink(ag.whatsapp, `Hola, soy ${p.nombre}. `); return l?`<a class="ibtn" href="${l}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="WhatsApp">${ic('phone','s')}</a>`:''; }
+function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes</div><div class="xs muted">Escríbele a ${esc(oralPro(p))}</div></div>${ic('chevr','s chev')}</div></button>`; return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes con tu kine</div><div class="xs muted">${esc(p.klgo||'Tu profesional')} · escríbele tus dudas</div></div>${waPro(p)}${ic('chevr','s chev')}</div></button>`; }
 
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
@@ -1433,6 +1435,7 @@ function vPerfil(p){
     ${soloOral(p)?'':`<button class="li" onclick="go('ficha')"><span class="ico">${ic('clip','s')}</span><span class="grow">${p.anamnesis?'Actualizar':'Completar'} cuestionario inicial</span>${ic('chevr','s chev')}</button>`}
     ${!isPending(p)&&!soloOral(p)?`<button class="li" onclick="S.planSeg='fichas';go('plan')"><span class="ico">${ic('file','s')}</span><span class="grow">Mis fichas y evaluaciones</span>${ic('chevr','s chev')}</button>
 `:''}
+    <button class="li" onclick="verConsentimiento()"><span class="ico">${ic('shield','s')}</span><span class="grow">Consentimiento informado y condiciones</span>${ic('chevr','s chev')}</button>
     ${soloOral(p)?'':`<button class="li" onclick="go('faq')"><span class="ico">${ic('spark','s')}</span><span class="grow">KIN IA · pregúntale sobre tu entrenamiento</span>${ic('chevr','s chev')}</button>`}</div>
   <div class="sec-t"><h2>Ajustes</h2></div>
   ${'Notification' in window ? `<div class="list"><button class="li" onclick="pedirNotis()"><span class="ico">${ic('bell','s')}</span><span class="grow">Notificaciones en este teléfono</span><span class="xs b ${Notification.permission==='granted'?'acc-t':'muted'}">${Notification.permission==='granted'?'Activadas':'Activar'}</span></button></div>`:''}
@@ -1734,7 +1737,7 @@ function vPersona(){
   const bodies={resumen:pResumen, rutinas:pRutinas, clinico:pClinico, agenda:pAgenda, progreso:pProgreso};
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Personas</button></header><div class="stack">
   <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}${orgChip(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.deporte?`<span class="badge">${esc(p.deporte)}</span>`:''}</div></div></div>
-    <div style="margin-top:12px">${brands(p.marca)}</div>
+    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}</div>
     ${videoOn(p)?`<div class="aviso red" style="margin-top:12px"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b sm">Videollamada en curso</div><div class="xs muted">Desde ${relTs(p.videoActiva.ts)}</div></div><a class="btn sec sm" href="${safeUrl(p.videoActiva.url)}" target="_blank" rel="noopener">Entrar</a><button class="btn danger sm" onclick="finalizarVideo(${q(k)})">Finalizar</button></div>`:''}
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button>${videoOn(p)?`<button class="btn danger sm" onclick="finalizarVideo(${q(k)})">${ic('video','s')} Finalizar llamada</button>`:`<button class="btn sec sm" onclick="iniciarVideo(${q(k)})">${ic('video','s')} Videollamada</button>`}<button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn sec sm" onclick="pgo('informe',${q(k)})">${ic('file','s')} Informe</button>${!isPending(p)?`<button class="btn pri sm" onclick="S.evMode='${per==='entrenamiento'?'funcional':'kinesica'}';pgo('evaluar',${q(k)})">${ic('steth','s')} Evaluar</button>`:''}</div></section>
   ${isPending(p)?`<section class="card pend stack"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">${hasConfirmed(p)?'Hora confirmada · primer desbloqueo':p.creadoPor==='reserva'?'Reservó sin cuenta':'Cuenta creada por la persona'}</div><p class="sm muted" style="margin-top:4px">${hasConfirmed(p)?'Ve su hora, lugar, profesional y su perfil. Cuando marques la sesión como realizada podrás habilitar su app completa.':'Hoy solo puede usar chat, pasos, su ficha inicial y solicitar horas. Confirma su hora o habilítala directamente.'}</p>${p.motivoConsulta?`<p class="sm" style="margin-top:6px"><b>Motivo:</b> ${esc(p.motivoConsulta)}</p>`:''}</div></div><button class="btn pri block" onclick="sheetHabilitar()">${ic('shield','s')} Habilitar perfil completo</button></section>`:''}
@@ -1899,6 +1902,7 @@ window.sheetAgendaBuiltin = id => { const ag=agendaOf(id);
   sheet(`<h2 class="disp h2">${esc(ag.nombre)}</h2><div class="stack" style="margin-top:16px">${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(id)})">Guardar</button></div>`); };
 const agendaFields = ag => `<label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
   <div class="grid2"><label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="ag-r" value="${esc(ag.rut||'')}"></label><label class="field"><span class="lbl">Link de pago</span><input class="inp" id="ag-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label></div>
+  <label class="field"><span class="lbl">WhatsApp para pacientes (opcional)</span><input class="inp" id="ag-w" inputmode="tel" value="${esc(ag.whatsapp||'')}" placeholder="+56 9 …"></label>
   <label class="field"><span class="lbl">Link fijo de videollamada (opcional)</span><input class="inp" id="ag-v" value="${esc(ag.linkVideo||'')}" placeholder="https://meet.google.com/… (vacío = sala Jitsi nueva)"></label>
   <label class="field"><span class="lbl">Pie del informe (dirección · correo · teléfono)</span><input class="inp" id="ag-c" value="${esc(ag.contacto||'')}" placeholder="Concepción · contacto@… · +569…"></label>
   <div class="lbl" style="margin-top:4px">Lugares de atención</div><div id="ag-cen" class="stack" style="gap:8px">${(ag.centros||[]).map(c=>cenRow(c)).join('')}</div>
@@ -1911,7 +1915,7 @@ window.cenRow = cenRow;
 window.guardarAgendaCampos = async id => { const ag={...(agendaOf(id)||myAgenda())};
   for(const [k,f] of [['pagoLink','ag-pg'],['linkVideo','ag-v']]){ const v=val(f); if(v && !/^https?:\/\//.test(v)) return toast('Los links deben empezar con https://','err'); ag[k]=v; }
   const centros=[...document.querySelectorAll('.cenrow')].map(e=>({id:e.dataset.id||('c'+uid().toString(36)), nombre:e.querySelector('.c-n').value.trim(), direccion:e.querySelector('.c-d').value.trim()})).filter(c=>c.nombre);
-  Object.assign(ag,{titulo:val('ag-t'), rut:val('ag-r'), contacto:val('ag-c'), disponible:$('#ag-d').checked, centros, domicilio:$('#ag-dom').checked, online:$('#ag-onl').checked});
+  Object.assign(ag,{whatsapp:val('ag-w'), titulo:val('ag-t'), rut:val('ag-r'), contacto:val('ag-c'), disponible:$('#ag-d').checked, centros, domicilio:$('#ag-dom').checked, online:$('#ag-onl').checked});
   if(await saveAgenda(ag)){ closeSheet(); toast('Guardado'); render(); } };
 window.guardarPro = async id => { const u=proUser(val('pr-u')), c=$('#pr-c').value, n=val('pr-n'); if(!n||!u) return toast('Completa nombre y usuario (solo letras, números, - o _)','err'); if((!id || c) && c.length<8) return toast('La contraseña debe tener al menos 8 caracteres','err');
   if([...BUILTIN_PROS,...S.pros].some(x=>String(x.usuario).toLowerCase()===u && x.id!==id)) return toast('Ese usuario ya existe','err');
@@ -2119,7 +2123,7 @@ const HALF = (()=>{ const a=[]; for(let h=7;h<=21;h++) for(const m of ['00','30'
 const BUILTIN_AGENDAS = [
   {id:'b-sm',  nombre:'Klgo. David Ponce Caro', titulo:'Kinesiólogo', orgs:['sm','kah'], disponible:true, pagoLink:'https://mpago.la/2YVPwtT', rut:'20.239.475-2', slots:{}, bloqueos:[],
    centros:[{id:'fisiomet', nombre:'FISIOMET', direccion:'Concepción'},{id:'mdkine', nombre:'MDkine', direccion:'Nonguén 248, Camino Lo Pequén, Concepción'}], domicilio:true, online:true},
-  {id:'b-kah', nombre:'Equipo Kin At Home', titulo:'Kinesiología a domicilio', orgs:['kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[], centros:[], domicilio:true, online:false},
+  {id:'b-kah', nombre:'Equipo Kin At Home', titulo:'Kinesiología a domicilio', whatsapp:'+56 9 4947 2456', orgs:['kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[], centros:[], domicilio:true, online:false},
   {id:'b-oral', nombre:'Dra. Nicole Escobar', titulo:'Odontología general', servicio:'oral', orgs:['sm','kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[],
    centros:[{id:'consulta-nicole', nombre:'Consulta Dra. Nicole Escobar', direccion:'Dirección por confirmar'}], domicilio:false, online:false}
 ];
@@ -2214,7 +2218,7 @@ function vReservar(){
     <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="rs-r" placeholder="12345678-9"></label><label class="field"><span class="lbl">Edad</span><input class="inp" id="rs-e" inputmode="numeric"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Teléfono *</span><input class="inp" id="rs-t" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="rs-m" type="email"></label></div></div>
   <div class="card stack"><div class="eyebrow">3 · Tu hora</div><div id="bk-dyn" class="stack">${S.agendas.length?bookingDyn():'<div class="empty">Cargando profesionales…</div>'}</div>${bkExtra()}</div>
-  <label class="check"><input type="checkbox" id="rs-ok"><span>Acepto que mis datos de salud sean usados por el equipo profesional solo para mi atención.</span></label>
+  ${consentLabel('rs-ok')}
   <button class="btn pri block" id="rs-btn" onclick="reservar()">Solicitar hora</button>
   <p class="xs muted center">¿Ya tienes cuenta? <button class="b acc-t" onclick="S.loginMode='pat';render()">Ingresa aquí</button></p></div></div>`;
 }
@@ -2223,14 +2227,14 @@ window.rsOrg = o => { const k={}; RS_IDS.forEach(i=>k[i]=val(i)); S.bk.org=o; S.
 window.rsServ = v => { const k={}; RS_IDS.forEach(i=>k[i]=val(i)); S.bk.serv=v; S.bk.proId=null; if(v==='oral') S.bk.org='sm'; render(); Object.entries(k).forEach(([i,v])=>{ const e=document.getElementById(i); if(e&&v) e.value=v; }); };
 window.reservar = async () => {
   const nombre=val('rs-n'), rut=fmtRut(val('rs-r')), tel=val('rs-t');
-  if(!nombre||rut.length<3||!tel) return toast('Completa nombre, RUT y teléfono','err'); if(!$('#rs-ok').checked) return toast('Debes aceptar el uso de tus datos','err');
+  if(!nombre||rut.length<3||!tel) return toast('Completa nombre, RUT y teléfono','err'); if(!$('#rs-ok').checked) return toast('Debes aceptar el consentimiento informado','err');
   const b=$('#rs-btn'); b.disabled=true; b.textContent='Enviando…';
   const pin=pinDeRut(rut)||'0000'; await entrarPaciente(rut, pin);
   if(await rutExiste(rut)){ b.disabled=false; b.textContent='Solicitar hora'; toast('Ya tienes una cuenta con ese RUT. Ingresa para agendar.','err'); S.loginMode='pat'; return render(); }
   await loadPersona(rut);
   if(people().some(p=>normRut(p.rut)===normRut(rut))){ b.disabled=false; b.textContent='Solicitar hora'; toast('Ya tienes una cuenta con ese RUT. Ingresa para agendar.','err'); S.loginMode='pat'; return render(); }
   const p={id:Date.now(), org:S.bk.org, marca:S.bk.org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'reserva', ...(S.bk.serv==='oral'?{servicio:'oral', oral:{proId:S.bk.proId, atenciones:[], tareas:[]}}:{}), fecha:todayISO(), nombre, rut, pin, contacto:tel, email:val('rs-m'), edad:val('rs-e'),
-    perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:new Date().toISOString()};
+    perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:consentNuevo()};
   if(+p.edad && +p.edad<10) p.kids=true;
   const c=buildCita(p); if(!c){ b.disabled=false; b.textContent='Solicitar hora'; return; }
   if(!(await registrarRut(p.org, rut, pin, true))){ b.disabled=false; b.textContent='Solicitar hora'; return toast('Ya existe una cuenta con ese RUT. Ingresa para agendar.','err'); }
@@ -2285,7 +2289,7 @@ function agDia(a){
   ${d!==todayISO()?`<button class="btn ghost sm" onclick="S.agDate='${todayISO()}';render()">Ir a hoy</button>`:''}
   ${jor.length?`<div class="list">${jor.map(j=>`<div class="li"><span class="ico">${ic('clock','s')}</span><div class="grow"><div class="b sm">Jornada en ${esc(j.lugar)}</div><div class="xs muted">${esc(j.inicio)} – ${esc(j.termino)} · ${(+j.horas||0).toFixed(1)} h${j.tipo?` · ${esc(j.tipo)}`:''}</div></div></div>`).join('')}</div>`:''}
   <div class="sec-t"><h2>Pacientes del día (${conHora.length})</h2></div>
-  ${conHora.length?`<div class="list">${conHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})"><div class="tbig" style="color:${lugarCol(c.lugar)}">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div><div class="xs b st-${c.estado}">${c.estado==='realizada'?'Realizada':'Confirmada'}${pagoPend(c)?' · pago pendiente':''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora este día.</div>`}
+  ${conHora.length?`<div class="list">${conHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})"><div class="tbig" style="color:${lugarCol(c.lugar)}">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div><div class="xs b st-${c.estado}">${c.estado==='realizada'?'Realizada':'Confirmada'}${pagoPend(c)?' · pago pendiente':''}</div></div>${c.estado==='confirmada'?waBtn(p,c,'recordatorio','ibtn',''):''}${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora este día.</div>`}
   ${sinHora.length?`<div class="sec-t"><h2>Solicitudes por asignar hora</h2></div><div class="list">${sinHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})">${citaHTML(c,{who:p.nombre})}</button>`).join('')}</div>`:''}
   <div class="card tight" style="padding:6px 10px">${hs.map(h=>{ const cc=byH[h]; const l=slH[h];
     return `<div class="slot"><span class="sh">${h}</span><div class="grow">${cc?cc.map(({c,p})=>`<button class="scita" style="--c:${lugarCol(c.lugar)}" onclick="sheetCita(${q(keyOf(p))},${c.id})"><b>${esc(c.hora)} · ${esc(p.nombre)}</b><span>${esc(c.tipo)} · ${esc(lugarLabel(c))}${pagoPend(c)?' · pago pendiente':''}</span></button>`).join('')
@@ -2304,7 +2308,7 @@ function agMes(a){
 }
 function horasResumen(jor, nCitas){ const by={}; jor.forEach(j=>by[j.lugar]=(by[j.lugar]||0)+(+j.horas||0)); const tot=Object.values(by).reduce((a,b)=>a+b,0);
   return `<div class="grid4"><div class="stat acc"><b>${tot.toFixed(1)}</b><span>Horas trabajadas</span></div><div class="stat"><b>${nCitas}</b><span>Citas del mes</span></div>${Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([l,v])=>`<div class="stat"><b>${v.toFixed(1)}</b><span>${esc(l)}</span></div>`).join('')}</div>`; }
-function agSolicitudes(sol){ return sol.length ? `<div class="list">${sol.map(({c,p})=>`<div class="li">${citaHTML(c,{who:p.nombre, right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>` : `<div class="card empty">No hay solicitudes pendientes.</div>`; }
+function agSolicitudes(sol){ return sol.length ? `<div class="list">${sol.map(({c,p})=>`<div class="li">${citaHTML(c,{who:p.nombre, right:`<div class="stack" style="gap:6px"><button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>${waBtn(p,c,'confirmar','btn sec sm','WhatsApp')}</div>`})}</div>`).join('')}</div>` : `<div class="card empty">No hay solicitudes pendientes.</div>`; }
 
 /* disponibilidad: grilla semanal cada 30 minutos */
 function agDisp(a){
@@ -2367,6 +2371,7 @@ window.sheetCita = (k, id, preset={}) => {
   <label class="field"><span class="lbl">Dirección / indicaciones</span><input class="inp" id="ci-n" value="${esc(c?.direccion||c?.notaPro||p?.direccion||'')}" placeholder="Dirección del domicilio, box, qué traer…"></label>
   ${c?.pago?.requerido?`<div class="card tight stack"><div class="row between"><span class="b sm">Pago previo${c.servicio==='oral'?'':' (domicilio)'}</span><span class="badge ${c.pago.estado==='pagado'?'acc':'mixto'}">${c.pago.estado==='pagado'?'Pagado':c.pago.estado==='informado'?'Persona informó pago':'Pendiente'}</span></div><label class="check"><input type="checkbox" id="ci-pg" ${c.pago.estado==='pagado'?'checked':''}><span>Pago recibido</span></label></div>`:''}
   ${c&&c.link?`<a class="btn sec block" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')} Abrir sala de videollamada</a>`:''}
+  ${p&&c&&waNum(p.contacto)?`<div class="card tight stack"><div class="xs b muted">Si no responde en la app, escríbele por WhatsApp</div><div class="row" style="gap:6px;flex-wrap:wrap">${c.estado==='solicitada'?waBtn(p,c,'confirmar','btn sec sm','Confirmar'):waBtn(p,c,'recordatorio','btn sec sm','Recordatorio')}${pagoPend(c)?waBtn(p,c,'pago','btn sec sm','Cobrar pago'):''}${waBtn(p,null,'','btn ghost sm','Mensaje libre')}</div></div>`:''}
   <button class="btn pri block" onclick="guardarCita(${c?c.id:0})">${c?(c.estado==='solicitada'?'Confirmar hora':'Guardar cambios'):'Agendar y avisar'}</button>
   ${c&&c.estado!=='cancelada'&&c.estado!=='solicitada'?`<div class="grid2"><button class="btn sec" onclick="estadoCita(${c.id},'realizada')">${ic('check','s')} Realizada</button><button class="btn danger" onclick="estadoCita(${c.id},'cancelada')">${ic('x','s')} Cancelar</button></div>`:''}
   ${c&&c.estado==='solicitada'?`<button class="btn danger block" onclick="estadoCita(${c.id},'cancelada')">${ic('x','s')} Rechazar solicitud</button>`:''}</div>`);
@@ -2785,7 +2790,7 @@ window.crearOral = async () => { const nombre=val('no-n'), rut=fmtRut(val('no-r'
   if(ex){ toast('Ese RUT ya existe en la base de datos. Pide que te compartan a la persona o agenda su hora.','err'); return; }
   const pin=val('no-pin')||pinDeRut(rut)||'0000';
   const p={id:Date.now(), org:'sm', marca:'sm', servicio:'oral', estado:'activo', perfil:'oral', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:val('no-t'), email:val('no-m'), edad:val('no-e'), klgo:S.pro.nombre,
-    oral:{proId:S.pro.id, plan:{tratamiento:val('no-tr'), sesiones:+val('no-s')||''}, atenciones:[], tareas:[]}, diarios:[], citas:[], avisos:[], consentimiento:new Date().toISOString()};
+    oral:{proId:S.pro.id, plan:{tratamiento:val('no-tr'), sesiones:+val('no-s')||''}, atenciones:[], tareas:[]}, diarios:[], citas:[], avisos:[], consentimiento:null};
   addAviso(p,'bienvenida',`Bienvenido/a. Aquí verás tu tratamiento con ${S.pro.nombre}.`);
   if(await save(p)){ toast(`${first(nombre)} creado · clave ${pin}`); openPersona(keyOf(p)); } };
 
@@ -2795,7 +2800,7 @@ function vPersonaOral(p, k){
     : seg==='tareas' ? `<section class="card stack"><div class="seg" id="ot-t"><button class="${S.otTipo!=='recomendacion'?'on':''}" onclick="S.otTipo='tarea';keepScroll(render)">Tarea</button><button class="${S.otTipo==='recomendacion'?'on':''}" onclick="S.otTipo='recomendacion';keepScroll(render)">Recomendación</button></div><textarea class="inp" id="ot-x" placeholder="${S.otTipo==='recomendacion'?'Ej: evitar alimentos duros por 48 horas':'Ej: cepillado con técnica de Bass 3 veces al día'}"></textarea><button class="btn pri block" onclick="oralAddTarea()">Agregar y avisar</button></section>${oralTareasList(p,false)}`
     : seg==='agenda' ? pAgenda(p) : oralResumen(p);
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Pacientes</button></header><div class="stack">
-  <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.compartido?`<span class="badge acc">${ic('users','s')} Compartido con kinesiología</span>`:''}</div></div></div>
+  <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.compartido?`<span class="badge acc">${ic('users','s')} Compartido con kinesiología</span>`:''}${consentPro(p)}</div></div></div>
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button><button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn ${p.compartido?'sec':'pri'} sm" onclick="sheetCompartir()">${ic('users','s')} ${p.compartido?'Compartido':'Compartir'}</button></div></section>
   ${isPending(p)?`<section class="card pend stack"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">${p.creadoPor==='reserva'?'Reservó sin cuenta':'Por habilitar'}</div><p class="sm muted" style="margin-top:4px">Confirma su hora en Agenda. Cuando marques la atención como realizada se habilita su app de tratamiento.</p>${p.motivoConsulta?`<p class="sm" style="margin-top:6px"><b>Motivo:</b> ${esc(p.motivoConsulta)}</p>`:''}</div></div><button class="btn pri block" onclick="habilitarOral()">${ic('shield','s')} Habilitar ahora</button></section>`:''}
   <div class="seg">${[['resumen','Resumen'],['anamnesis','Anamnesis'],['atenciones','Atenciones'],['tareas','Tareas'],['agenda','Agenda']].map(([kk,l])=>`<button class="${seg===kk?'on':''}" onclick="S.pSeg='${kk}';render()">${l}</button>`).join('')}</div>
@@ -3113,6 +3118,67 @@ window.contestarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.re
   cerrarNotiLlamada(); window.open(p.videoActiva.url, '_blank', 'noopener'); };
 window.rechazarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.remove(); if(!p||!p.videoActiva) return; try{ localStorage.setItem(llamadaKey(p), String(p.videoActiva.ts)); }catch(e){} cerrarNotiLlamada(); toast('Llamada rechazada. Puedes escribirle por Mensajes.'); };
 async function cerrarNotiLlamada(){ try{ const reg=await navigator.serviceWorker?.ready; const ns=await reg?.getNotifications({tag:'llamada'}); (ns||[]).forEach(n=>n.close()); }catch(e){} }
+
+/* ================= CONSENTIMIENTO INFORMADO Y CONDICIONES DEL SERVICIO ================= */
+const CONSENT_V = '1.0', CONSENT_FECHA = '11 de octubre de 2026';
+const CONSENT = [
+ ['1. Para qué se usa tu información', [
+  'Los datos que entregas (identificación, contacto, antecedentes de salud, evaluaciones, sesiones, entrenamientos, mensajes, fotos y registros de actividad) se usan única y exclusivamente para dejar registro de tus atenciones y hacer el seguimiento de tu tratamiento o entrenamiento.',
+  'Solo acceden a ellos los profesionales de StrongMed y Kin At Home que te atienden y, en el servicio de odontología general, la profesional tratante. Si un profesional comparte tu ficha con otro integrante del equipo, es solo para coordinar tu atención.',
+  'Tu información no se vende ni se comparte con terceros sin tu autorización, salvo cuando la ley lo exija.',
+  'Puedes pedir en cualquier momento ver, corregir o actualizar tus datos. Los registros clínicos se conservan según exige la normativa chilena vigente.']],
+ ['2. Información fidedigna', [
+  'Me comprometo a entregar información verdadera y completa sobre mi estado de salud, sin ocultar enfermedades, lesiones, cirugías, embarazo, medicamentos, síntomas ni ningún otro problema médico que pueda impedir o contraindicar la realización de ejercicios o tratamientos.',
+  'Si mi estado de salud cambia, avisaré a mi profesional antes de la siguiente sesión.',
+  'Entiendo que ocultar o falsear información puede poner en riesgo mi salud y que, en ese caso, la responsabilidad por las consecuencias es mía.']],
+ ['3. Ejercicio y tratamiento', [
+  'Entiendo que el ejercicio físico y los tratamientos kinésicos u odontológicos pueden producir molestias esperables, como dolor muscular o cansancio, que normalmente son transitorios.',
+  'Me comprometo a seguir las indicaciones del profesional y a avisar de inmediato si siento dolor intenso, mareo, falta de aire, dolor en el pecho o cualquier síntoma inusual, durante o después de la sesión.',
+  'Puedo detener cualquier ejercicio o tratamiento cuando lo estime necesario.',
+  'Las rutinas, recomendaciones y respuestas de la app (incluida KIN IA) son un apoyo y no reemplazan la evaluación presencial de un profesional de la salud.']],
+ ['4. Vigencia de los servicios', [
+  'Cada servicio o plan de sesiones tiene una fecha de expiración que te informará tu profesional. Las sesiones no realizadas dentro de ese plazo se pierden.',
+  'La vigencia solo se extiende por causas imposibilitantes y justificadas, como un accidente, un problema médico imprevisto o vacaciones informadas con anticipación, previa conversación con el profesional.']],
+ ['5. Reagendamiento y cancelaciones', [
+  'Para cambiar una hora debes conversarlo con tu profesional; el nuevo horario queda sujeto a su disponibilidad y factibilidad.',
+  'Los cambios y cancelaciones deben avisarse con al menos 12 horas de anticipación.',
+  'Si no avisas con ese plazo o no asistes, la sesión se considera realizada y no habrá reembolso ni recuperación de la sesión, salvo una causa imposibilitante justificada.']],
+ ['6. Pagos', [
+  'Las atenciones a domicilio y del servicio de odontología general requieren pago previo para confirmar la hora.',
+  'Los valores, planes y medios de pago te los informa cada profesional antes de la atención.']],
+ ['7. Videollamadas y comunicación', [
+  'Las sesiones online se realizan por videollamada. Procura estar en un lugar privado, seguro y con espacio suficiente para moverte.',
+  'Acepto que el equipo me contacte por la app, teléfono o WhatsApp para coordinar mis atenciones y enviarme recordatorios.']],
+ ['8. Menores de edad', [
+  'Si la persona atendida es menor de 18 años, este consentimiento debe aceptarlo su madre, padre o tutor legal, quien deberá acompañarla en las sesiones según lo indique el profesional.']]
+];
+const consentOk = p => !!(p && p.consentimiento && typeof p.consentimiento==='object' && p.consentimiento.v===CONSENT_V);
+function consentHTML(){ return `<div class="consent"><p class="xs muted">Versión ${CONSENT_V} · ${CONSENT_FECHA} · StrongMed × Kin At Home</p>
+  ${CONSENT.map(([t,ps])=>`<h3 class="h3" style="margin-top:16px">${esc(t)}</h3>${ps.map(x=>`<p class="sm" style="margin-top:8px;line-height:1.55">${esc(x)}</p>`).join('')}`).join('')}</div>`; }
+window.verConsentimiento = () => { const p=S.role==='pat'?me():null;
+  sheet(`<h2 class="disp h2">Consentimiento informado y condiciones</h2>${consentHTML()}${p&&consentOk(p)?`<div class="note" style="margin-top:16px">${ic('check','s')}<span>Aceptado el ${fmtDate(p.consentimiento.fecha)}.</span></div>`:''}<button class="btn pri block" style="margin-top:16px" onclick="closeSheet()">Cerrar</button>`); };
+const consentLabel = id => `<label class="check"><input type="checkbox" id="${id}"><span>Leí y acepto el <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="event.preventDefault();verConsentimiento()">consentimiento informado y las condiciones del servicio</button> (uso de mis datos, información fidedigna, vigencia, reagendamiento y cancelación con 12 horas de anticipación).</span></label>`;
+const consentNuevo = () => ({v:CONSENT_V, fecha:todayISO(), ts:Date.now()});
+/* al entrar: si la persona no ha aceptado la versión vigente, se le pide antes de usar la app */
+function pedirConsentimiento(){ const p=me(); if(!p || consentOk(p) || $('#consent-gate')) return;
+  const d=document.createElement('div'); d.id='consent-gate'; d.className='sheet-bg in';
+  d.innerHTML=`<div class="sheet" style="max-height:94dvh"><div class="grab"></div><h2 class="disp h2">Antes de continuar</h2><p class="sm muted" style="margin-top:6px">Lee y acepta el consentimiento informado y las condiciones del servicio.</p>${consentHTML()}
+    <div class="stack" style="margin-top:16px">${consentLabel('cg-ok')}<button class="btn pri block" onclick="aceptarConsentimiento()">Aceptar y continuar</button><button class="btn ghost block" onclick="$('#consent-gate').remove();logout()">No acepto · salir</button></div></div>`;
+  document.body.appendChild(d); }
+window.aceptarConsentimiento = async () => { if(!$('#cg-ok').checked) return toast('Marca la casilla para aceptar','err'); const p=me(); p.consentimiento=consentNuevo();
+  if(await save(p)){ $('#consent-gate')?.remove(); toast('Gracias. Consentimiento registrado.'); } };
+function consentPro(p){ const c=p.consentimiento;
+  return consentOk(p) ? `<span class="badge acc">${ic('check','s')} Consentimiento v${esc(c.v)} · ${fmtDate(c.fecha)}</span>` : `<span class="badge mixto">${ic('clock','s')} Consentimiento pendiente</span>`; }
+
+/* ================= WHATSAPP (respaldo cuando la persona no responde en la app) ================= */
+function waNum(tel){ let d=String(tel||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('56')) return d; if(d.length===9 && d[0]==='9') return '56'+d; if(d.length===8) return '569'+d; return d; }
+const waLink = (tel, txt) => { const n=waNum(tel); return n ? `https://wa.me/${n}?text=${encodeURIComponent(txt)}` : ''; };
+function waTexto(p, c, tipo){ const n=first(p.nombre), pro=(S.pro&&S.pro.nombre)||c?.pro||'', lug=c?`${lugarLabel(c)}${c.direccion?` (${c.direccion})`:''}`:'', cuando=c?`${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''}`:'';
+  if(tipo==='recordatorio') return `Hola ${n}, te recuerdo tu sesión de ${c.tipo||'atención'} el ${cuando} en ${lug}. Si necesitas cambiarla, avísame con al menos 12 horas de anticipación. ${pro}`;
+  if(tipo==='confirmar') return `Hola ${n}, recibimos tu solicitud de ${c.tipo||'atención'} para el ${cuando}${c.bloque&&!c.hora?` (${c.bloque==='AM'?'mañana':'tarde'})`:''} en ${lug}. ¿Te acomoda? Puedes revisarla en la app StrongMed. ${pro}`;
+  if(tipo==='pago') return `Hola ${n}, para confirmar tu hora del ${cuando} falta registrar el pago previo${c?.pago?.link?`: ${c.pago.link}`:''}. Cuando pagues avísame por aquí o en la app. ${pro}`;
+  return `Hola ${n}, te escribo desde StrongMed. ${pro}`; }
+function waBtn(p, c, tipo, cls='btn sec sm', label='WhatsApp'){ const l=waLink(p.contacto, waTexto(p,c,tipo)); return l ? `<a class="${cls}" href="${l}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('phone','s')} ${label}</a>` : ''; }
 
 /* ================= SESIÓN Y ARRANQUE ================= */
 const _origRender = render;

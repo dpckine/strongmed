@@ -468,6 +468,8 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 .li:active,.pcard:active,.gpsb:active,button.stat:active,button.card:active{transform:scale(.985);transition:transform .08s}
 .tab:active .icon{transform:scale(.88)}
 @media (hover:none){ .btn:hover,.li:hover{filter:none} }
+.noimg{display:grid;place-items:center;width:100%;height:100%;min-height:120px;color:var(--mu);background:var(--card2)}
+.thumb{display:grid;place-items:center;color:var(--mu)}
 </style>
 </head>
 <body>
@@ -834,7 +836,7 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 /* ---------------- exercise library ---------------- */
 async function loadLib(){
   if(S.lib) return S.lib;
-  try{ let r=null; for(const u of ['data/ejercicios.json', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=await r.json();
+  try{ let r=null; for(const u of ['data/ejercicios.json', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=(await r.json()).concat(EJ_EXTRA);
     S.libByName=new Map(S.lib.map(x=>[x.n.toLowerCase(),x])); fillLibDatalist(); }
   catch(e){ S.lib=[]; S.libByName=new Map(); console.warn('Biblioteca de ejercicios no disponible (sube data/ejercicios.json)'); }
   return S.lib;
@@ -842,7 +844,7 @@ async function loadLib(){
 function fillLibDatalist(){ const dl=$('#dl-ej'); if(!dl || !S.lib || dl.dataset.full) return; dl.dataset.full=1;
   dl.insertAdjacentHTML('beforeend', S.lib.map(x=>`<option value="${esc(x.n)}">`).join('')); }
 const libFind = (name, id) => { if(!S.lib) return null; if(id){ const x=S.lib.find(e=>e.i===id); if(x) return x; } return S.libByName ? S.libByName.get(String(name||'').toLowerCase()) : null; };
-const media = path => MEDIA_BASE + path;
+const media = path => path ? MEDIA_BASE + path : '';
 
 /* ================= SEGURIDAD: Firebase Authentication =================
    Personas:      correo interno <rut>.<pin>@p.strongmed.app   → las reglas solo dejan leer SU ficha, sus mensajes y sus citas.
@@ -1479,68 +1481,121 @@ function vLib(){
 }
 const fold = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function libGrid(){ const t=fold(S.libQ); const r=S.lib.filter(x=>(!S.libC||x.c===S.libC) && (!t || fold(x.n+' '+x.en+' '+x.m+' '+x.q).includes(t)));
-  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im"><img src="${media(x.img)}" loading="lazy" alt=""></div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
+  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.img?`<img src="${media(x.img)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
 window.libGrid = libGrid;
 window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); if(!x) return;
-  sheet(`<div class="gifbox"><img src="${media(x.gif)}" alt="${esc(x.n)}"></div>
+  sheet(`<div class="gifbox">${x.gif?`<img src="${media(x.gif)}" alt="${esc(x.n)}">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>
   <h2 class="h3" style="font-size:20px;margin-top:14px">${esc(x.n)}</h2><div class="xs muted" style="margin-top:2px">${esc(x.en)}</div>
   <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px"><span class="badge acc">${esc(x.c)}</span><span class="badge">${ic('target','s')}${esc(x.m)}</span><span class="badge">${esc(x.q)}</span></div>
   ${x.s&&x.s.length?`<div class="xs muted" style="margin-top:10px">Secundarios: ${esc(x.s.join(', '))}</div>`:''}
   ${x.p&&x.p.length?`<div class="sec-t"><h2>Cómo hacerlo</h2></div><ol class="steps" style="margin-top:8px">${x.p.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
-  <p class="xs muted center" style="margin-top:16px">Animación © Gym Visual</p>`); };
+  ${x.gif?'<p class="xs muted center" style="margin-top:16px">Animación © Gym Visual</p>':'<p class="xs muted center" style="margin-top:16px">Ejercicio agregado por StrongMed (sin animación)</p>'}`); };
 
 
-/* ================= ARMAR RUTINA POR MÚSCULOS (recomendador) ================= */
+/* ================= ARMAR RUTINA POR MÚSCULOS (recomendador) =================
+   Prioriza ejercicios de gimnasio con carga (barra, mancuernas, polea, máquinas), primero los multiarticulares,
+   y dosifica según objetivo y tipo de ejercicio. Si la persona tiene 1RM registrado, sugiere los kilos. */
+const EJ_EXTRA = [
+ ['x01','Hip thrust con barra','Glúteos','Barra','Muslos / Pierna Superior',['Isquiotibiales','Core'],['Apoya la parte alta de la espalda en un banco y pon la barra (con protector) sobre la cadera.','Pies a la anchura de la cadera, rodillas en 90° en la parte alta.','Empuja con los talones y extiende la cadera hasta alinear tronco y muslos, apretando glúteos.','Mantén el mentón hacia el pecho y baja controlado sin tocar el suelo.']],
+ ['x02','Hip thrust en máquina','Glúteos','Máquina de Palanca','Muslos / Pierna Superior',['Isquiotibiales'],['Ajusta el respaldo a la altura de las escápulas y el cojín sobre la cadera.','Empuja con los talones hasta extender la cadera por completo.','Aprieta glúteos 1 segundo arriba y baja controlado.']],
+ ['x03','Face pull en polea','Deltoides','Polea','Hombros',['Espalda alta','Manguito rotador'],['Polea alta con cuerda, agarre neutro.','Tira hacia la cara separando las manos y llevando los codos altos y atrás.','Termina con rotación externa (puños al lado de las orejas) y vuelve controlado.']],
+ ['x04','Aperturas en máquina (pec deck)','Pectorales','Máquina de Palanca','Pectorales',['Deltoides'],['Ajusta el asiento para que los mangos queden a la altura del pecho.','Con codos levemente flectados, junta los brazos al frente apretando el pecho.','Abre lento hasta sentir estiramiento, sin pasar la línea de los hombros.']],
+ ['x05','Remo sentado en polea','Dorsal Ancho','Polea','Espalda',['Bíceps','Espalda alta'],['Siéntate con el pecho alto y los pies apoyados, rodillas levemente flectadas.','Tira del agarre hacia el abdomen llevando los codos atrás y juntando escápulas.','Vuelve estirando los brazos sin redondear la espalda.']],
+ ['x06','Remo con mancuerna a un brazo','Espalda alta','Mancuernas','Espalda',['Dorsal Ancho','Bíceps'],['Apoya mano y rodilla en un banco, espalda neutra y paralela al suelo.','Tira de la mancuerna hacia la cadera llevando el codo pegado al cuerpo.','Baja controlado hasta estirar el brazo. Completa las repeticiones y cambia de lado.']],
+ ['x07','Prensa de piernas 45°','Cuádriceps','Máquina de Palanca','Muslos / Pierna Superior',['Glúteos','Isquiotibiales'],['Espalda y cadera apoyadas en el respaldo, pies a la anchura de los hombros.','Baja la plataforma flexionando rodillas hasta unos 90° sin despegar la cadera.','Empuja con todo el pie sin bloquear las rodillas arriba.']],
+ ['x08','Sentadilla búlgara con mancuernas','Cuádriceps','Mancuernas','Muslos / Pierna Superior',['Glúteos'],['Pie trasero apoyado en un banco, mancuernas a los lados.','Baja la rodilla trasera hacia el suelo manteniendo el tronco firme.','Empuja con el pie delantero para subir. Completa y cambia de pierna.']],
+ ['x09','Patada de glúteo en polea','Glúteos','Polea','Muslos / Pierna Superior',['Isquiotibiales'],['Tobillera en la polea baja, apóyate al frente con el tronco levemente inclinado.','Lleva la pierna hacia atrás extendiendo la cadera sin arquear la zona lumbar.','Vuelve controlado.']],
+ ['x10','Abducción de cadera en máquina','Abductores','Máquina de Palanca','Muslos / Pierna Superior',['Glúteos'],['Siéntate con la espalda apoyada y las piernas contra los cojines.','Separa las piernas hacia afuera apretando glúteos.','Vuelve lento sin dejar que el peso golpee.']],
+ ['x11','Aducción de cadera en máquina','Aductores','Máquina de Palanca','Muslos / Pierna Superior',[],['Siéntate con la espalda apoyada y los cojines por dentro de las rodillas.','Junta las piernas de forma controlada.','Abre lento hasta un estiramiento cómodo.']],
+ ['x12','Rueda abdominal','Abdomen','Rueda Abdominal','Zona Media / Core',['Dorsal Ancho'],['De rodillas, toma la rueda bajo los hombros.','Rueda hacia adelante manteniendo el abdomen firme y la pelvis en retroversión.','Vuelve tirando con el abdomen sin arquear la espalda baja.']],
+ ['x13','Curl femoral acostado en máquina','Isquiotibiales','Máquina de Palanca','Muslos / Pierna Superior',['Pantorrillas / Gemelos'],['Boca abajo, el cojín sobre los tobillos y las rodillas fuera del borde.','Flexiona las rodillas llevando los talones hacia los glúteos.','Baja controlado sin despegar la cadera.']],
+ ['x14','Curl femoral sentado en máquina','Isquiotibiales','Máquina de Palanca','Muslos / Pierna Superior',[],['Ajusta el respaldo para que la rodilla quede alineada con el eje de la máquina.','Flexiona las rodillas empujando el cojín hacia abajo.','Vuelve lento hasta casi extender.']],
+ ['x15','Extensión de cuádriceps en máquina','Cuádriceps','Máquina de Palanca','Muslos / Pierna Superior',[],['Rodilla alineada con el eje de la máquina, cojín sobre el tobillo.','Extiende las rodillas hasta casi bloquear, aprieta 1 segundo.','Baja controlado.']],
+ ['x16','Elevación de talones de pie en máquina','Pantorrillas / Gemelos','Máquina de Palanca','Pantorrillas',[],['Hombros bajo los cojines y la parte delantera del pie en el borde.','Sube lo más alto posible sobre la punta de los pies.','Baja lento hasta estirar el gemelo.']],
+ ['x17','Elevación de talones sentado en máquina','Pantorrillas / Gemelos','Máquina de Palanca','Pantorrillas',[],['Cojín sobre los muslos, punta de los pies en el borde.','Sube los talones lo más alto posible.','Baja lento hasta estirar (trabaja más el sóleo).']],
+ ['x18','Press de pecho en máquina','Pectorales','Máquina de Palanca','Pectorales',['Tríceps','Deltoides'],['Ajusta el asiento para que los mangos queden a la altura media del pecho.','Empuja al frente sin bloquear los codos.','Vuelve controlado manteniendo las escápulas juntas.']],
+ ['x19','Jalón al pecho agarre ancho en polea','Dorsal Ancho','Polea','Espalda',['Bíceps'],['Agarre más ancho que los hombros, muslos bajo los cojines.','Tira la barra hacia la parte alta del pecho llevando los codos abajo y atrás.','Sube controlado hasta estirar los brazos.']],
+ ['x20','Extensión de tríceps en polea con cuerda','Tríceps','Polea','Brazos',[],['Polea alta con cuerda, codos pegados al cuerpo.','Extiende los codos separando la cuerda abajo.','Vuelve hasta 90° sin mover los hombros.']],
+ ['x21','Curl de bíceps en polea','Bíceps','Polea','Brazos',['Antebrazos'],['Polea baja con barra, codos pegados al cuerpo.','Flexiona los codos llevando la barra hacia los hombros.','Baja lento sin balancear el tronco.']],
+ ['x22','Peso muerto con barra hexagonal','Glúteos','Barra Hexagonal','Muslos / Pierna Superior',['Isquiotibiales','Cuádriceps','Espinales / Lumbar'],['Párate al centro de la barra, agarre neutro.','Con espalda neutra, empuja el suelo y extiende cadera y rodillas a la vez.','Baja controlado manteniendo la barra cerca del cuerpo.']],
+ ['x23','Remo en T con barra','Espalda alta','Barra','Espalda',['Dorsal Ancho','Bíceps'],['Inclínate con la espalda neutra y toma el agarre en V.','Tira hacia el abdomen juntando escápulas.','Baja controlado sin redondear la espalda.']],
+ ['x24','Pull-over en polea alta','Dorsal Ancho','Polea','Espalda',['Pectorales'],['De pie frente a la polea alta, brazos casi extendidos.','Lleva la barra o cuerda hacia los muslos en arco, con el tronco firme.','Vuelve lento hasta estirar el dorsal.']],
+ ['x25','Extensión de espalda 45° (hiperextensión)','Espinales / Lumbar','Peso Corporal','Espalda',['Glúteos','Isquiotibiales'],['Cadera apoyada en el cojín y tobillos fijos.','Baja el tronco con la espalda neutra.','Sube hasta alinear tronco y piernas sin hiperextender. Puedes sumar un disco.']],
+ ['x26','Press Pallof en polea','Abdomen','Polea','Zona Media / Core',['Oblicuos'],['De lado a la polea a la altura del pecho, agarre con ambas manos.','Extiende los brazos al frente sin dejar que el tronco gire.','Sostén 2 segundos y vuelve. Cambia de lado.']],
+ ['x27','Sentadilla goblet con mancuerna','Cuádriceps','Mancuernas','Muslos / Pierna Superior',['Glúteos','Core'],['Sostén la mancuerna al pecho con ambas manos.','Baja entre las piernas con el pecho alto y las rodillas hacia afuera.','Sube empujando con todo el pie.']],
+ ['x28','Press inclinado con mancuernas','Pectorales','Mancuernas','Pectorales',['Deltoides','Tríceps'],['Banco a 30°, mancuernas sobre el pecho.','Baja hasta los lados del pecho con codos a 45°.','Empuja hacia arriba juntando levemente las mancuernas.']]
+].map(([i,n,m,q,c,s2,p])=>({i,n,en:'',m,q,c,s:s2,p,extra:true}));
 const RECO_MUS = {'Pecho':['Pectorales'], 'Espalda':['Dorsal Ancho','Espalda alta','Trapecio'], 'Hombros':['Deltoides'], 'Bíceps':['Bíceps'], 'Tríceps':['Tríceps'], 'Cuádriceps':['Cuádriceps'],
   'Isquiotibiales':['Isquiotibiales'], 'Glúteos':['Glúteos'], 'Pantorrillas':['Pantorrillas / Gemelos'], 'Core':['Abdomen'], 'Lumbar':['Espinales / Lumbar'], 'Antebrazos':['Antebrazos'], 'Aductores / abductores':['Aductores','Abductores']};
-const RECO_EQ = {'Peso corporal':['Peso Corporal','Con Peso Adicional','Asistido'], 'Mancuernas':['Mancuernas'], 'Barra':['Barra','Barra Z','Barra olímpica','Barra Hexagonal'], 'Polea':['Polea'],
-  'Máquina':['Máquina de Palanca','Máquina Smith','Máquina Hammer','Trineo de Empuje'], 'Banda elástica':['Banda Elástica'], 'Kettlebell':['Kettlebell / Pesa Rusa'], 'Balones':['Balón Suizo / Fitball','Balón Medicinal','Balón Bosu']};
-const RECO_OBJ = {'Hipertrofia':{s:3,r:'10',i:'2',d:'90s'}, 'Fuerza':{s:4,r:'5',i:'2',d:'180s'}, 'Resistencia':{s:2,r:'15',i:'3',d:'60s'}, 'Rehabilitación':{s:3,r:'12',i:'3',d:'60s'}};
-const RECO_BASE = /press|sentadilla|remo|peso muerto|dominada|estocada|zancada|hip thrust|empuje de cadera|jalon|fondos|puente|prensa|subida|swing|flexion de brazos|buenos dias|curl|extension|elevacion|plancha|crunch|abdominal|face pull|aperturas/;
-const RECO_MULTI = /press|sentadilla|remo|peso muerto|dominada|estocada|zancada|hip thrust|empuje de cadera|jalon|fondos|prensa|subida|swing|flexion de brazos|buenos dias/;
-const RECO_NO = /estiramiento|stretch|masaje|rodillo|foam|liberacion/;
-function recoInit(){ S.reco=S.reco||{mus:[], eq:[], obj:'Hipertrofia', n:2, picks:[]}; return S.reco; }
-const RECO_CLASIC = {'Pecho':['^press de banca','^press inclinado','^aperturas con mancuernas|^aperturas en polea|^aperturas de pie','^flexiones|^pecho fondos$'],
-  'Espalda':['^dominadas$|^dominadas \\(agarre neutro\\)','^jalon en polea|^jalon al pecho|^jalon frontal','^remo','^pullover con barra|^pullover en maquina'],
-  'Hombros':['^press militar|^press de hombros|^arnold press','^elevaciones laterales','^deltoides posterior|^rear elevaciones laterales','^remo al menton'],
-  'Bíceps':['^curl de biceps|^curl con barra|^curl con mancuernas|^curl','^curl martillo|martillo','^curl concentrado|predicador|scott'],
-  'Tríceps':['press frances|extension de triceps','^fondos|^triceps fondos|fondos en banco','^extension.*polea|press agarre cerrado'],
-  'Cuádriceps':['^sentadilla profunda con|^sentadilla frontal con|^sentadilla con|^sentadilla goblet','^prensa','^pierna extension','^sentadilla dividida|^estocada|^subida al cajon'],
-  'Isquiotibiales':['^peso muerto rumano|piernas rigidas','^pierna curl|^curl a una pierna|^femoral','^buenos dias','gluteo-ham'],
-  'Glúteos':['hip thrust|empuje de cadera|^puente de gluteo','^peso muerto rumano','^estocada|^subida al cajon','^sentadilla profunda con|^peso muerto sumo'],
-  'Pantorrillas':['elevacion de talones|elevaciones de talones|^talones','talon'],
-  'Core':['^plancha','^crunch|^abdominal','dead bug|bicho','pallof|rueda abdominal'],
-  'Lumbar':['hiperextension|extension lumbar|superman','^buenos dias'], 'Antebrazos':['^curl de muneca|^muneca','^farmers|granjero'], 'Aductores / abductores':['aductor|abductor','lateral estocada|^estocada lateral']};
-const RECO_ES = /^(press|sentadilla|peso|puente|estocada|subida|buenos|remo|jalon|dominadas|dominada|elevaciones|elevacion|aperturas|curl|extension|prensa|femoral|fondos|flexiones|pullover|plancha|abdominal|crunch|empuje|hip|deltoides|arnold|pierna)\b/;
-function recoCands(mus){ const R=S.reco, ms=RECO_MUS[mus]||[], eqs=R.eq.flatMap(e=>RECO_EQ[e]||[]), okEq=x=>!eqs.length || eqs.includes(x.q), lib=(S.lib||[]).filter(x=>okEq(x) && !RECO_NO.test(fold(x.n)));
+const RECO_EQ = {'Barra':['Barra','Barra Z','Barra olímpica','Barra Hexagonal'], 'Mancuernas':['Mancuernas'], 'Polea':['Polea'], 'Máquinas':['Máquina de Palanca','Máquina Smith','Máquina Hammer','Trineo de Empuje'],
+  'Kettlebell':['Kettlebell / Pesa Rusa'], 'Peso corporal':['Peso Corporal','Con Peso Adicional','Asistido','Rueda Abdominal'], 'Banda elástica':['Banda Elástica'], 'Balones':['Balón Suizo / Fitball','Balón Medicinal','Balón Bosu']};
+const RECO_GYM = ['Barra','Mancuernas','Polea','Máquinas','Kettlebell'].flatMap(k=>RECO_EQ[k]).concat(['Con Peso Adicional','Rueda Abdominal']);
+const RECO_GYM_CORP = /^dominadas$|^dominadas \(agarre neutro\)|^pecho fondos$|^fondos|^plancha|colgado|^extension de espalda 45/;
+/* dosificación: series, repeticiones, RIR, descanso y % del 1RM según objetivo y si es multiarticular (m) o de aislamiento (a) */
+const RECO_OBJ = {
+  'Hipertrofia':   {m:{s:4,r:'6-10', i:'2',d:'120s',pct:75}, a:{s:3,r:'10-15',i:'1-2',d:'75s',pct:65}, txt:'4×6-10 en multiarticulares y 3×10-15 en aislamiento, RIR 1-2.'},
+  'Fuerza':        {m:{s:5,r:'3-5',  i:'2',d:'180s',pct:85}, a:{s:3,r:'6-8',  i:'2',  d:'120s',pct:75}, txt:'5×3-5 al 80-87 % del 1RM en multiarticulares, descansos largos.'},
+  'Potencia':      {m:{s:4,r:'3-5',  i:'3',d:'150s',pct:50}, a:{s:3,r:'6-8',  i:'3',  d:'90s', pct:60}, txt:'Cargas de 30-60 % movidas lo más rápido posible, sin llegar al fallo.'},
+  'Resistencia':   {m:{s:3,r:'15-20',i:'3',d:'60s', pct:55}, a:{s:3,r:'15-20',i:'2',  d:'45s', pct:50}, txt:'3×15-20 con descansos cortos.'},
+  'Rehabilitación':{m:{s:3,r:'10-12',i:'3',d:'90s', pct:55}, a:{s:3,r:'12-15',i:'3',  d:'60s', pct:50}, txt:'3×10-15 con tempo lento (3 s bajando), dolor máximo 3/10.'}};
+const RECO_MULTI = /press(?! frances)|sentadilla|remo|peso muerto|dominada|estocada|zancada|hip thrust|empuje de cadera|jalon|fondos|prensa|subida|buenos dias|bulgara|hack|pull-over|swing|thruster|clean/;
+const RECO_NO = /estiramiento|stretch|masaje|rodillo|foam|liberacion|\(male\)|pov\)| v\. ?\d/;
+const RECO_ES = /^(press|sentadilla|peso|puente|estocada|subida|buenos|remo|jalon|dominadas|dominada|elevaciones|elevacion|aperturas|curl|extension|prensa|femoral|fondos|flexiones|pullover|pull-over|plancha|abdominal|crunch|empuje|hip|deltoides|arnold|pierna|patada|abduccion|aduccion|encogimientos|face|rueda)\b/;
+const RECO_CLASIC = {
+  'Pecho':['^press de banca con barra$','^press inclinado con mancuernas$|^press inclinado con barra$','^press de pecho en maquina|^aperturas en maquina','^aperturas de pie en polea|^aperturas con mancuernas$|^low aperturas en polea','^pecho fondos$'],
+  'Espalda':['^jalon al pecho agarre ancho en polea|^jalon en polea$','^remo inclinado con barra$|^pendlay remo con barra','^remo sentado en polea','^remo con mancuerna a un brazo','^dominadas$','^remo en t con barra|^pull-over en polea alta'],
+  'Hombros':['^press militar sentado con barra$|^press de hombros sentado con mancuernas$','^elevaciones laterales con mancuernas$|^elevaciones laterales en polea$','^face pull en polea','^press de hombros en maquina$|^arnold press con mancuernas$','^rear elevaciones laterales con mancuernas$'],
+  'Bíceps':['^curl con barra$','^curl de biceps alternado con mancuernas|^curl con mancuernas','^curl martillo','^curl de biceps en polea','^curl predicador con barra$'],
+  'Tríceps':['^extension de triceps en polea con cuerda','^press de banca agarre cerrado con barra$','press frances','^overhead extension de triceps sentado con barra','^fondos de triceps|^fondos'],
+  'Cuádriceps':['^sentadilla profunda con barra$|^high bar sentadilla con barra$','^prensa de piernas 45','^extension de cuadriceps en maquina','^sentadilla bulgara con mancuernas','^hack sentadilla con barra$|^hack sentadilla en maquina smith','^sentadilla goblet con mancuerna'],
+  'Isquiotibiales':['^peso muerto rumano con barra$|^peso muerto rumano con mancuernas$','^curl femoral acostado en maquina','^curl femoral sentado en maquina','^buenos dias con barra$','^peso muerto piernas rigidas con mancuernas'],
+  'Glúteos':['^hip thrust con barra','^peso muerto rumano con barra$','^sentadilla bulgara con mancuernas|^estocada con mancuernas$','^patada de gluteo en polea','^hip thrust en maquina|^puente de gluteo con barra$','^abduccion de cadera en maquina'],
+  'Pantorrillas':['^elevacion de talones de pie en maquina|^elevacion de talones de pie con barra$','^elevacion de talones sentado en maquina|^elevacion de talones sentado con barra$'],
+  'Core':['^crunch de rodillas en polea','^rueda abdominal','^press pallof en polea','^plancha frontal con lastre','^elevacion de piernas colgado$'],
+  'Lumbar':['^extension de espalda 45','^buenos dias con barra$','^espalda extension en maquina'],
+  'Antebrazos':['^palms up muneca curl|^muneca curl','^farmers walk'],
+  'Aductores / abductores':['^abduccion de cadera en maquina','^aduccion de cadera en maquina']};
+const esMulti = x => RECO_MULTI.test(fold(x.n)) && !/remo al menton|elevacion|curl|extension de/.test(fold(x.n));
+function recoInit(){ S.reco=S.reco||{mus:[], eq:[], obj:'Hipertrofia', n:0, picks:[]}; if(!(S.reco.obj in RECO_OBJ)) S.reco.obj='Hipertrofia'; return S.reco; }
+const recoN = () => S.reco.n || (S.reco.mus.length<=1 ? 4 : S.reco.mus.length===2 ? 3 : 2);
+function recoOkEq(x){ const R=S.reco; if(R.eq.length) return R.eq.flatMap(e=>RECO_EQ[e]||[]).includes(x.q); return RECO_GYM.includes(x.q) || (x.q==='Peso Corporal' && RECO_GYM_CORP.test(fold(x.n))); }
+function recoCands(mus){ const R=S.reco, ms=RECO_MUS[mus]||[], lib=(S.lib||[]).filter(x=>recoOkEq(x) && !RECO_NO.test(fold(x.n)));
   const out=[], seen=new Set(), add=x=>{ if(!seen.has(x.i)){ seen.add(x.i); out.push(x); } };
-  (RECO_CLASIC[mus]||[]).forEach(pat=>{ const re=new RegExp(pat); const hits=lib.filter(x=>re.test(fold(x.n)) && !/ v\. ?\d/.test(x.n)).sort((a,b)=>a.n.length-b.n.length); if(hits.length) add(hits[Math.floor(Math.random()*Math.min(3,hits.length))]); });
-  lib.filter(x=>ms.includes(x.m)).map(x=>{ const f=fold(x.n); let sc=0; if(RECO_ES.test(f)) sc+=3; else sc-=3; if(RECO_MULTI.test(f)) sc+=2; if(f.length>34) sc-=1.5; if(/ v\. ?\d|\(male\)|pov/.test(f)) sc-=3; if(R.obj==='Rehabilitación' && /banda|peso corporal|puente|isometr/.test(f+' '+fold(x.q))) sc+=2; return {x, sc:sc+Math.random()}; })
+  (RECO_CLASIC[mus]||[]).forEach(pat=>{ const re=new RegExp(pat); const hits=lib.filter(x=>re.test(fold(x.n))).sort((a,b)=>(a.extra?0:1)-(b.extra?0:1) || a.n.length-b.n.length); if(hits.length) add(hits[0]); });
+  lib.filter(x=>ms.includes(x.m)).map(x=>{ const f=fold(x.n); let sc=0; if(RECO_ES.test(f)) sc+=3; else sc-=4; if(esMulti(x)) sc+=2; if(f.length>34) sc-=1.5; if(R.obj==='Rehabilitación' && /maquina|polea/.test(fold(x.q))) sc+=1; return {x, sc:sc+Math.random()}; })
     .sort((a,b)=>b.sc-a.sc).forEach(o=>add(o.x));
   return out; }
+function recoPersona(){ return S.role==='pro' ? prof(S.proArg) : me(); }
+function rmDe(nombre){ const p=recoPersona(), f=fold(nombre); const l=(p?.rmLog||[]).filter(r=>fold(r.ejercicio)===f || f.startsWith(fold(r.ejercicio))).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))); return l[0]?.rm||null; }
+function recoDosis(x){ const o=RECO_OBJ[S.reco.obj], d={...(esMulti(x)?o.m:o.a)}, rm=rmDe(x.n); if(rm) d.kg=Math.round(rm*d.pct/100/2.5)*2.5; return d; }
 function recoPanel(rowsId, full){ const R=recoInit();
   return `<details class="card reco" ${R.open?'open':''} ontoggle="S.reco.open=this.open"><summary class="row between"><span class="b">${ic('target','s')} Armar por músculos</span><span class="xs muted">Recomendación automática</span></summary><div class="stack" id="reco-in" style="margin-top:12px">${recoBody(rowsId, full)}</div></details>`; }
-function recoBody(rowsId, full){ const R=S.reco, a=JSON.stringify(rowsId), chip=(arr,key,multi)=>`<div class="pills" style="flex-wrap:wrap">${arr.map(v=>{ const on=multi?R[key].includes(v):R[key]===v; return `<button type="button" class="pill ${on?'on':''}" onclick='recoSet(${JSON.stringify(key)},${JSON.stringify(v)},${multi},${esc(a)},${full})'>${esc(v)}</button>`; }).join('')}</div>`;
+function recoBody(rowsId, full){ const R=S.reco, a=JSON.stringify(rowsId), chip=(arr,key,multi,lab=v=>v)=>`<div class="pills" style="flex-wrap:wrap">${arr.map(v=>{ const on=multi?R[key].includes(v):R[key]===v; return `<button type="button" class="pill ${on?'on':''}" onclick='recoSet(${JSON.stringify(key)},${JSON.stringify(v)},${multi},${esc(a)},${full})'>${esc(lab(v))}</button>`; }).join('')}</div>`;
   if(!S.lib) { loadLib().then(()=>{ const el=$('#reco-in'); if(el) el.innerHTML=recoBody(rowsId, full); }); return '<div class="xs muted">Cargando biblioteca de ejercicios…</div>'; }
   if(!S.lib.length) return '<div class="xs muted">La biblioteca de ejercicios no está disponible.</div>';
+  const vol={}; R.picks.forEach(pk=>{ const x=S.lib.find(e=>e.i===pk.i); if(x) vol[pk.mus]=(vol[pk.mus]||0)+recoDosis(x).s; });
   return `<div><div class="lbl">¿Qué músculos quieres entrenar?</div>${chip(Object.keys(RECO_MUS),'mus',true)}</div>
-  <div><div class="lbl">Equipamiento disponible <span class="muted">(vacío = cualquiera)</span></div>${chip(Object.keys(RECO_EQ),'eq',true)}</div>
-  <div class="grid2"><div><div class="lbl">Objetivo</div>${chip(Object.keys(RECO_OBJ),'obj',false)}</div><div><div class="lbl">Ejercicios por músculo</div>${chip([1,2,3],'n',false)}</div></div>
+  <div><div class="lbl">Equipamiento <span class="muted">(sin elegir = todo el gimnasio con peso)</span></div>${chip(Object.keys(RECO_EQ),'eq',true)}</div>
+  <div><div class="lbl">Objetivo</div>${chip(Object.keys(RECO_OBJ),'obj',false)}<div class="xs muted" style="margin-top:6px">${esc(RECO_OBJ[R.obj].txt)}</div></div>
+  <div><div class="lbl">Ejercicios por músculo</div>${chip([0,1,2,3,4,5],'n',false,v=>v?String(v):`Auto (${recoN()})`)}</div>
   <button type="button" class="btn sec block" onclick='recoGen(${esc(a)},${full})'>${ic('spark','s')} Recomendar ejercicios</button>
-  ${R.picks.length?`<div class="list">${R.picks.map((pk,i)=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return ''; return `<div class="li"><button type="button" class="thumb" style="background-image:url('${media(x.img)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button><div class="grow"><div class="b sm">${esc(x.n)}</div><div class="xs muted">${esc(pk.mus)} · ${esc(x.q)}</div></div><button type="button" class="ibtn" onclick='recoSwap(${i},${esc(a)},${full})' aria-label="Cambiar">${ic('swap','s')}</button><button type="button" class="ibtn red" onclick='recoDel(${i},${esc(a)},${full})' aria-label="Quitar">${ic('x','s')}</button></div>`; }).join('')}</div>
-  <div class="xs muted">Toca la imagen para ver la explicación y la animación. Usa ⟳ para cambiar un ejercicio.</div>
+  ${R.picks.length?`<div class="list">${R.picks.map((pk,i)=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return ''; const d=recoDosis(x); return `<div class="li"><button type="button" class="thumb" style="${x.img?`background-image:url('${media(x.img)}')`:''}" onclick="verEj(${q(x.i)})" aria-label="Ver técnica">${x.img?'':ic('dumbbell','s')}</button><div class="grow"><div class="b sm">${esc(x.n)}</div><div class="xs muted">${esc(pk.mus)} · ${esc(x.q)} · ${esMulti(x)?'multiarticular':'aislamiento'}</div><div class="xs b acc-t">${d.s} × ${d.r} · RIR ${d.i} · desc. ${d.d}${d.kg?` · ≈ ${d.kg} kg`:''}</div></div><button type="button" class="ibtn" onclick='recoSwap(${i},${esc(a)},${full})' aria-label="Cambiar">${ic('swap','s')}</button><button type="button" class="ibtn red" onclick='recoDel(${i},${esc(a)},${full})' aria-label="Quitar">${ic('x','s')}</button></div>`; }).join('')}</div>
+  <div class="row" style="gap:6px;flex-wrap:wrap">${R.mus.map(m=>`<button type="button" class="pill" onclick='recoMas(${JSON.stringify(m)},${esc(a)},${full})'>${ic('plus','s')} ${esc(m)}</button>`).join('')}</div>
+  <div class="xs muted">Series por semana en esta sesión: ${Object.entries(vol).map(([m,n])=>`<b>${esc(m)} ${n}</b>`).join(' · ')}. Para hipertrofia apunta a 10-20 series semanales por músculo.</div>
   <button type="button" class="btn pri block" onclick='recoUsar(${esc(a)},${full})'>${ic('plus','s')} Agregar ${R.picks.length} ejercicios a la rutina</button>`:''}`; }
 const recoRefresh = (rowsId, full) => { const el=$('#reco-in'); if(el) el.innerHTML=recoBody(rowsId, full); };
 window.recoSet = (k, v, multi, rowsId, full) => { const R=S.reco; if(multi){ R[k]=R[k].includes(v)?R[k].filter(x=>x!==v):[...R[k], v]; } else R[k]=v; recoRefresh(rowsId, full); };
+function recoOrdenar(){ const R=S.reco; const idx=m=>R.mus.indexOf(m); R.picks.sort((a,b)=>{ const xa=S.lib.find(e=>e.i===a.i), xb=S.lib.find(e=>e.i===b.i); return (esMulti(xb)?1:0)-(esMulti(xa)?1:0) || idx(a.mus)-idx(b.mus); }); }
 window.recoGen = async (rowsId, full) => { await loadLib(); const R=S.reco; if(!R.mus.length) return toast('Elige al menos un músculo','err'); R.picks=[];
-  const used=new Set(), ids=new Set(); R.mus.forEach(m=>{ const c=recoCands(m); let k=0; for(const x of c){ const root=fold(x.n).split(' ').slice(0,3).join(' '); if(used.has(root)||ids.has(x.i)) continue; used.add(root); ids.add(x.i); R.picks.push({i:x.i, mus:m}); if(++k>=R.n) break; } });
-  if(!R.picks.length) toast('No hay ejercicios con ese equipamiento. Prueba con otro.','err'); recoRefresh(rowsId, full); };
+  const used=new Set(), ids=new Set(), n=recoN(); R.mus.forEach(m=>{ const c=recoCands(m); let k=0; for(const x of c){ const root=fold(x.n).split(' ').slice(0,3).join(' '); if(used.has(root)||ids.has(x.i)) continue; used.add(root); ids.add(x.i); R.picks.push({i:x.i, mus:m}); if(++k>=n) break; } });
+  if(!R.picks.length) toast('No hay ejercicios con ese equipamiento. Prueba con otro.','err'); recoOrdenar(); recoRefresh(rowsId, full); };
+window.recoMas = (mus, rowsId, full) => { const R=S.reco, taken=new Set(R.picks.map(p=>p.i)), c=recoCands(mus).filter(x=>!taken.has(x.i)); if(!c.length) return toast('No hay más opciones para ese músculo','err'); R.picks.push({i:c[0].i, mus}); recoOrdenar(); recoRefresh(rowsId, full); };
 window.recoSwap = (i, rowsId, full) => { const R=S.reco, pk=R.picks[i], taken=new Set(R.picks.map(p=>p.i)), c=recoCands(pk.mus).filter(x=>!taken.has(x.i)); if(!c.length) return toast('No hay más opciones para ese músculo','err');
-  R.picks[i]={i:c[Math.floor(Math.random()*Math.min(6,c.length))].i, mus:pk.mus}; recoRefresh(rowsId, full); };
+  R.picks[i]={i:c[Math.floor(Math.random()*Math.min(5,c.length))].i, mus:pk.mus}; recoRefresh(rowsId, full); };
 window.recoDel = (i, rowsId, full) => { S.reco.picks.splice(i,1); recoRefresh(rowsId, full); };
-window.recoUsar = (rowsId, full) => { const R=S.reco, o=RECO_OBJ[R.obj], box=document.getElementById(rowsId); if(!box) return;
+window.recoUsar = (rowsId, full) => { const R=S.reco, box=document.getElementById(rowsId); if(!box) return;
   [...box.querySelectorAll('.exrow')].forEach(r=>{ if(!r.querySelector('.e-n').value.trim()) r.remove(); });
-  R.picks.forEach(pk=>{ const x=S.lib.find(e=>e.i===pk.i); if(x) box.insertAdjacentHTML('beforeend', exRow({ejercicio:x.n, exId:x.i, series:o.s, reps:o.r, rir:o.i, descanso:o.d}, full)); });
+  R.picks.forEach(pk=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return; const d=recoDosis(x); box.insertAdjacentHTML('beforeend', exRow({ejercicio:x.n, exId:x.i, series:d.s, reps:d.r, rir:d.i, descanso:d.d, kg:d.kg||''}, full)); });
   const t=document.getElementById(rowsId==='rb-rows'?'rb-t':'mr-t'); if(t && !t.value) t.value=`${R.mus.join(' + ')} · ${R.obj}`;
   toast(`${R.picks.length} ejercicios agregados`); R.picks=[]; recoRefresh(rowsId, full); box.scrollIntoView({behavior:'smooth', block:'center'}); };
 

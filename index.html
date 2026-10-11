@@ -27,7 +27,7 @@
   --tx:#f4f4f6; --mu:#8a8a93;
   --red:#ff5a4f; --orange:#ff9f2e; --yellow:#ffd23f; --green:#3ddc84; --blue:#5aa2ff; --pink:#ff6fae;
   --acc-tx:var(--acc); --acc-soft:color-mix(in srgb,var(--acc) 13%,transparent);
-  --r:20px; --tabh:74px;
+  --r:20px; --tabh:74px; --lg-cross:#ccff33; --lg-bar:#ffffff;
 }
 :root[data-theme="light"]{
   --bg:#f2f2ef; --card:#ffffff; --card2:#f3f3f0; --card3:#e9e9e5;
@@ -35,6 +35,7 @@
   --tx:#111113; --mu:#6b6b72;
   --acc-tx:color-mix(in srgb,var(--acc) 48%,#000);
   --acc-soft:color-mix(in srgb,var(--acc) 22%,transparent);
+  --lg-cross:#9ed600; --lg-bar:#0a0a0b;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--tx)}
@@ -297,8 +298,9 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .brands{display:flex;align-items:center;gap:8px}
 .brands .x{color:var(--mu);font-weight:700;font-size:12px}
 .lg{height:34px;border-radius:10px;display:grid;place-items:center;overflow:hidden;flex:none}
-.lg.sm{background:#111;border:1px solid var(--line2);width:34px}
-.lg.sm img{width:100%;height:100%;object-fit:contain;padding:3px}
+.lg.sm{width:40px;border-radius:0;overflow:visible}
+.lg.sm svg{width:100%;height:100%;display:block}
+.lg.sm.l{width:52px;height:46px}
 .lg.kah{background:#ccff33;width:34px;padding:6px}
 .lg.kah svg{width:100%;height:100%}
 .lg.l{height:44px;width:44px;border-radius:13px}
@@ -533,7 +535,6 @@ const ORAL_PRECIO = 'La primera evaluación tiene un valor de $20.000 e incluye 
 const KIA_NO = 'No tengo la información requerida. Si necesitas algo específico, no dudes en consultar a tu kinesiólogo.';
 const ACTIVIDADES = ['Running','Caminata','Ciclismo','Natación','Fútbol','Básquetbol','Pádel / Tenis','Yoga / Pilates','Funcional / CrossFit','Baile','Senderismo','Otro'];
 const TOLERANCIAS = ['Buena tolerancia','Regular / fatiga moderada','Mala tolerancia / dolor'];
-const LOGO = 'https://lh3.googleusercontent.com/d/1zBZTy_pnLM1bAB7yxhFhrXmrui_UP9dP';
 const KAH_SVG = '<svg viewBox="0 0 400 400"><g fill="#1a1a1a"><rect x="81" y="170" width="246" height="34"/><rect x="187" y="70" width="34" height="233"/><rect x="187" y="70" width="34" height="120" transform="rotate(-45 187 187)"/></g></svg>';
 
 const S = { fb:null, dbs:{}, all:[], pros:[], faq:[], role:null, me:null, pro:null,
@@ -814,7 +815,13 @@ function ring(pct, big, small, size=92, cls=''){ const r=(size-10)/2, c=2*Math.P
   return `<div class="ring ${cls}" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}"><circle class="bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="9"/><circle class="fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="9" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${size/2} ${size/2})"/></svg><div class="ring-in"><b>${big}</b>${small?`<small>${small}</small>`:''}</div></div>`; }
 const perfilBadge = p => { if(isPending(p)) return `<span class="badge mixto">${ic('clock','s')}Por habilitar</span>`; const k=perfilOf(p); return `<span class="badge ${k}">${ic(PERFIL[k].icon,'s')}${PERFIL[k].label}</span>`; };
 const orgChip = p => S.role==='pro' && S.pro.org==='all' ? `<span class="orgchip ${p.org==='kah'?'':'sm'}">${p.org==='kah'?'KAH':'SM'}</span>` : '';
-const logoSM = (cls='') => `<span class="lg sm ${cls}"><img src="${LOGO}" alt="StrongMed" onerror="this.style.display='none'"></span>`;
+/* Logo StrongMed: cruz de salud (lima) cruzada por una barra con discos, con separación entre ambas */
+const SM_TOP='M206,228V136a24,24 0 0 1 24,-24h52a24,24 0 0 1 24,24V228Z', SM_BOT='M206,284V376a24,24 0 0 0 24,24h52a24,24 0 0 0 24,-24V284Z';
+const SM_BAR=[[104,238,304,36,10],[92,182,34,148,11],[132,204,24,104,9],[386,182,34,148,11],[356,204,24,104,9]];
+const smMarkInner = (cross, bar) => `<path d="${SM_TOP}" fill="${cross}"/><path d="${SM_BOT}" fill="${cross}"/><g fill="${bar}">${SM_BAR.map(([x,y,w,h,r])=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`).join('')}</g>`;
+const smMark = (cross='var(--lg-cross)', bar='var(--lg-bar)') => `<svg viewBox="72 96 368 320" aria-hidden="true">${smMarkInner(cross,bar)}</svg>`;
+const smIcon = (size=58) => `<svg width="${size}" height="${size}" viewBox="0 0 512 512" role="img" aria-label="StrongMed"><rect width="512" height="512" rx="116" fill="#0a0a0b"/>${smMarkInner('#ccff33','#ffffff')}</svg>`;
+const logoSM = (cls='') => `<span class="lg sm ${cls}" role="img" aria-label="StrongMed">${smMark()}</span>`;
 const logoKAH = (cls='') => `<span class="lg kah ${cls}" aria-label="Kin At Home">${KAH_SVG}</span>`;
 function brands(marca, big=false, compact=false, kids=false){ const c=big?'l':''; const K=kids?LOGO_KIDS_B:'';
   if(marca==='sm+kah') return `<div class="brands" style="min-width:0">${logoSM(c)}<span class="x">×</span>${logoKAH(c)}${K}<div class="brandtxt" style="min-width:0">StrongMed${compact?'':' <span class="muted">×</span> Kin At Home'}<small>${compact?'× Kin At Home':'Kinesiología y entrenamiento'}</small></div></div>`;
@@ -2614,7 +2621,7 @@ function vInforme(){
 }
 const LOGO_KIDS = '<span class="kids"><i>K</i><i>I</i><i>D</i><i>S</i></span>';
 function infLogos(p){ p=p||prof(S.proArg); const k=$('#inf-kah') ? $('#inf-kah').checked : (p.marca==='sm+kah'||p.org==='kah');
-  return `<img src="${LOGO}" alt="StrongMed" class="lsm">${k?`<span class="lkah">${KAH_SVG}</span><span class="ltxt">StrongMed<br>× Kin At Home</span>`:'<span class="ltxt">StrongMed</span>'}${p.kids?LOGO_KIDS:''}`; }
+  return `<span class="lsm">${smIcon(58)}</span>${k?`<span class="lkah">${KAH_SVG}</span><span class="ltxt">StrongMed<br>× Kin At Home</span>`:'<span class="ltxt">Strong<span style="color:#7fb000">Med</span><br><small style="font-size:9px;letter-spacing:1px;color:#666;white-space:nowrap">Kinesiología · Entrenamiento</small></span>'}${p.kids?LOGO_KIDS:''}`; }
 window.infLogos = () => infLogos();
 window.guardarInforme = async () => { const p=prof(S.proArg); p.informes=p.informes||[]; const html=$('#inf').innerHTML;
   if(S.infId){ const i=p.informes.find(x=>x.id===S.infId); i.html=html; i.editado=todayISO(); } else { const i={id:uid(), fecha:todayISO(), autor:S.pro.nombre, html}; p.informes.push(i); S.infId=i.id; }
@@ -2624,7 +2631,7 @@ window.descargarInforme = () => { const p=prof(S.proArg), w=window.open('','_bla
   @page{size:A4;margin:16mm 18mm 18mm} body{margin:0} .a4{box-shadow:none;width:auto;min-height:0;padding:0} .a4foot{position:fixed;bottom:0;left:0;right:0}</style></head><body><div class="a4"><div class="a4logos">${$('#inf-logos').innerHTML}</div><div class="a4body">${$('#inf').innerHTML}</div><div class="a4foot">${$('#inf-foot').innerHTML}</div></div></body></html>`);
   w.document.close(); setTimeout(()=>w.print(), 500); };
 const INF_CSS = `.a4{background:#fff;color:#111;width:100%;max-width:794px;min-height:1000px;margin:0 auto;padding:44px 52px 70px;font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.45;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.35);border-radius:4px}
-.a4logos{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:6px}.a4logos .lsm{width:58px;height:58px;object-fit:contain;background:#111;border-radius:12px;padding:4px}.a4logos .lkah{width:58px;height:58px;background:#ccff33;border-radius:12px;padding:10px;display:grid}.a4logos .lkah svg{width:100%;height:100%}
+.a4logos{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:6px}.a4logos .lsm{display:block;line-height:0;width:58px;height:58px}.a4logos .lsmx{padding:4px}.a4logos .lkah{width:58px;height:58px;background:#ccff33;border-radius:12px;padding:10px;display:grid}.a4logos .lkah svg{width:100%;height:100%}
 .a4logos .ltxt{font-family:'Barlow Condensed',Arial Narrow,sans-serif;font-weight:800;text-transform:uppercase;font-size:15px;line-height:1.05;color:#111}
 .a4body h1{text-align:center;font-size:18px;font-weight:800;margin:6px 0 18px;letter-spacing:.02em}.a4body h2{font-size:13.5px;font-weight:800;margin:10px 0 4px}
 .a4body table{font-size:inherit;border-collapse:collapse}.a4body table.ap td{padding:1px 0;vertical-align:top}.a4body table.ap td:first-child{width:140px}.a4body p{margin:0 0 10px;text-align:justify}.a4body ul{margin:0 0 10px 18px;padding:0}.a4body li{margin:1px 0}
@@ -2765,7 +2772,8 @@ async function storyBlob(p, d){
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
   x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H);
   // logos: StrongMed × Kin At Home
-  x.fillStyle='#fff'; x.font=F(64); x.fillText('STRONG',80,150); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',80+sw,150); const smw=sw+x.measureText('MED').width;
+  { const sc=84/368; x.save(); x.translate(80-72*sc, 92-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore(); }
+  const lx=80+84+18; x.fillStyle='#fff'; x.font=F(64); x.fillText('STRONG',lx,150); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,150); const smw=sw+x.measureText('MED').width+(lx-80);
   x.fillStyle='#6b6b73'; x.font=F(48,700); x.fillText('×',80+smw+24,146); const kx=80+smw+76, ky=88, ks=72;
   x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16) : x.rect(kx,ky,ks,ks); x.fill();
   x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
@@ -3326,7 +3334,7 @@ async function boot(){
   localStorage.removeItem('sm_session'); S.role=null; render();
 }
 boot();
-window.__t = {checkLlamada, notificar, vigilarChat, USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
+window.__t = {storyBlob, checkLlamada, notificar, vigilarChat, USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
 
 </script>
 </body>

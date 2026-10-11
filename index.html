@@ -2,7 +2,7 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060607">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2509,9 +2509,9 @@ const gpsKey = () => 'sm_gps_'+S.me;
 function persistGps(){ try{ S.gps ? localStorage.setItem(gpsKey(), JSON.stringify(S.gps)) : localStorage.removeItem(gpsKey()); }catch(e){} }
 function restoreGps(){ try{ const g=JSON.parse(localStorage.getItem(gpsKey())); if(g && Date.now()-g.t0 < 8*3600e3){ S.gps=g; g.paused=true; g.since=null; } }catch(e){} }
 /* mapas gratuitos y sin clave (si uno falla se usa el siguiente). El GPS es el del propio teléfono: gratis. */
-const TILES=[['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png','© OpenStreetMap © CARTO','abcd'],
-  ['https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png','© OpenStreetMap · HOT','abc'],
-  ['https://tile.openstreetmap.org/{z}/{x}/{y}.png','© OpenStreetMap','abc']];
+const TILES=[['https://tile.openstreetmap.org/{z}/{x}/{y}.png','© OpenStreetMap','abc'],
+  ['https://tile.openstreetmap.de/{z}/{x}/{y}.png','© OpenStreetMap','abc'],
+  ['https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png','© OpenStreetMap · HOT','abc']];
 function baseLayer(map, i=0){ const [u,att,sub]=TILES[i]; let errs=0; const l=L.tileLayer(u,{maxZoom:19, subdomains:sub, attribution:att}).addTo(map);
   l.on('tileerror', ()=>{ if(++errs===3 && TILES[i+1]){ map.removeLayer(l); baseLayer(map, i+1); } }); return l; }
 let gpsWatch=null, gpsMap=null, gpsLine=null, gpsDot=null;

@@ -1,6 +1,6 @@
 /* StrongMed — service worker: la app abre sin internet.
    Los datos (Firestore) los guarda Firebase en el teléfono y los sincroniza solo. */
-const V = 'sm-v8';
+const V = 'sm-v9';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'sm-media' && k !== 'sm-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -16,7 +16,7 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate') {   // la app: red primero, si no hay internet la copia guardada
     e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(V).then(c => c.put('./index.html', cp)); return r; }).catch(() => caches.match('./index.html')));
     return; }
-  if (/basemaps\.cartocdn\.com|tile\.openstreetmap\.(org|fr)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-tiles')); return; }
+  if (/tile\.openstreetmap\.(org|de|fr)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-tiles')); return; }
   if (/\/(images|videos)\//.test(u) || /\.(gif|jpe?g|png|webp)(\?|$)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-media')); return; }
   e.respondWith(swr(req, V));   // librerías (Firebase, Chart.js, mapas, fuentes) y datos
 });

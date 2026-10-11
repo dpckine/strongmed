@@ -470,6 +470,16 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 @media (hover:none){ .btn:hover,.li:hover{filter:none} }
 .noimg{display:grid;place-items:center;width:100%;height:100%;min-height:120px;color:var(--mu);background:var(--card2)}
 .thumb{display:grid;place-items:center;color:var(--mu)}
+/* ---- llamada entrante ---- */
+.llamada{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--acc) 22%,var(--bg)),var(--bg) 65%);display:grid;place-items:center;padding:24px;animation:fadein .2s}
+.ll-in{display:flex;flex-direction:column;align-items:center;text-align:center;width:100%}
+.ll-ring{border-radius:50%;padding:10px;animation:llp 1.6s infinite}
+@keyframes llp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}100%{box-shadow:0 0 0 36px transparent}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.ll-btns{display:flex;justify-content:space-around;width:100%;max-width:280px;margin-top:56px}
+.ll-b{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;color:#fff}.ll-b .icon{width:30px;height:30px}
+.ll-b.no{background:#ff4d4f}.ll-b.si{background:#22c55e;animation:llb 1s infinite alternate}
+@keyframes llb{to{transform:scale(1.08)}}
 </style>
 </head>
 <body>
@@ -981,8 +991,8 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); }
-window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); }
+window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -991,7 +1001,7 @@ function watchMe(){
   try{ S.meUnsub = S.fb.onSnapshot(S.fb.doc(S.dbs[p.org||'sm'],'evaluaciones',String(p.id)), snap=>{
     if(!snap.exists()) return; const x=snap.data(); x.org=x.org||p.org;
     const i=S.all.findIndex(y=>y.id===x.id && y.org===x.org); const before=i>-1?JSON.stringify(S.all[i]):''; if(i>-1) S.all[i]=x; else S.all.push(x);
-    if(before && before!==JSON.stringify(x)){ notifyNew(true); softRender(); } }); }catch(e){ console.warn(e); }
+    if(before && before!==JSON.stringify(x)){ notifyNew(true); softRender(); } checkLlamada(); }); }catch(e){ console.warn(e); }
 }
 function softRender(){ const a=document.activeElement; if($('#sheet') || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || (S.role==='pat' && ((S.patTab==='entrenar' && S.workout) || S.patTab==='gps'))) return; keepScroll(render); }
 document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState!=='visible' || !S.role) return;
@@ -1002,11 +1012,11 @@ function notifyNew(withToast){
   const p=me(); if(!p) return; const key='sm_seen_'+keyOf(p); let seen; try{ seen=new Set(JSON.parse(localStorage.getItem(key))||[]); }catch(e){ seen=new Set(); }
   const fresh=unreadAvisos(p).filter(a=>!seen.has(String(a.id)));
   const soon=proximasCitas(p).filter(c=>c.estado==='confirmada' && citaTs(c)-Date.now()<24*3600e3 && !seen.has('c'+c.id));
-  fresh.forEach(a=>{ seen.add(String(a.id)); if(withToast) toast(a.texto); sysNotify('StrongMed', a.texto); });
-  soon.forEach(c=>{ seen.add('c'+c.id); sysNotify('Recordatorio de sesión', `${c.tipo||'Sesión'} ${rel(toISO(c.fecha))} a las ${c.hora} · ${c.lugar}`); });
+  fresh.forEach(a=>{ seen.add(String(a.id)); if(withToast) toast(a.texto); if(a.tipo!=='video') sysNotify('StrongMed', a.texto, ({rutina:'plan', cita:'agenda', tarea:'plan', evaluacion:'plan'})[a.tipo]||'hoy'); });
+  soon.forEach(c=>{ seen.add('c'+c.id); sysNotify('Recordatorio de sesión', `${c.tipo||'Sesión'} ${rel(toISO(c.fecha))} a las ${c.hora} · ${lugarLabel(c)}`, 'agenda'); });
   try{ localStorage.setItem(key, JSON.stringify([...seen].slice(-200))); }catch(e){}
 }
-function sysNotify(title, body){ try{ if('Notification' in window && Notification.permission==='granted') new Notification(title,{body, icon:LOGO}); }catch(e){} }
+function sysNotify(title, body, tab){ notificar(title, body, {tab:tab||'hoy'}); }
 window.pedirNotis = async () => { if(!('Notification' in window)) return toast('Tu navegador no permite notificaciones','err'); const r=await Notification.requestPermission(); toast(r==='granted'?'Notificaciones activadas':'No se activaron las notificaciones', r==='granted'?'':'err'); render(); };
 
 /* ================= SHELL PERSONA ================= */
@@ -1042,7 +1052,7 @@ function weekStrip(p, rehab=false){ const set=rehab ? new Set([...(p.sesionesReh
 const AV_ICON = {rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
 function avisoAction(a){ return ({rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
 function avisosHoy(p){
-  let h='';
+  let h=notisCard();
   const v=p.videoActiva, vOn = videoOn(p); if(vOn) h+=`<div class="aviso red"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b">Tu kine te invita a una videollamada</div><div class="xs muted">${esc(v.pro||'')} · ${relTs(v.ts)}</div></div><a class="btn pri sm" href="${safeUrl(v.url)}" target="_blank" rel="noopener">Unirme</a></div>`;
   unreadAvisos(p).filter(a=>!(vOn && a.tipo==='video')).slice(-3).reverse().forEach(a=>{ const act=avisoAction(a);
     h+=`<div class="aviso ${a.tipo==='rutina'||a.tipo==='habilitado'?'acc':''}"><span class="ico ${a.tipo==='rutina'||a.tipo==='habilitado'?'':'blue'}">${ic(AV_ICON[a.tipo]||'bell')}</span><div class="grow"><div class="sm b">${esc(a.texto)}</div><div class="xs muted">${relTs(a.ts)}</div>${act?`<button class="btn ghost sm" style="padding:0;height:28px" onclick="leerAviso(${a.id});${act}">Ver ${ic('chevr','s')}</button>`:''}</div><button class="ibtn" style="width:30px;height:30px;background:transparent" onclick="leerAviso(${a.id})" aria-label="Descartar">${ic('x','s')}</button></div>`; });
@@ -3045,6 +3055,65 @@ document.addEventListener('touchend', e=>{ if(!tx) return; const c=e.changedTouc
   const m=$('main.wrap'); if(m){ m.classList.remove('fade'); m.classList.add(dx<0?'swl':'swr'); }
   try{ navigator.vibrate && navigator.vibrate(8); }catch(x){} }, {passive:true});
 
+/* ================= NOTIFICACIONES DEL TELÉFONO Y TIMBRE DE VIDEOLLAMADA ================= */
+/* Las notificaciones se muestran a través del service worker: así aparecen en la barra de notificaciones de Android
+   (new Notification() no funciona en Android) y en iPhone cuando la app está instalada en la pantalla de inicio. */
+async function notificar(title, body, opt={}){
+  try{ if(!('Notification' in window) || Notification.permission!=='granted') return false;
+    const o={body, icon:'icons/icon-192.png', badge:'icons/icon-192.png', vibrate:opt.vibrate||[180,80,180], tag:opt.tag||('sm'+Date.now()), renotify:!!opt.tag, requireInteraction:!!opt.fijo, data:{tab:opt.tab||'hoy', url:location.href.split('#')[0], tipo:opt.tipo||''}};
+    if(opt.acciones) o.actions=opt.acciones;
+    if('serviceWorker' in navigator){ const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1500))]); if(reg && reg.showNotification){ await reg.showNotification(title, o); return true; } }
+    new Notification(title, o); return true; }catch(e){ console.warn('notificación', e); return false; } }
+window.notificar = notificar;
+/* pedir permiso con una explicación (Android/Chrome lo exige tras un toque) */
+async function pedirPermisoNotis(){ if(!('Notification' in window)){ toast(isIOS() && !isStandalone() ? 'En iPhone primero instala la app (Compartir → Agregar a inicio) para recibir notificaciones' : 'Este navegador no permite notificaciones','err'); return; }
+  const r=await Notification.requestPermission(); if(r==='granted'){ toast('Notificaciones activadas'); notificar('StrongMed', 'Listo: aquí te avisaremos de tus sesiones, rutinas, mensajes y videollamadas.'); } else toast('No se activaron. Puedes activarlas en los ajustes del navegador.','err'); render(); }
+window.pedirNotis = pedirPermisoNotis;
+const notisPendiente = () => 'Notification' in window && Notification.permission==='default';
+function notisCard(){ if(!notisPendiente() && !(isIOS() && !isStandalone() && !('Notification' in window))) return '';
+  return `<section class="aviso acc"><span class="ico">${ic('bell')}</span><div class="grow"><div class="b">Activa las notificaciones</div><div class="xs muted">${isIOS() && !isStandalone() ? 'En iPhone primero instala la app: Compartir → Agregar a pantalla de inicio.' : 'Te avisamos de citas, rutinas nuevas, mensajes y videollamadas.'}</div></div>${'Notification' in window?`<button class="btn pri sm" onclick="pedirNotis()">Activar</button>`:''}</section>`; }
+/* el service worker avisa cuando tocan una notificación */
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e=>{ const d=e.data||{}; if(d.tipo==='abrir'){ if(d.accion==='contestar') contestarLlamada(); else if(d.accion==='rechazar') rechazarLlamada(); else if(S.role==='pat' && d.tab) go(d.tab); } });
+
+/* ---- mensajes nuevos del profesional ---- */
+let chatNotiUnsub=null;
+function vigilarChat(){ if(chatNotiUnsub){ try{ chatNotiUnsub(); }catch(e){} chatNotiUnsub=null; } const p=me(); if(!p || !S.fb) return;
+  const F=S.fb, key='sm_chatvisto_'+keyOf(p); let visto=+localStorage.getItem(key)||Date.now(); try{ localStorage.setItem(key, visto); }catch(e){}
+  try{ const Q=F.limit ? F.query(chatColl(p), F.orderBy('timestamp','desc'), F.limit(1)) : F.query(chatColl(p), F.orderBy('timestamp','asc'));
+    chatNotiUnsub=F.onSnapshot(Q, snap=>{ let ult=null; snap.forEach(d=>{ const m=d.data(); if(!ult || (m.timestamp||0)>(ult.timestamp||0)) ult=m; });
+      if(!ult || (ult.timestamp||0)<=visto) return; visto=ult.timestamp; try{ localStorage.setItem(key, visto); }catch(e){}
+      if(ult.senderRole==='pro' && !(S.patTab==='chat' && document.visibilityState==='visible')){ const t=ult.text||'Te envió un archivo'; notificar(`Mensaje de ${ult.senderName||'tu profesional'}`, t, {tag:'chat', tab:'chat'}); if(document.visibilityState==='visible') toast(`Nuevo mensaje: ${t.slice(0,60)}`); } }); }catch(e){ console.warn(e); } }
+
+/* ---- timbre de videollamada ---- */
+let timbre=null;
+const ctxAudio = () => { if(!S.audio){ try{ S.audio=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ S.audio=null; } } return S.audio; };
+['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev, ()=>{ const a=ctxAudio(); if(a && a.state==='suspended') a.resume(); }, {passive:true}));
+function tono(a, t0){ // tono de llamada clásico: 440 + 480 Hz, dos pulsos
+  [[0,0.9],[1.2,0.9]].forEach(([d,len])=>{ [440,480].forEach(f=>{ const o=a.createOscillator(), g=a.createGain(); o.frequency.value=f; o.type='sine';
+    g.gain.setValueAtTime(0,t0+d); g.gain.linearRampToValueAtTime(0.18,t0+d+0.03); g.gain.setValueAtTime(0.18,t0+d+len-0.05); g.gain.linearRampToValueAtTime(0,t0+d+len);
+    o.connect(g).connect(a.destination); o.start(t0+d); o.stop(t0+d+len+0.02); }); }); }
+function sonarTimbre(){ pararTimbre(); const a=ctxAudio(); let n=0;
+  const paso=()=>{ if(n++>15){ pararTimbre(); return; } if(a){ if(a.state==='suspended') a.resume(); tono(a, a.currentTime+0.05); } try{ navigator.vibrate && navigator.vibrate([700,300,700]); }catch(e){} };
+  paso(); timbre=setInterval(paso, 3600); }
+function pararTimbre(){ if(timbre){ clearInterval(timbre); timbre=null; } try{ navigator.vibrate && navigator.vibrate(0); }catch(e){} }
+const llamadaKey = p => 'sm_llamada_'+keyOf(p);
+function checkLlamada(){ const p=me(); if(!p) return; const v=p.videoActiva, on=videoOn(p);
+  if(!on){ if($('#llamada')){ $('#llamada').remove(); pararTimbre(); } return; }
+  let vista=''; try{ vista=localStorage.getItem(llamadaKey(p))||''; }catch(e){}
+  if(vista===String(v.ts) || Date.now()-v.ts > 5*60e3) return;          // ya contestada/rechazada o hace más de 5 minutos
+  if($('#llamada')) return;
+  const d=document.createElement('div'); d.id='llamada'; d.className='llamada';
+  d.innerHTML=`<div class="ll-in"><div class="ll-ring">${avatar({nombre:v.pro||'Kine'},96)}</div><div class="eyebrow" style="margin-top:22px">Videollamada entrante</div><h2 class="disp h2" style="margin-top:6px">${esc(v.pro||'Tu profesional')}</h2><p class="muted sm" style="margin-top:6px">StrongMed · Kin At Home</p>
+    <div class="ll-btns"><button class="ll-b no" onclick="rechazarLlamada()" aria-label="Rechazar">${ic('x')}</button><button class="ll-b si" onclick="contestarLlamada()" aria-label="Contestar">${ic('video')}</button></div>
+    <div class="row" style="justify-content:space-around;width:100%;max-width:280px" ><span class="xs muted">Rechazar</span><span class="xs muted">Contestar</span></div></div>`;
+  document.body.appendChild(d); sonarTimbre();
+  notificar('Videollamada entrante', `${v.pro||'Tu profesional'} te está llamando`, {tag:'llamada', fijo:true, tipo:'llamada', vibrate:[700,300,700,300,700], acciones:[{action:'contestar', title:'Contestar'},{action:'rechazar', title:'Rechazar'}]});
+  setTimeout(()=>{ if($('#llamada')){ pararTimbre(); } }, 60000); }
+window.contestarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.remove(); if(!p||!p.videoActiva) return; try{ localStorage.setItem(llamadaKey(p), String(p.videoActiva.ts)); }catch(e){}
+  cerrarNotiLlamada(); window.open(p.videoActiva.url, '_blank', 'noopener'); };
+window.rechazarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.remove(); if(!p||!p.videoActiva) return; try{ localStorage.setItem(llamadaKey(p), String(p.videoActiva.ts)); }catch(e){} cerrarNotiLlamada(); toast('Llamada rechazada. Puedes escribirle por Mensajes.'); };
+async function cerrarNotiLlamada(){ try{ const reg=await navigator.serviceWorker?.ready; const ns=await reg?.getNotifications({tag:'llamada'}); (ns||[]).forEach(n=>n.close()); }catch(e){} }
+
 /* ================= SESIÓN Y ARRANQUE ================= */
 const _origRender = render;
 function saveSession(){ try{ if(S.role==='pat' && S.me) localStorage.setItem('sm_session', JSON.stringify({role:'pat', key:S.me}));
@@ -3066,7 +3135,7 @@ async function boot(){
   localStorage.removeItem('sm_session'); S.role=null; render();
 }
 boot();
-window.__t = {USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
+window.__t = {checkLlamada, notificar, vigilarChat, USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
 
 </script>
 </body>

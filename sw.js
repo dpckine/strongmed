@@ -1,6 +1,6 @@
 /* StrongMed — service worker: la app abre sin internet.
    Los datos (Firestore) los guarda Firebase en el teléfono y los sincroniza solo. */
-const V = 'sm-v10';
+const V = 'sm-v11';
 const SHELL = ['./', './index.html', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'sm-media' && k !== 'sm-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -25,3 +25,9 @@ self.addEventListener('fetch', e => {
   if (/\/(images|videos)\//.test(u) || /\.(gif|jpe?g|png|webp)(\?|$)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-media')); return; }
   e.respondWith(swr(req, V));   // librerías (Firebase, Chart.js, mapas, fuentes) y datos
 });
+
+/* tocar una notificación: abre (o enfoca) la app y le avisa qué hacer */
+self.addEventListener('notificationclick', e => { const n=e.notification, d=n.data||{}, accion=e.action||''; n.close();
+  e.waitUntil((async () => { const cs=await self.clients.matchAll({type:'window', includeUncontrolled:true});
+    let c=cs.find(x=>x.url.startsWith(self.registration.scope)); if(c){ await c.focus(); } else { c=await self.clients.openWindow(d.url||'./'); }
+    if(c) setTimeout(()=>c.postMessage({tipo:'abrir', tab:d.tab||'hoy', accion: d.tipo==='llamada' ? (accion||'contestar') : accion}), 600); })()); });

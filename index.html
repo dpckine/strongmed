@@ -1072,7 +1072,7 @@ function citaHTML(c, opts={}){ const d=toISO(c.fecha)?parseISO(toISO(c.fecha)):n
   <div class="xs b st-${c.estado}" style="margin-top:4px">${({solicitada:'Solicitada · esperando confirmación',confirmada:'Confirmada',cancelada:'Cancelada',realizada:'Realizada'})[c.estado]||''}${c.pro?` · ${esc(c.pro)}`:''}${pagoPend(c)?` · <span style="color:var(--orange)">pago ${c.pago.estado==='informado'?'informado':'pendiente'}</span>`:''}</div></div>${opts.right||''}</div>`; }
 function proximaCitaCard(p){ const c=proximasCitas(p)[0];
   if(!c) return `<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una sesión</button>`;
-  return `<section class="card stack"><div class="row between"><span class="eyebrow">Tu próxima sesión</span><button class="xs b acc-t" onclick="go('agenda')">Ver agenda</button></div>${citaHTML(c,{right: c.lugar==='Online'&&c.link&&c.estado==='confirmada'?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''})}${pagoBox(c,true)}<button class="btn sec sm" onclick="sheetSolicitar()">${ic('plus','s')} Agendar otra sesión</button></section>`; }
+  return `<section class="card stack"><div class="row between"><span class="eyebrow">Tu próxima sesión</span><button class="xs b acc-t" onclick="go('agenda')">Ver agenda</button></div>${citaHTML(c,{right: c.lugar==='Online'&&c.link&&c.estado==='confirmada'?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''})}${pagoBox(c,true)}<div class="xs muted">${politicaCita(c)}</div><button class="btn sec sm" onclick="sheetSolicitar()">${ic('plus','s')} Agendar otra sesión</button></section>`; }
 function waPro(p){ const c=proximasCitas(p)[0], ag=agendaOf(c?.proId) || (S.agendas||[]).find(a=>a.nombre===p.klgo) || agendaOf(p.org==='kah'?'b-kah':'b-sm'); const l=ag&&waLink(ag.whatsapp, `Hola, soy ${p.nombre}. `); return l?`<a class="ibtn" href="${l}" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="WhatsApp">${ic('phone','s')}</a>`:''; }
 function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes</div><div class="xs muted">Escríbele a ${esc(oralPro(p))}</div></div>${ic('chevr','s chev')}</div></button>`; return `<button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes con tu kine</div><div class="xs muted">${esc(p.klgo||'Tu profesional')} · escríbele tus dudas</div></div>${waPro(p)}${ic('chevr','s chev')}</div></button>`; }
 
@@ -2121,9 +2121,9 @@ const BLOQ = {AM:'08:00 a 12:00', PM:'13:00 a 19:00'};
 const SITIOS = ['FISIOMET','MDkine','Kin At Home','Domicilio particular','Otro'];
 const HALF = (()=>{ const a=[]; for(let h=7;h<=21;h++) for(const m of ['00','30']) a.push(`${pad(h)}:${m}`); return a; })();
 const BUILTIN_AGENDAS = [
-  {id:'b-sm',  nombre:'Klgo. David Ponce Caro', titulo:'Kinesiólogo', orgs:['sm','kah'], disponible:true, pagoLink:'https://mpago.la/2YVPwtT', rut:'20.239.475-2', slots:{}, bloqueos:[],
+  {id:'b-sm',  nombre:'Klgo. David Ponce Caro', titulo:'Kinesiólogo', whatsapp:'+56 9 4947 2456', orgs:['sm','kah'], disponible:true, pagoLink:'https://mpago.la/2YVPwtT', rut:'20.239.475-2', slots:{}, bloqueos:[],
    centros:[{id:'fisiomet', nombre:'FISIOMET', direccion:'Concepción'},{id:'mdkine', nombre:'MDkine', direccion:'Nonguén 248, Camino Lo Pequén, Concepción'}], domicilio:true, online:true},
-  {id:'b-kah', nombre:'Equipo Kin At Home', titulo:'Kinesiología a domicilio', whatsapp:'+56 9 4947 2456', orgs:['kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[], centros:[], domicilio:true, online:false},
+  {id:'b-kah', nombre:'Equipo Kin At Home', titulo:'Kinesiología a domicilio', whatsapp:'+56 9 3025 7516', orgs:['kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[], centros:[], domicilio:true, online:false},
   {id:'b-oral', nombre:'Dra. Nicole Escobar', titulo:'Odontología general', servicio:'oral', orgs:['sm','kah'], disponible:true, pagoLink:'', slots:{}, bloqueos:[],
    centros:[{id:'consulta-nicole', nombre:'Consulta Dra. Nicole Escobar', direccion:'Dirección por confirmar'}], domicilio:false, online:false}
 ];
@@ -2175,7 +2175,7 @@ function bookingDyn(){
   <div><div class="lbl">Lugar de atención</div>${places.length?`<div class="stack" style="gap:8px">${places.map(pl=>`<button type="button" class="pcard ${b.lugar===pl.code?'on':''}" onclick="bkSet('lugar',${q(pl.code)})"><div class="row"><span class="ico" style="color:${lugarCol(pl.code)};background:color-mix(in srgb,${lugarCol(pl.code)} 15%,transparent)">${ic(pl.code==='Online'?'video':pl.code==='Domicilio'?'home':'pin','s')}</span><div class="grow"><b>${esc(pl.label)}</b><small>${esc(pl.sub)}</small></div>${b.lugar===pl.code?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')}</div>`:'<div class="empty">Este profesional aún no configura sus lugares</div>'}</div>
   <div><div class="lbl">Día</div><div class="pills dchips" id="bk-days">${days.map(chip).join('')}</div></div>
   <div><div class="lbl">¿Qué horario te acomoda?</div><div class="grid2">${blk('AM')}${blk('PM')}</div><div class="xs muted" style="margin-top:6px">Tu profesional te confirmará la hora exacta según su disponibilidad.</div></div>
-  ${b.serv==='oral'?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:''}`;
+  ${b.serv==='oral'?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span><span>Una vez confirmada la hora, si cancelas solo se reembolsa el 40 % de lo pagado. Los cambios de fecha u horario se piden con al menos <b>1 día</b> de anticipación.</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora. Una vez confirmada, si cancelas solo se reembolsa el 40 % de lo pagado. Los cambios se piden con al menos <b>5 horas</b> de anticipación.</span></div>`:`<div class="xs muted">Los cambios de fecha u horario se piden con al menos 5 horas de anticipación.</div>`}`;
 }
 window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo') S.bk.bloque=null;
   const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); const dd=$('#bk-days'); if(dd) dd.scrollLeft=sc;
@@ -2252,7 +2252,7 @@ function vVoucher(){
     <div class="vcut"></div>
     <div class="b">Revisa el estado de tu solicitud en la app</div><p class="sm muted" style="margin-top:4px">Ingresa con tu RUT (sin puntos y con guion) y tu clave (los primeros 4 dígitos de tu RUT):</p>
     <div class="grid2" style="margin-top:10px"><div class="stat"><span>RUT</span><b style="font-size:clamp(17px,5.2vw,24px);white-space:nowrap">${esc(fmtRut(p.rut))}</b></div><div class="stat acc"><span>Clave</span><b style="font-size:24px">${esc(p.pin)}</b></div></div>
-    ${pagoPend(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}</div>
+    ${pagoPend(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}<p class="xs muted" style="margin-top:10px">${politicaCita(c)}</p></div>
   <button class="btn pri block" onclick="entrarVoucher()">Entrar a mi cuenta ${ic('chevr','s')}</button>
   <p class="xs muted center">Toma una captura de pantalla para guardar tus datos de acceso.</p></div></div>`;
 }
@@ -3120,7 +3120,7 @@ window.rechazarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.rem
 async function cerrarNotiLlamada(){ try{ const reg=await navigator.serviceWorker?.ready; const ns=await reg?.getNotifications({tag:'llamada'}); (ns||[]).forEach(n=>n.close()); }catch(e){} }
 
 /* ================= CONSENTIMIENTO INFORMADO Y CONDICIONES DEL SERVICIO ================= */
-const CONSENT_V = '1.0', CONSENT_FECHA = '11 de octubre de 2026';
+const CONSENT_V = '1.1', CONSENT_FECHA = '11 de octubre de 2026';
 const CONSENT = [
  ['1. Para qué se usa tu información', [
   'Los datos que entregas (identificación, contacto, antecedentes de salud, evaluaciones, sesiones, entrenamientos, mensajes, fotos y registros de actividad) se usan única y exclusivamente para dejar registro de tus atenciones y hacer el seguimiento de tu tratamiento o entrenamiento.',
@@ -3139,12 +3139,15 @@ const CONSENT = [
  ['4. Vigencia de los servicios', [
   'Cada servicio o plan de sesiones tiene una fecha de expiración que te informará tu profesional. Las sesiones no realizadas dentro de ese plazo se pierden.',
   'La vigencia solo se extiende por causas imposibilitantes y justificadas, como un accidente, un problema médico imprevisto o vacaciones informadas con anticipación, previa conversación con el profesional.']],
- ['5. Reagendamiento y cancelaciones', [
+ ['5. Cambios de fecha u horario', [
   'Para cambiar una hora debes conversarlo con tu profesional; el nuevo horario queda sujeto a su disponibilidad y factibilidad.',
-  'Los cambios y cancelaciones deben avisarse con al menos 12 horas de anticipación.',
-  'Si no avisas con ese plazo o no asistes, la sesión se considera realizada y no habrá reembolso ni recuperación de la sesión, salvo una causa imposibilitante justificada.']],
- ['6. Pagos', [
+  'Si no tienes una razón comprobable, el cambio debe solicitarse con al menos 5 horas de anticipación en kinesiología y entrenamiento, y con al menos 1 día (24 horas) de anticipación en odontología general.',
+  'Si pides el cambio fuera de ese plazo o no asistes sin aviso, la sesión se considera realizada, salvo una causa imposibilitante y comprobable (por ejemplo, un accidente o un problema médico imprevisto).']],
+ ['6. Pagos, cancelaciones y reembolsos', [
   'Las atenciones a domicilio y del servicio de odontología general requieren pago previo para confirmar la hora.',
+  'En las atenciones a domicilio y de odontología general, una vez reservada y confirmada la hora, si cancelas solo se reembolsa el 40 % del total pagado.',
+  'Las atenciones con plan FONASA o ISAPRE no tienen reembolso por cancelación.',
+  'En los planes de entrenamiento, las sesiones a las que faltes sin previo aviso no se recuperan.',
   'Los valores, planes y medios de pago te los informa cada profesional antes de la atención.']],
  ['7. Videollamadas y comunicación', [
   'Las sesiones online se realizan por videollamada. Procura estar en un lugar privado, seguro y con espacio suficiente para moverte.',
@@ -3157,7 +3160,7 @@ function consentHTML(){ return `<div class="consent"><p class="xs muted">Versió
   ${CONSENT.map(([t,ps])=>`<h3 class="h3" style="margin-top:16px">${esc(t)}</h3>${ps.map(x=>`<p class="sm" style="margin-top:8px;line-height:1.55">${esc(x)}</p>`).join('')}`).join('')}</div>`; }
 window.verConsentimiento = () => { const p=S.role==='pat'?me():null;
   sheet(`<h2 class="disp h2">Consentimiento informado y condiciones</h2>${consentHTML()}${p&&consentOk(p)?`<div class="note" style="margin-top:16px">${ic('check','s')}<span>Aceptado el ${fmtDate(p.consentimiento.fecha)}.</span></div>`:''}<button class="btn pri block" style="margin-top:16px" onclick="closeSheet()">Cerrar</button>`); };
-const consentLabel = id => `<label class="check"><input type="checkbox" id="${id}"><span>Leí y acepto el <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="event.preventDefault();verConsentimiento()">consentimiento informado y las condiciones del servicio</button> (uso de mis datos, información fidedigna, vigencia, reagendamiento y cancelación con 12 horas de anticipación).</span></label>`;
+const consentLabel = id => `<label class="check"><input type="checkbox" id="${id}"><span>Leí y acepto el <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="event.preventDefault();verConsentimiento()">consentimiento informado y las condiciones del servicio</button> (uso de mis datos, información fidedigna, vigencia, cambios de hora, cancelaciones y reembolsos).</span></label>`;
 const consentNuevo = () => ({v:CONSENT_V, fecha:todayISO(), ts:Date.now()});
 /* al entrar: si la persona no ha aceptado la versión vigente, se le pide antes de usar la app */
 function pedirConsentimiento(){ const p=me(); if(!p || consentOk(p) || $('#consent-gate')) return;
@@ -3171,10 +3174,14 @@ function consentPro(p){ const c=p.consentimiento;
   return consentOk(p) ? `<span class="badge acc">${ic('check','s')} Consentimiento v${esc(c.v)} · ${fmtDate(c.fecha)}</span>` : `<span class="badge mixto">${ic('clock','s')} Consentimiento pendiente</span>`; }
 
 /* ================= WHATSAPP (respaldo cuando la persona no responde en la app) ================= */
+const esOralCita = c => !!c && (c.servicio==='oral' || servAg(agendaOf(c.proId))==='oral');
+const plazoCambio = c => esOralCita(c) ? '1 día' : '5 horas';
+function politicaCita(c){ const oral=esOralCita(c), dom=c&&c.lugar==='Domicilio';
+  return `${oral||dom?'Una vez confirmada la hora, si cancelas solo se reembolsa el 40 % de lo pagado. ':''}Los cambios de fecha u horario se piden con al menos <b>${oral?'1 día':'5 horas'}</b> de anticipación.`; }
 function waNum(tel){ let d=String(tel||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('56')) return d; if(d.length===9 && d[0]==='9') return '56'+d; if(d.length===8) return '569'+d; return d; }
 const waLink = (tel, txt) => { const n=waNum(tel); return n ? `https://wa.me/${n}?text=${encodeURIComponent(txt)}` : ''; };
 function waTexto(p, c, tipo){ const n=first(p.nombre), pro=(S.pro&&S.pro.nombre)||c?.pro||'', lug=c?`${lugarLabel(c)}${c.direccion?` (${c.direccion})`:''}`:'', cuando=c?`${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''}`:'';
-  if(tipo==='recordatorio') return `Hola ${n}, te recuerdo tu sesión de ${c.tipo||'atención'} el ${cuando} en ${lug}. Si necesitas cambiarla, avísame con al menos 12 horas de anticipación. ${pro}`;
+  if(tipo==='recordatorio') return `Hola ${n}, te recuerdo tu sesión de ${c.tipo||'atención'} el ${cuando} en ${lug}. Si necesitas cambiarla, avísame con al menos ${plazoCambio(c)} de anticipación. ${pro}`;
   if(tipo==='confirmar') return `Hola ${n}, recibimos tu solicitud de ${c.tipo||'atención'} para el ${cuando}${c.bloque&&!c.hora?` (${c.bloque==='AM'?'mañana':'tarde'})`:''} en ${lug}. ¿Te acomoda? Puedes revisarla en la app StrongMed. ${pro}`;
   if(tipo==='pago') return `Hola ${n}, para confirmar tu hora del ${cuando} falta registrar el pago previo${c?.pago?.link?`: ${c.pago.link}`:''}. Cuando pagues avísame por aquí o en la app. ${pro}`;
   return `Hola ${n}, te escribo desde StrongMed. ${pro}`; }

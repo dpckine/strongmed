@@ -993,7 +993,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
 function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
-window.logout = () => { stopChat(); salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+window.logout = () => { stopChat(); S._ingLoaded=false; S.ingresos=[]; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -1119,7 +1119,7 @@ function vHoyPend(p){
     h+=`<section class="card stack"><div class="row between"><span class="b">Mi perfil</span>${oral?'':`<button class="btn ghost sm" onclick="go('ficha')">${an?'Editar ficha':'Completar ficha'}</button>`}</div><dl class="kv"><dt>Nombre</dt><dd>${esc(p.nombre)}</dd><dt>RUT</dt><dd>${esc(p.rut)}</dd><dt>Teléfono</dt><dd>${esc(p.contacto||'—')}</dd><dt>Correo</dt><dd>${esc(p.email||'—')}</dd>${p.direccion?`<dt>Dirección</dt><dd>${esc(p.direccion)}</dd>`:''}${p.edad?`<dt>Edad</dt><dd>${esc(p.edad)}</dd>`:''}</dl>
       <p class="xs muted">Después de tu primera ${oral?'atención':'sesión'} tu profesional habilitará el resto de tu app.</p></section>`;
   } else {
-    h+= sol ? `<div class="voucher"><div class="row between"><span class="eyebrow">Solicitud de hora</span><span class="badge mixto">${ic('clock','s')} Pendiente</span></div><div class="b" style="margin-top:10px">${esc(sol.tipo)} · ${fmtDate(sol.fecha)} · ${sol.bloque==='AM'?'mañana':'tarde'}</div><div class="sm muted">${esc(lugarLabel(sol))} · ${esc(sol.pro)}</div><p class="xs muted" style="margin-top:8px">Te avisaremos aquí cuando tu profesional confirme la hora exacta.</p>${pagoPend(sol)?`<div style="margin-top:10px">${pagoBox(sol,true)}</div>`:''}</div>`
+    h+= sol ? `<div class="voucher"><div class="row between"><span class="eyebrow">Solicitud de hora</span><span class="badge mixto">${ic('clock','s')} Pendiente</span></div><div class="b" style="margin-top:10px">${esc(sol.tipo)} · ${fmtDate(sol.fecha)} · ${sol.bloque==='AM'?'mañana':'tarde'}</div><div class="sm muted">${esc(lugarLabel(sol))} · ${esc(sol.pro)}</div><p class="xs muted" style="margin-top:8px">Te avisaremos aquí cuando tu profesional confirme la hora exacta.</p>${pagoPend(sol)||pagoEfe(sol)?`<div style="margin-top:10px">${pagoBox(sol,true)}</div>`:''}</div>`
       : `<section class="card pend"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">Tu perfil está en revisión</div><p class="sm muted" style="margin-top:4px">${oral?'Mientras tanto puedes agendar una hora y escribirle a tu profesional.':'Mientras tanto puedes completar tu ficha, agendar una hora, registrar tus pasos y escribirle a tu profesional.'}</p></div></div></section>`;
     h+= an ? '' : `<section class="hero"><div class="eyebrow">Paso 1</div><h2 class="disp h2" style="margin-top:8px">Completa tu ficha inicial</h2><p class="sm" style="margin-top:8px;opacity:.75;position:relative;z-index:1">Son 2 minutos. Ayuda a tu kine a preparar tu primera sesión.</p><button class="btn dark sm" style="margin-top:14px;position:relative;z-index:1" onclick="go('ficha')">Completar ahora ${ic('chevr','s')}</button></section>`;
     if(!sol) h+=`<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una hora</button>`;
@@ -2154,6 +2154,8 @@ const fmtRut = r => { const s=String(r||'').replace(/[^0-9kK]/g,'').toUpperCase(
 const pinDeRut = r => String(r||'').replace(/\D/g,'').slice(0,4);
 const horaTxt = c => c.hora ? c.hora : c.bloque ? `${c.bloque==='AM'?'Mañana':'Tarde'} (${BLOQ[c.bloque]}) · hora por confirmar` : '--:--';
 const pagoPend = c => c.pago && c.pago.requerido && c.pago.estado!=='pagado';
+const pagoEfe = c => !!(c.pago && c.pago.medio==='efectivo' && c.pago.estado!=='pagado' && c.pago.estado!=='reembolsado');
+const pagoTag = c => pagoPend(c)?' · pago pendiente':pagoEfe(c)?' · paga en efectivo':'';
 
 /* ---- formulario de reserva (persona, con o sin cuenta) ---- */
 function bkDays(){ const out=[], d=new Date(); for(let i=0;i<21;i++){ const x=new Date(d); x.setDate(d.getDate()+i); out.push(iso(x)); } return out; }
@@ -2175,9 +2177,9 @@ function bookingDyn(){
   <div><div class="lbl">Lugar de atención</div>${places.length?`<div class="stack" style="gap:8px">${places.map(pl=>`<button type="button" class="pcard ${b.lugar===pl.code?'on':''}" onclick="bkSet('lugar',${q(pl.code)})"><div class="row"><span class="ico" style="color:${lugarCol(pl.code)};background:color-mix(in srgb,${lugarCol(pl.code)} 15%,transparent)">${ic(pl.code==='Online'?'video':pl.code==='Domicilio'?'home':'pin','s')}</span><div class="grow"><b>${esc(pl.label)}</b><small>${esc(pl.sub)}</small></div>${b.lugar===pl.code?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')}</div>`:'<div class="empty">Este profesional aún no configura sus lugares</div>'}</div>
   <div><div class="lbl">Día</div><div class="pills dchips" id="bk-days">${days.map(chip).join('')}</div></div>
   <div><div class="lbl">¿Qué horario te acomoda?</div><div class="grid2">${blk('AM')}${blk('PM')}</div><div class="xs muted" style="margin-top:6px">Tu profesional te confirmará la hora exacta según su disponibilidad.</div></div>
-  ${b.serv==='oral'?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span><span>Una vez confirmada la hora, si cancelas solo se reembolsa el 40 % de lo pagado. Los cambios de fecha u horario se piden con al menos <b>1 día</b> de anticipación.</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora. Una vez confirmada, si cancelas solo se reembolsa el 40 % de lo pagado. Los cambios se piden con al menos <b>5 horas</b> de anticipación.</span></div>`:`<div class="xs muted">Los cambios de fecha u horario se piden con al menos 5 horas de anticipación.</div>`}`;
+  ${b.serv==='oral'?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:''}${b.lugar&&b.lugar!=='Online'?`<div><div class="lbl">Forma de pago</div>${pill(['Transferencia o link de pago','Efectivo'],'medio')}${b.medio==='Efectivo'?`<label class="check" style="margin-top:8px"><input type="checkbox" id="bk-efe"><span>Me comprometo a pagar en efectivo al inicio de la sesión, antes de comenzar la atención.</span></label>`:''}</div>`:''}<div class="xs muted">Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.</div>`;
 }
-window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo') S.bk.bloque=null;
+window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo' && k!=='medio') S.bk.bloque=null;
   const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); const dd=$('#bk-days'); if(dd) dd.scrollLeft=sc;
   const da=$('#bk-dir'); if(da) da.classList.toggle('hidden', S.bk.lugar!=='Domicilio'); };
 const bkExtra = (p={}) => `<label class="field ${S.bk.lugar==='Domicilio'?'':'hidden'}" id="bk-dir"><span class="lbl">Dirección de la atención *</span><input class="inp" id="bk-dir-i" value="${esc(p.direccion||'')}" placeholder="Calle, número, comuna"></label>
@@ -2190,13 +2192,15 @@ function buildCita(p){
   if(!b.bloque){ toast('Elige si prefieres mañana o tarde','err'); return null; }
   if(!val('bk-mot')){ toast('Cuéntanos el motivo de consulta','err'); return null; }
   if(b.lugar==='Domicilio' && !val('bk-dir-i')){ toast('Indica la dirección para la atención a domicilio','err'); return null; }
+  const efectivo = b.medio==='Efectivo' && b.lugar!=='Online';
+  if(efectivo && !$('#bk-efe')?.checked){ toast('Marca el compromiso de pago en efectivo para terminar de agendar','err'); return null; }
   const pagoPrevio = (p.citas||[]).some(c=>c.lugar==='Domicilio' && (c.estado==='realizada' || c.pago?.estado==='pagado'));
   const cen = String(b.lugar).startsWith('C:') ? centroById(b.lugar.slice(2)) : null;
   const oral=b.serv==='oral', pago = oral ? {requerido:true, estado:'pendiente', link:a?.pagoLink||''} : b.lugar==='Domicilio' && !pagoPrevio ? {requerido:true, estado:'pendiente', link:a?.pagoLink||agendaOf('b-sm')?.pagoLink||''} : null;
   return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot'), nota:val('bk-nota'),
-    estado:'solicitada', creadaPor:'persona', creada:Date.now(), pago};
+    estado:'solicitada', creadaPor:'persona', creada:Date.now(), pago: efectivo ? {requerido:false, medio:'efectivo', compromiso:Date.now(), estado:'pendiente'} : (pago?{...pago, medio:'transferencia'}:null)};
 }
-function pagoBox(c, own){ if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
+function pagoBox(c, own){ if(pagoEfe(c)) return `<div class="note">${ic('info','s')}<span>Pago en <b>efectivo</b> al inicio de la sesión, antes de comenzar la atención.</span></div>`; if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
   const lk=safeUrl(c.pago.link||agendaOf(c.proId)?.pagoLink||'');
   return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:'Para confirmar tu atención a domicilio debes pagar la primera sesión.'}${!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>
   <div class="row" style="gap:8px">${lk?`<a class="btn pri sm" href="${lk}" target="_blank" rel="noopener">Ir a pagar</a>`:''}${own && c.pago.estado!=='informado'?`<button class="btn sec sm" onclick="yaPague(${c.id})">Ya pagué</button>`:''}</div></div>`; }
@@ -2252,7 +2256,7 @@ function vVoucher(){
     <div class="vcut"></div>
     <div class="b">Revisa el estado de tu solicitud en la app</div><p class="sm muted" style="margin-top:4px">Ingresa con tu RUT (sin puntos y con guion) y tu clave (los primeros 4 dígitos de tu RUT):</p>
     <div class="grid2" style="margin-top:10px"><div class="stat"><span>RUT</span><b style="font-size:clamp(17px,5.2vw,24px);white-space:nowrap">${esc(fmtRut(p.rut))}</b></div><div class="stat acc"><span>Clave</span><b style="font-size:24px">${esc(p.pin)}</b></div></div>
-    ${pagoPend(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}<p class="xs muted" style="margin-top:10px">${politicaCita(c)}</p></div>
+    ${pagoPend(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}${pagoEfe(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}<p class="xs muted" style="margin-top:10px">${politicaCita(c)}</p></div>
   <button class="btn pri block" onclick="entrarVoucher()">Entrar a mi cuenta ${ic('chevr','s')}</button>
   <p class="xs muted center">Toma una captura de pantalla para guardar tus datos de acceso.</p></div></div>`;
 }
@@ -2271,9 +2275,9 @@ function vAgendaPro(){
   const ags=agendasVisibles(); if(!S.agId || !ags.find(a=>a&&a.id===S.agId)) S.agId=(ags.find(a=>a&&a.id===S.pro.id)||ags[0])?.id;
   const a=ags.find(x=>x.id===S.agId)||myAgenda(), seg=S.agSeg||'dia';
   const sol=allCitas().filter(x=>x.c.estado==='solicitada');
-  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas']];
+  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas'], ...(canEditAgenda(a)?[['ingresos','Ingresos']]:[])];
   S.after.push(async()=>{ if(!S._jorLoaded){ S._jorLoaded=true; await loadJornadas(); if(S.proTab==='agenda') keepScroll(render); } });
-  const body = seg==='dia'?agDia(a): seg==='mes'?agMes(a): seg==='solicitudes'?agSolicitudes(sol): seg==='disponibilidad'?agDisp(a): agHoras(a);
+  const body = seg==='dia'?agDia(a): seg==='mes'?agMes(a): seg==='solicitudes'?agSolicitudes(sol): seg==='disponibilidad'?agDisp(a): seg==='ingresos'&&canEditAgenda(a)?agIngresos(a): agHoras(a);
   return `${proHead('Mi agenda','Agenda',`<button class="btn pri sm" onclick="sheetCita(null,null,{proId:${q(a.id)}})">${ic('plus','s')} Agendar</button>`)}<div class="stack">
   ${ags.length>1?`<div class="pills">${ags.map(x=>`<button class="pill ${x.id===a.id?'on':''}" onclick="S.agId=${q(x.id)};render()">${esc(x.nombre)}</button>`).join('')}</div>`:''}
   <div class="pills">${segs.map(([k,l])=>`<button class="pill ${seg===k?'on':''}" onclick="S.agSeg='${k}';render()">${l}</button>`).join('')}</div>${body}</div>`;
@@ -2289,10 +2293,10 @@ function agDia(a){
   ${d!==todayISO()?`<button class="btn ghost sm" onclick="S.agDate='${todayISO()}';render()">Ir a hoy</button>`:''}
   ${jor.length?`<div class="list">${jor.map(j=>`<div class="li"><span class="ico">${ic('clock','s')}</span><div class="grow"><div class="b sm">Jornada en ${esc(j.lugar)}</div><div class="xs muted">${esc(j.inicio)} – ${esc(j.termino)} · ${(+j.horas||0).toFixed(1)} h${j.tipo?` · ${esc(j.tipo)}`:''}</div></div></div>`).join('')}</div>`:''}
   <div class="sec-t"><h2>Pacientes del día (${conHora.length})</h2></div>
-  ${conHora.length?`<div class="list">${conHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})"><div class="tbig" style="color:${lugarCol(c.lugar)}">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div><div class="xs b st-${c.estado}">${c.estado==='realizada'?'Realizada':'Confirmada'}${pagoPend(c)?' · pago pendiente':''}</div></div>${c.estado==='confirmada'?waBtn(p,c,'recordatorio','ibtn',''):''}${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora este día.</div>`}
+  ${conHora.length?`<div class="list">${conHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})"><div class="tbig" style="color:${lugarCol(c.lugar)}">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div><div class="xs b st-${c.estado}">${c.estado==='realizada'?'Realizada':'Confirmada'}${pagoTag(c)}</div></div>${c.estado==='confirmada'?waBtn(p,c,'recordatorio','ibtn',''):''}${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora este día.</div>`}
   ${sinHora.length?`<div class="sec-t"><h2>Solicitudes por asignar hora</h2></div><div class="list">${sinHora.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})">${citaHTML(c,{who:p.nombre})}</button>`).join('')}</div>`:''}
   <div class="card tight" style="padding:6px 10px">${hs.map(h=>{ const cc=byH[h]; const l=slH[h];
-    return `<div class="slot"><span class="sh">${h}</span><div class="grow">${cc?cc.map(({c,p})=>`<button class="scita" style="--c:${lugarCol(c.lugar)}" onclick="sheetCita(${q(keyOf(p))},${c.id})"><b>${esc(c.hora)} · ${esc(p.nombre)}</b><span>${esc(c.tipo)} · ${esc(lugarLabel(c))}${pagoPend(c)?' · pago pendiente':''}</span></button>`).join('')
+    return `<div class="slot"><span class="sh">${h}</span><div class="grow">${cc?cc.map(({c,p})=>`<button class="scita" style="--c:${lugarCol(c.lugar)}" onclick="sheetCita(${q(keyOf(p))},${c.id})"><b>${esc(c.hora)} · ${esc(p.nombre)}</b><span>${esc(c.tipo)} · ${esc(lugarLabel(c))}${pagoTag(c)}</span></button>`).join('')
       : l ? `<button class="sfree" style="--c:${lugarCol(l)}" onclick="sheetCita(null,null,{proId:${q(a.id)},fecha:'${d}',hora:'${h}',lugar:${q(l==='Todos'||l==='Centro'?(placesOf(a)[0]?.code||'Domicilio'):l)}})">Disponible · ${esc(lugarLabel(l))}</button>` : '<span class="sempty"></span>'}</div></div>`; }).join('')}</div>
   ${!hasSlots(a)?`<div class="note">${ic('info','s')}<span>Aún no configuras tu disponibilidad. Hazlo en <b>Disponibilidad</b> para que las personas vean tus horas libres.</span></div>`:''}`;
 }
@@ -2369,7 +2373,10 @@ window.sheetCita = (k, id, preset={}) => {
   <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" id="ci-f" value="${esc(toISO(c?.fecha)||preset.fecha||todayISO())}" onchange="ciHoras()"></label><label class="field"><span class="lbl">Hora</span><input class="inp" type="time" id="ci-h" value="${esc(c?.hora||preset.hora||'')}"></label></div>
   <div id="ci-free"></div>
   <label class="field"><span class="lbl">Dirección / indicaciones</span><input class="inp" id="ci-n" value="${esc(c?.direccion||c?.notaPro||p?.direccion||'')}" placeholder="Dirección del domicilio, box, qué traer…"></label>
-  ${c?.pago?.requerido?`<div class="card tight stack"><div class="row between"><span class="b sm">Pago previo${c.servicio==='oral'?'':' (domicilio)'}</span><span class="badge ${c.pago.estado==='pagado'?'acc':'mixto'}">${c.pago.estado==='pagado'?'Pagado':c.pago.estado==='informado'?'Persona informó pago':'Pendiente'}</span></div><label class="check"><input type="checkbox" id="ci-pg" ${c.pago.estado==='pagado'?'checked':''}><span>Pago recibido</span></label></div>`:''}
+  ${c?`<div class="card tight stack"><div class="row between"><span class="b sm">Pago${c.pago?.medio==='efectivo'?' en efectivo (al inicio de la sesión)':c.pago?.requerido?' previo':''}</span><span class="badge ${c.pago?.estado==='pagado'?'acc':c.pago?.estado==='reembolsado'?'red':'mixto'}">${({pagado:'Pagado', informado:'Persona informó pago', reembolsado:'Reembolsado'})[c.pago?.estado]||'Pendiente'}</span></div>
+    <label class="check"><input type="checkbox" id="ci-pg" ${c.pago?.estado==='pagado'||c.pago?.estado==='reembolsado'?'checked':''}><span>Pago recibido</span></label>
+    <label class="field"><span class="lbl">Medio de pago</span><select class="inp" id="ci-me">${MEDIOS.map(([k,l])=>`<option value="${k}" ${(c.pago?.medio||'transferencia')===k?'selected':''}>${l}</option>`).join('')}</select></label><div class="grid2"><label class="field"><span class="lbl">Monto pagado ($)</span><input class="inp" id="ci-mo" inputmode="numeric" value="${esc(c.pago?.monto||'')}" placeholder="Ej: 20000"></label><label class="field"><span class="lbl">N° de boleta</span><input class="inp" id="ci-bo" value="${esc(c.pago?.boleta||'')}" placeholder="Opcional"></label></div>
+    ${c.pago?.reembolso?`<div class="xs b" style="color:var(--red)">Reembolso por cancelación: $${(+c.pago.reembolso).toLocaleString('es-CL')} (${c.pago.reembolsoPct||40} %)</div>`:''}</div>`:''}
   ${c&&c.link?`<a class="btn sec block" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')} Abrir sala de videollamada</a>`:''}
   ${p&&c&&waNum(p.contacto)?`<div class="card tight stack"><div class="xs b muted">Si no responde en la app, escríbele por WhatsApp</div><div class="row" style="gap:6px;flex-wrap:wrap">${c.estado==='solicitada'?waBtn(p,c,'confirmar','btn sec sm','Confirmar'):waBtn(p,c,'recordatorio','btn sec sm','Recordatorio')}${pagoPend(c)?waBtn(p,c,'pago','btn sec sm','Cobrar pago'):''}${waBtn(p,null,'','btn ghost sm','Mensaje libre')}</div></div>`:''}
   <button class="btn pri block" onclick="guardarCita(${c?c.id:0})">${c?(c.estado==='solicitada'?'Confirmar hora':'Guardar cambios'):'Agendar y avisar'}</button>
@@ -2389,7 +2396,8 @@ const videoRoomFor = (p, proId) => (agendaOf(proId||S.pro?.id)?.linkVideo) || `h
 window.guardarCita = async id => {
   const k=val('ci-p'), p=prof(k); if(!p) return toast('Elige una persona','err'); const f=val('ci-f'), h=val('ci-h'); if(!f||!h) return toast('Indica fecha y hora','err');
   p.citas=p.citas||[]; let c=id?p.citas.find(x=>x.id===id):null; const wasReq=c&&c.estado==='solicitada', moved=c&&!wasReq&&(toISO(c.fecha)!==f||c.hora!==h);
-  const pg=$('#ci-pg'); if(c?.pago?.requerido){ c.pago.estado = pg&&pg.checked ? 'pagado' : (c.pago.estado==='pagado'?'pendiente':c.pago.estado); if(c.pago.estado!=='pagado' && !confirm('El pago previo no está marcado como recibido. ¿Confirmar la hora igual?')) return; }
+  const pg=$('#ci-pg'); if(c && pg){ c.pago=c.pago||{requerido:false, estado:'pendiente'}; if(c.pago.estado!=='reembolsado') c.pago.estado = pg.checked ? 'pagado' : (c.pago.estado==='pagado'?'pendiente':c.pago.estado); const mo=parseInt(String(val('ci-mo')).replace(/\D/g,'')); c.pago.monto=mo||''; c.pago.boleta=val('ci-bo'); if($('#ci-me')) c.pago.medio=val('ci-me'); if(c.pago.estado==='pagado' && !c.pago.fechaPago) c.pago.fechaPago=todayISO(); if(c.pago.estado==='pendiente') delete c.pago.fechaPago;
+    if(c.pago.requerido && c.pago.estado!=='pagado' && !confirm('El pago previo no está marcado como recibido. ¿Confirmar la hora igual?')) return; }
   const a=agendaOf(S.ci.proId);
   if(!c){ c={id:uid(), creadaPor:'pro', creada:Date.now()}; p.citas.push(c); }
   Object.assign(c,{servicio:servAg(a), tipo:S.ci.tipo, lugar:S.ci.lugar, lugarNombre:lugarLabel(S.ci.lugar), proId:S.ci.proId, pro:a?.nombre||S.pro.nombre, fecha:f, hora:h, direccion:val('ci-n'), estado:'confirmada', confirmadaPor:S.pro.nombre});
@@ -2400,10 +2408,61 @@ window.guardarCita = async id => {
   if(await save(p)){ closeSheet(); toast(wasReq?'Hora confirmada y avisada':'Sesión agendada y avisada'); keepScroll(render); } };
 window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.citas.find(x=>x.id===id);
   if(est==='cancelada' && !confirm(c.estado==='solicitada'?'¿Rechazar esta solicitud? La persona recibirá un aviso.':'¿Cancelar esta sesión? La persona recibirá un aviso.')) return;
-  c.estado=est; if(est==='cancelada') addAviso(p,'cita', `Tu ${c.hora?`sesión del ${fmtDate(c.fecha)} a las ${c.hora}`:`solicitud del ${fmtDate(c.fecha)}`} fue cancelada. Escríbenos para reagendar.`);
+  const pagada = c.pago && c.pago.estado==='pagado' && c.estado==='confirmada';
+  c.estado=est; if(est==='cancelada'){ let txt=`Tu ${c.hora?`sesión del ${fmtDate(c.fecha)} a las ${c.hora}`:`solicitud del ${fmtDate(c.fecha)}`} fue cancelada.`;
+    if(pagada && !c.pagoFonasa && !esCentroCita(c)){ const mo=+c.pago.monto||0, enCamino = c.lugar==='Domicilio' && confirm('¿El profesional ya iba en camino o había llegado al domicilio? (Aceptar = sí, reembolso 30 % · Cancelar = no, reembolso 40 %)'), pc=enCamino?30:40;
+      if(confirm(`La hora estaba pagada. Según las condiciones corresponde reembolsar el ${pc} %${mo?` ($${Math.round(mo*pc/100).toLocaleString('es-CL')})`:''}. ¿Registrar el reembolso?`)){ c.pago.estado='reembolsado'; c.pago.reembolso=Math.round(mo*pc/100); c.pago.reembolsoPct=pc; txt+=` Se reembolsará el ${pc} % de lo pagado${mo?` ($${c.pago.reembolso.toLocaleString('es-CL')})`:''}.`; } }
+    addAviso(p,'cita', txt+' Escríbenos para reagendar.'); }
   if(!(await save(p))) return; closeSheet(); toast(est==='realizada'?'Marcada como realizada':'Cancelada');
   if(est==='realizada' && isOdonto()){ S.proArg=k; if(isPending(p)) await habilitarOral(); sheetAtencion(); return; }
   if(est==='realizada' && isPending(p)){ S.proArg=k; sheetHabilitar(true); } else keepScroll(render); };
+
+/* ================= INGRESOS DEL PROFESIONAL ================= */
+const MEDIOS = [['transferencia','Transferencia'],['link','Link de pago'],['efectivo','Efectivo'],['bono','Bono FONASA / ISAPRE'],['otro','Otro']];
+const medioLabel = k => (MEDIOS.find(x=>x[0]===k)||[,'Otro'])[1];
+const CONCEPTOS = ['Sesión de kinesiología','Evaluación','Plan de entrenamiento','Sesión a domicilio','Sesión online','Odontología','Otro'];
+const usuarioDe = proId => ([...BUILTIN_PROS, ...(S.pros||[])].find(x=>x.id===proId)?.usuario) || S.pro.usuario;
+async function loadIngresos(){ try{ const F=S.fb, col=F.collection(S.dbs.sm,'ingresos');
+  const sn=await F.getDocs(isAdmin()?col:F.query(col, F.where('usuario','==',S.pro.usuario))); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.ingresos=a; }catch(e){ console.warn(e); S.ingresos=S.ingresos||[]; } }
+/* todos los movimientos de un profesional: pagos registrados en sus citas + pagos ingresados a mano */
+function movimientos(proId){ const out=[];
+  people().forEach(p=>(p.citas||[]).forEach(c=>{ if((c.proId||'b-sm')!==proId || !c.pago) return; const mo=+c.pago.monto||0;
+    if(!mo || !['pagado','reembolsado'].includes(c.pago.estado)) return;
+    out.push({tipo:'cita', key:keyOf(p), cid:c.id, fecha:c.pago.fechaPago||toISO(c.fecha), nombre:p.nombre, concepto:`${c.tipo||'Sesión'} · ${lugarLabel(c)}`, monto:mo, reembolso:+c.pago.reembolso||0, medio:c.pago.medio||'transferencia', boleta:c.pago.boleta||''}); }));
+  (S.ingresos||[]).filter(x=>x.proId===proId).forEach(x=>out.push({tipo:'manual', id:x.id, fecha:x.fecha, nombre:x.nombre||'', concepto:x.concepto||'', monto:+x.monto||0, reembolso:0, medio:x.medio, boleta:x.boleta||''}));
+  return out.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))); }
+const clp = n => '$'+Math.round(+n||0).toLocaleString('es-CL');
+function agIngresos(a){
+  if(!S._ingLoaded){ S._ingLoaded=true; S.after.push(async()=>{ await loadIngresos(); if(S.proTab==='agenda' && S.agSeg==='ingresos') keepScroll(render); }); }
+  const m=S.agMes||todayISO().slice(0,7), all=movimientos(a.id), mv=all.filter(x=>String(x.fecha).startsWith(m));
+  const bruto=mv.reduce((t,x)=>t+x.monto,0), reemb=mv.reduce((t,x)=>t+x.reembolso,0), neto=bruto-reemb;
+  const porMedio=MEDIOS.map(([k,l])=>[l, mv.filter(x=>x.medio===k).reduce((t,x)=>t+x.monto-x.reembolso,0)]).filter(x=>x[1]);
+  const pend=[]; people().forEach(p=>(p.citas||[]).forEach(c=>{ if((c.proId||'b-sm')===a.id && toISO(c.fecha).startsWith(m) && ['confirmada','realizada'].includes(c.estado) && (!c.pago || !['pagado','reembolsado'].includes(c.pago.estado))) pend.push({c,p}); }));
+  const meses=[]; for(let i=5;i>=0;i--){ const d=new Date(+m.slice(0,4), +m.slice(5)-1-i, 1), k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; meses.push([k, all.filter(x=>String(x.fecha).startsWith(k)).reduce((t,x)=>t+x.monto-x.reembolso,0)]); }
+  const mx=Math.max(1,...meses.map(x=>x[1]));
+  const names=people().map(p=>p.nombre).filter(Boolean);
+  return `<div class="card row between" style="padding:10px 12px"><span class="b">Ingresos de ${MONL[+m.slice(5)-1]}</span><input type="month" class="inp" style="width:auto;min-height:36px;padding:6px 10px" value="${m}" onchange="S.agMes=this.value;render()"></div>
+  <div class="grid4"><div class="stat acc"><b>${clp(neto)}</b><span>Total del mes</span></div><div class="stat"><b>${mv.length}</b><span>Pagos</span></div><div class="stat"><b>${clp(reemb)}</b><span>Reembolsos</span></div><div class="stat"><b>${pend.length}</b><span>Atenciones sin pago</span></div></div>
+  ${porMedio.length?`<section class="card stack"><div class="b sm">Por medio de pago</div>${porMedio.map(([l,v])=>`<div class="row between sm"><span>${esc(l)}</span><b>${clp(v)}</b></div>`).join('')}</section>`:''}
+  <section class="card stack"><div class="b sm">Últimos 6 meses</div><div class="row" style="align-items:flex-end;gap:8px;height:120px">${meses.map(([k,v])=>`<button class="grow" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;background:none;border:0;color:inherit" onclick="S.agMes='${k}';render()"><span class="xs muted">${v?Math.round(v/1000)+'k':''}</span><span style="width:100%;max-width:38px;border-radius:6px 6px 2px 2px;height:${Math.max(3,Math.round(v/mx*80))}px;background:${k===m?'var(--acc)':'color-mix(in srgb,var(--acc) 35%,transparent)'}"></span><span class="xs ${k===m?'b':'muted'}">${MON[+k.slice(5)-1]}</span></button>`).join('')}</div></section>
+  <section class="card stack"><div class="b">Registrar pago</div>
+    <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" id="in-f" value="${m===todayISO().slice(0,7)?todayISO():m+'-01'}"></label><label class="field"><span class="lbl">Monto ($)</span><input class="inp" id="in-m" inputmode="numeric" placeholder="Ej: 25000"></label></div>
+    <label class="field"><span class="lbl">Persona</span><input class="inp" id="in-n" list="in-nl" placeholder="Nombre (opcional)"><datalist id="in-nl">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
+    <div class="grid2"><label class="field"><span class="lbl">Concepto</span><select class="inp" id="in-c">${CONCEPTOS.map(x=>`<option>${x}</option>`).join('')}</select></label><label class="field"><span class="lbl">Medio de pago</span><select class="inp" id="in-me">${MEDIOS.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label></div>
+    <label class="field"><span class="lbl">N° de boleta</span><input class="inp" id="in-b" placeholder="Opcional"></label>
+    <button class="btn pri block" onclick="guardarIngreso()">Guardar pago</button>
+    <div class="xs muted">Los pagos que marcas como recibidos en cada cita se suman solos.</div></section>
+  ${pend.length?`<div class="sec-t"><h2>Atenciones sin pago registrado</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.sort((x,y)=>citaTs(x.c)-citaTs(y.c)).map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})"><span class="ico">${ic('clock','s')}</span><div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${fmtDate(c.fecha)}${c.hora?` · ${esc(c.hora)}`:''} · ${esc(c.tipo||'')}${pagoEfe(c)?' · paga en efectivo':''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
+  <div class="sec-t"><h2>Pagos del mes</h2>${mv.length?`<button class="xs b acc-t" onclick="csvIngresos(${q(a.id)})">${ic('download','s')} Descargar</button>`:''}</div>
+  ${mv.length?`<div class="list">${mv.map(x=>`<div class="li"><span class="ico">${ic(x.tipo==='cita'?'cal':'plus','s')}</span><div class="grow"><div class="b sm">${clp(x.monto-x.reembolso)}${x.nombre?` · ${esc(x.nombre)}`:''}</div><div class="xs muted">${fmtDate(x.fecha)} · ${esc(x.concepto)} · ${esc(medioLabel(x.medio))}${x.boleta?` · Boleta ${esc(x.boleta)}`:''}${x.reembolso?` · reembolsado ${clp(x.reembolso)} de ${clp(x.monto)}`:''}</div></div>${x.tipo==='manual'?`<button class="ibtn red" onclick="borrarIngreso(${q(x.id)})" aria-label="Eliminar">${ic('trash','s')}</button>`:`<button class="ibtn" onclick="sheetCita(${q(x.key)},${x.cid})" aria-label="Ver cita">${ic('chevr','s')}</button>`}</div>`).join('')}</div>`:`<div class="card empty">Sin pagos registrados este mes.</div>`}`;
+}
+window.guardarIngreso = async () => { const mo=parseInt(String(val('in-m')).replace(/\D/g,'')); if(!(mo>0)) return toast('Indica el monto','err'); const f=val('in-f'); if(!f) return toast('Indica la fecha','err');
+  const x={id:String(uid()), proId:S.agId, usuario:usuarioDe(S.agId), pro:agendaOf(S.agId)?.nombre||S.pro.nombre, fecha:f, monto:mo, nombre:val('in-n'), concepto:val('in-c'), medio:val('in-me'), boleta:val('in-b'), ts:Date.now()};
+  if(await fsSet('ingresos', x.id, x)){ (S.ingresos=S.ingresos||[]).push(x); S.agMes=f.slice(0,7); toast(`Pago guardado: ${clp(mo)}`); keepScroll(render); } };
+window.borrarIngreso = async id => { if(!confirm('¿Eliminar este pago?')) return; if(await fsDel('ingresos', id)){ S.ingresos=S.ingresos.filter(x=>x.id!==id); keepScroll(render); } };
+window.csvIngresos = proId => { const m=S.agMes||todayISO().slice(0,7), mv=movimientos(proId).filter(x=>String(x.fecha).startsWith(m));
+  const cel=v=>`"${String(v??'').replace(/"/g,'""')}"`, rows=[['Fecha','Persona','Concepto','Medio de pago','Boleta','Monto','Reembolso','Neto'], ...mv.map(x=>[x.fecha,x.nombre,x.concepto,medioLabel(x.medio),x.boleta,x.monto,x.reembolso,x.monto-x.reembolso])];
+  const blob=new Blob(['﻿'+rows.map(r=>r.map(cel).join(';')).join('\n')], {type:'text/csv'}); const l=document.createElement('a'); l.href=URL.createObjectURL(blob); l.download=`ingresos-${m}.csv`; l.click(); setTimeout(()=>URL.revokeObjectURL(l.href), 2000); };
 
 /* ================= ¿CÓMO TE SIENTES HOY? ================= */
 const ANIMO = [['😣','Muy mal'],['🙁','Mal'],['😐','Regular'],['🙂','Bien'],['😄','Excelente']];
@@ -3120,40 +3179,48 @@ window.rechazarLlamada = () => { const p=me(); pararTimbre(); $('#llamada')?.rem
 async function cerrarNotiLlamada(){ try{ const reg=await navigator.serviceWorker?.ready; const ns=await reg?.getNotifications({tag:'llamada'}); (ns||[]).forEach(n=>n.close()); }catch(e){} }
 
 /* ================= CONSENTIMIENTO INFORMADO Y CONDICIONES DEL SERVICIO ================= */
-const CONSENT_V = '1.1', CONSENT_FECHA = '11 de octubre de 2026';
+const CONSENT_V = '1.3', CONSENT_FECHA = '11 de octubre de 2026';
 const CONSENT = [
- ['1. Para qué se usa tu información', [
-  'Los datos que entregas (identificación, contacto, antecedentes de salud, evaluaciones, sesiones, entrenamientos, mensajes, fotos y registros de actividad) se usan única y exclusivamente para dejar registro de tus atenciones y hacer el seguimiento de tu tratamiento o entrenamiento.',
-  'Solo acceden a ellos los profesionales de StrongMed y Kin At Home que te atienden y, en el servicio de odontología general, la profesional tratante. Si un profesional comparte tu ficha con otro integrante del equipo, es solo para coordinar tu atención.',
-  'Tu información no se vende ni se comparte con terceros sin tu autorización, salvo cuando la ley lo exija.',
-  'Puedes pedir en cualquier momento ver, corregir o actualizar tus datos. Los registros clínicos se conservan según exige la normativa chilena vigente.']],
- ['2. Información fidedigna', [
-  'Me comprometo a entregar información verdadera y completa sobre mi estado de salud, sin ocultar enfermedades, lesiones, cirugías, embarazo, medicamentos, síntomas ni ningún otro problema médico que pueda impedir o contraindicar la realización de ejercicios o tratamientos.',
-  'Si mi estado de salud cambia, avisaré a mi profesional antes de la siguiente sesión.',
-  'Entiendo que ocultar o falsear información puede poner en riesgo mi salud y que, en ese caso, la responsabilidad por las consecuencias es mía.']],
- ['3. Ejercicio y tratamiento', [
-  'Entiendo que el ejercicio físico y los tratamientos kinésicos u odontológicos pueden producir molestias esperables, como dolor muscular o cansancio, que normalmente son transitorios.',
-  'Me comprometo a seguir las indicaciones del profesional y a avisar de inmediato si siento dolor intenso, mareo, falta de aire, dolor en el pecho o cualquier síntoma inusual, durante o después de la sesión.',
-  'Puedo detener cualquier ejercicio o tratamiento cuando lo estime necesario.',
-  'Las rutinas, recomendaciones y respuestas de la app (incluida KIN IA) son un apoyo y no reemplazan la evaluación presencial de un profesional de la salud.']],
+ ['Declaración', [
+  'Al aceptar este documento declaro que he leído y comprendido la información que contiene, que pude resolver mis dudas con el profesional tratante y que acepto de manera libre y voluntaria recibir atenciones de kinesiología, entrenamiento u odontología general a través de StrongMed y Kin At Home, en las condiciones que se describen a continuación.',
+  'Este consentimiento se rige por la Ley N° 20.584, sobre derechos y deberes de los pacientes, y la Ley N° 19.628, sobre protección de la vida privada.']],
+ ['1. Uso y confidencialidad de mis datos', [
+  'Autorizo que mis datos personales y de salud (identificación, contacto, antecedentes clínicos, evaluaciones, sesiones, entrenamientos, mensajes, fotografías y registros de actividad) se usen única y exclusivamente para registrar mis atenciones y hacer el seguimiento de mi tratamiento o entrenamiento.',
+  'Solo tendrán acceso a mi información los profesionales que me atienden. Si un profesional comparte mi ficha con otro integrante del equipo, será únicamente para coordinar mi atención.',
+  'Mi información es confidencial: no se venderá ni se entregará a terceros sin mi autorización, salvo en los casos que exija la ley.',
+  'Puedo solicitar en cualquier momento acceder a mis datos, corregirlos o actualizarlos. La ficha clínica se conserva durante el plazo que establece la normativa chilena vigente.']],
+ ['2. Veracidad de la información', [
+  'Me comprometo a entregar información verdadera y completa sobre mi estado de salud, sin omitir enfermedades, lesiones, cirugías, embarazo, medicamentos, síntomas ni cualquier otra condición que pueda impedir o contraindicar la realización de ejercicios o tratamientos.',
+  'Informaré a mi profesional cualquier cambio en mi estado de salud antes de la siguiente sesión.',
+  'Entiendo que ocultar o falsear información puede poner en riesgo mi salud y que, en ese caso, asumo la responsabilidad por las consecuencias.']],
+ ['3. Naturaleza de la atención y riesgos', [
+  'Entiendo que el ejercicio físico y los tratamientos kinésicos u odontológicos pueden generar molestias esperables, como dolor muscular, sensibilidad o cansancio, que habitualmente son transitorias.',
+  'Seguiré las indicaciones del profesional y le avisaré de inmediato si presento dolor intenso, mareo, falta de aire, dolor en el pecho o cualquier síntoma inusual, durante o después de la sesión.',
+  'Puedo solicitar detener un ejercicio o tratamiento en cualquier momento.',
+  'Las rutinas, recomendaciones y respuestas que entrega la app, incluida KIN IA, son material de apoyo y no reemplazan la evaluación de un profesional de la salud.']],
  ['4. Vigencia de los servicios', [
-  'Cada servicio o plan de sesiones tiene una fecha de expiración que te informará tu profesional. Las sesiones no realizadas dentro de ese plazo se pierden.',
-  'La vigencia solo se extiende por causas imposibilitantes y justificadas, como un accidente, un problema médico imprevisto o vacaciones informadas con anticipación, previa conversación con el profesional.']],
+  'Cada servicio o plan de sesiones tiene una fecha de vencimiento, que me informará el profesional al contratarlo. Las sesiones que no se realicen dentro de ese plazo se pierden.',
+  'La vigencia solo podrá extenderse por causas imposibilitantes y justificadas (por ejemplo, un accidente, un problema médico imprevisto o vacaciones avisadas con anticipación), previa conversación y acuerdo con el profesional.']],
  ['5. Cambios de fecha u horario', [
-  'Para cambiar una hora debes conversarlo con tu profesional; el nuevo horario queda sujeto a su disponibilidad y factibilidad.',
-  'Si no tienes una razón comprobable, el cambio debe solicitarse con al menos 5 horas de anticipación en kinesiología y entrenamiento, y con al menos 1 día (24 horas) de anticipación en odontología general.',
-  'Si pides el cambio fuera de ese plazo o no asistes sin aviso, la sesión se considera realizada, salvo una causa imposibilitante y comprobable (por ejemplo, un accidente o un problema médico imprevisto).']],
+  'Todo cambio de hora debe conversarse con el profesional y queda sujeto a su disponibilidad.',
+  'Cuando no exista una razón comprobable, el cambio debe solicitarse con al menos 8 horas de anticipación en kinesiología y entrenamiento, y con al menos 1 día (24 horas) de anticipación en odontología general.',
+  'Si el cambio se solicita fuera de ese plazo, o si no asisto sin dar aviso, la sesión se considerará realizada, salvo una causa imposibilitante y comprobable.']],
  ['6. Pagos, cancelaciones y reembolsos', [
-  'Las atenciones a domicilio y del servicio de odontología general requieren pago previo para confirmar la hora.',
-  'En las atenciones a domicilio y de odontología general, una vez reservada y confirmada la hora, si cancelas solo se reembolsa el 40 % del total pagado.',
-  'Las atenciones con plan FONASA o ISAPRE no tienen reembolso por cancelación.',
-  'En los planes de entrenamiento, las sesiones a las que faltes sin previo aviso no se recuperan.',
-  'Los valores, planes y medios de pago te los informa cada profesional antes de la atención.']],
- ['7. Videollamadas y comunicación', [
-  'Las sesiones online se realizan por videollamada. Procura estar en un lugar privado, seguro y con espacio suficiente para moverte.',
-  'Acepto que el equipo me contacte por la app, teléfono o WhatsApp para coordinar mis atenciones y enviarme recordatorios.']],
+  'Las atenciones a domicilio y de odontología general requieren pago previo para confirmar la hora.',
+  'Atenciones a domicilio, online y de odontología general: una vez pagada y confirmada la hora, si cancelo solo se reembolsará el 40 % del monto pagado.',
+  'Atenciones a domicilio: si cancelo cuando el profesional ya va en camino o llegó al domicilio, solo se reembolsará el 30 % del monto pagado.',
+  'Sesiones en centro kinésico: no tienen reembolso por cancelación.',
+  'Atenciones con plan FONASA o ISAPRE: no tienen reembolso por cancelación.',
+  'Planes de entrenamiento: las sesiones a las que falte sin aviso previo no se recuperan.',
+  'Si elijo pagar en efectivo, la hora queda agendada con mi compromiso de pago y me comprometo a pagar al inicio de la sesión, antes de comenzar la atención. Si no realizo el pago, la sesión no se inicia.',
+  'Los valores, planes y medios de pago me serán informados por el profesional antes de la atención.']],
+ ['7. Atención online y comunicación', [
+  'Las sesiones online se realizan por videollamada. Me comprometo a conectarme desde un lugar privado, seguro y con espacio suficiente para moverme.',
+  'Autorizo que el equipo me contacte por la app, por teléfono o por WhatsApp para coordinar mis atenciones y enviarme recordatorios.']],
  ['8. Menores de edad', [
-  'Si la persona atendida es menor de 18 años, este consentimiento debe aceptarlo su madre, padre o tutor legal, quien deberá acompañarla en las sesiones según lo indique el profesional.']]
+  'Si la persona atendida es menor de 18 años, este consentimiento debe ser aceptado por su madre, padre o tutor legal, quien la acompañará en las sesiones cuando el profesional lo indique.']],
+ ['9. Revocación', [
+  'Puedo retirar este consentimiento en cualquier momento avisando a mi profesional. Esto no afecta las atenciones ya realizadas ni los pagos y condiciones aplicables a las horas ya confirmadas.']]
 ];
 const consentOk = p => !!(p && p.consentimiento && typeof p.consentimiento==='object' && p.consentimiento.v===CONSENT_V);
 function consentHTML(){ return `<div class="consent"><p class="xs muted">Versión ${CONSENT_V} · ${CONSENT_FECHA} · StrongMed × Kin At Home</p>
@@ -3175,9 +3242,9 @@ function consentPro(p){ const c=p.consentimiento;
 
 /* ================= WHATSAPP (respaldo cuando la persona no responde en la app) ================= */
 const esOralCita = c => !!c && (c.servicio==='oral' || servAg(agendaOf(c.proId))==='oral');
-const plazoCambio = c => esOralCita(c) ? '1 día' : '5 horas';
-function politicaCita(c){ const oral=esOralCita(c), dom=c&&c.lugar==='Domicilio';
-  return `${oral||dom?'Una vez confirmada la hora, si cancelas solo se reembolsa el 40 % de lo pagado. ':''}Los cambios de fecha u horario se piden con al menos <b>${oral?'1 día':'5 horas'}</b> de anticipación.`; }
+const esCentroCita = c => !!c && !esOralCita(c) && c.lugar!=='Domicilio' && c.lugar!=='Online';
+const plazoCambio = c => esOralCita(c) ? '1 día' : '8 horas';
+function politicaCita(c){ return `Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.`; }
 function waNum(tel){ let d=String(tel||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('56')) return d; if(d.length===9 && d[0]==='9') return '56'+d; if(d.length===8) return '569'+d; return d; }
 const waLink = (tel, txt) => { const n=waNum(tel); return n ? `https://wa.me/${n}?text=${encodeURIComponent(txt)}` : ''; };
 function waTexto(p, c, tipo){ const n=first(p.nombre), pro=(S.pro&&S.pro.nombre)||c?.pro||'', lug=c?`${lugarLabel(c)}${c.direccion?` (${c.direccion})`:''}`:'', cuando=c?`${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''}`:'';

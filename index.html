@@ -678,7 +678,7 @@ async function loadPersona(rut, src){
   if(!(await initFB())){ toast('Sin conexión con la base de datos','err'); return false; }
   const r=normRut(rut), F=S.fb, out=[];
   await Promise.all(['sm','kah'].map(async org=>{ try{ const sn=await getQ(src, F.query(F.collection(S.dbs[org],'evaluaciones'), F.where('rutN','==',r))); sn.forEach(d=>{ const x=d.data(); if(x&&x.rut){ x.org=x.org||org; out.push(x); } }); }catch(e){ console.warn(e); } }));
-  if(out.length){ S.all=out; return true; }
+  if(out.length){ S.all=out; await loadOralDoc(r, src); return true; }
   if(src==='cache') return false;
   try{ const s=await F.getDoc(F.doc(S.dbs.sm,'ajustes','base')); if(s.exists() && s.data().rutN){ S.all=[]; return true; } }catch(e){}
   const ok=await loadDB(['sm','kah']); if(ok) S.all=S.all.filter(p=>normRut(p.rut)===r); return ok;
@@ -723,8 +723,10 @@ async function loadDB(orgs, src){
   const res = await Promise.allSettled(orgs.map(o=>loadOrg(o, src)));
   const all=[]; res.forEach((r,i)=>{ if(r.status==='fulfilled') all.push(...r.value); else if(src!=='cache'){ console.error(r.reason); toast(`No se pudo cargar ${ORGS[orgs[i]].label}`,'err'); } });
   if(src==='cache' && !all.length) return false;
+  if(S.role==='pro'){ await loadOralDocs(src); all.forEach(oralAttach); }
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
-  else S.all = all; return true;
+  else S.all = all;
+  if(S.role==='pro' && src!=='cache') migrarOral(); return true;
 }
 /* Escritura que no se queda esperando sin internet: Firestore la guarda en el teléfono y la sube al volver la conexión */
 let offToast=0;
@@ -732,10 +734,11 @@ async function fsWrite(p){ const TO=Symbol(); const r=await Promise.race([p, new
   if(r===TO){ if(Date.now()-offToast>6000){ offToast=Date.now(); toast('Guardado en el teléfono · se sincroniza al volver internet'); } p.catch(e=>console.error(e)); } return true; }
 async function save(item){
   item.org = item.org || 'sm'; item.rutN = normRut(item.rut); delete item.legacyKAH;
+  const data=JSON.parse(JSON.stringify(item)); if(item._oralSep){ delete data.oral; delete data._oralSep; }
   const i=S.all.findIndex(x=>x.id===item.id && x.org===item.org); if(i>-1) S.all[i]=item; else S.all.push(item);
   if(!S.fb){ toast('Sin conexión: no se guardó','err'); return false; }
   if(item.pin!=null) item.pin=String(item.pin);
-  try{ const ok=await fsWrite(S.fb.setDoc(S.fb.doc(S.dbs[item.org],'evaluaciones',String(item.id)), JSON.parse(JSON.stringify(item)))); if(ok) syncPin(item); return ok; }
+  try{ const ok=await fsWrite(S.fb.setDoc(S.fb.doc(S.dbs[item.org],'evaluaciones',String(item.id)), data)); if(ok) syncPin(item); return ok; }
   catch(e){ console.error(e); toast('No se pudo guardar. Revisa tu conexión','err'); return false; }
 }
 async function removeDoc(item){
@@ -751,9 +754,9 @@ async function fsDel(coll, id){ try{ await S.fb.deleteDoc(S.fb.doc(S.dbs.sm, col
 const keyOf = p => `${p.org||'sm'}|${normRut(p.rut)}`;
 const splitKey = k => { const i=k.indexOf('|'); return {org:k.slice(0,i), rut:k.slice(i+1)}; };
 const evalsOf = k => { const {org,rut}=splitKey(k); return S.all.filter(x=>(x.org||'sm')===org && normRut(x.rut)===rut).sort((a,b)=>a.id-b.id); };
-const prof = k => { const e=evalsOf(k); return e[e.length-1]; };
+const prof = k => { const e=evalsOf(k); return oralAttach(e[e.length-1]); };
 function people(){ const m={}; S.all.forEach(p=>{ const k=keyOf(p); if(!m[k] || m[k].id<p.id) m[k]=p; });
-  return Object.values(m).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))); }
+  return Object.values(m).map(oralAttach).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))); }
 const me = () => S.me ? prof(S.me) : null;
 function visibleOrgs(){ if(S.role==='pro') return S.pro.org==='all' ? ['sm','kah'] : [S.pro.org]; return ['sm','kah']; }
 const isAdmin = () => S.pro && S.pro.rol==='admin';
@@ -855,6 +858,25 @@ function fillLibDatalist(){ const dl=$('#dl-ej'); if(!dl || !S.lib || dl.dataset
   dl.insertAdjacentHTML('beforeend', S.lib.map(x=>`<option value="${esc(x.n)}">`).join('')); }
 const libFind = (name, id) => { if(!S.lib) return null; if(id){ const x=S.lib.find(e=>e.i===id); if(x) return x; } return S.libByName ? S.libByName.get(String(name||'').toLowerCase()) : null; };
 const media = path => path ? MEDIA_BASE + path : '';
+
+/* ---------------- ODONTOLOGÍA: ficha dental separada, siempre en el Firebase de StrongMed ----------------
+   colección "odontologia/{rutN}" = {rutN, rut, nombre, proId, anamnesis, plan, presupuesto, atenciones, tareas, upd}.
+   Así las atenciones de la Dra. quedan en StrongMed aunque la persona tenga su ficha en Kin At Home,
+   y nadie las sobrescribe al guardar otra parte de la ficha. */
+S.oralDocs = S.oralDocs || {};
+const oralTiene = o => !!(o && ((o.atenciones||[]).length || (o.tareas||[]).length || o.anamnesis || o.plan || o.presupuesto));
+function oralAttach(p){ if(!p) return p; const r=normRut(p.rut), d=S.oralDocs[r]; if(d){ p.oral=d; p._oralSep=true; } return p; }
+async function loadOralDocs(src){ try{ const F=S.fb, sn=await getQ(src, F.collection(S.dbs.sm,'odontologia')); sn.forEach(d=>{ const x=d.data(); if(x) S.oralDocs[d.id]=Object.assign(S.oralDocs[d.id]||{}, x); }); }catch(e){ console.warn('odontologia', e); } }
+async function loadOralDoc(r, src){ try{ const F=S.fb, ref=F.doc(S.dbs.sm,'odontologia',r), sn=src==='cache'&&F.getDocFromCache ? await F.getDocFromCache(ref) : await F.getDoc(ref); if(sn.exists()) S.oralDocs[r]=Object.assign(S.oralDocs[r]||{}, sn.data()); }catch(e){} }
+/* migra fichas dentales antiguas (guardadas dentro de la persona) a la colección nueva */
+async function migrarOral(){ if(!S.pro || !(isOdonto()||isAdmin()) || S._oralMig) return; S._oralMig=true;
+  const m={}; S.all.forEach(p=>{ const r=normRut(p.rut); if(!S.oralDocs[r] && !p._oralSep && oralTiene(p.oral) && (!m[r] || m[r].id<p.id)) m[r]=p; });
+  for(const p of Object.values(m)){ const r=normRut(p.rut); S.oralDocs[r]=p.oral; oralAttach(p); await saveOral(p, true); } }
+async function saveOral(p, silent){ if(!p) return false; const r=normRut(p.rut); if(!r) return false;
+  const o=p.oral||{}; S.oralDocs[r]=o; p._oralSep=true; Object.assign(o,{rutN:r, rut:p.rut, nombre:p.nombre, upd:Date.now()});
+  if(!S.fb){ if(!silent) toast('Sin conexión: no se guardó','err'); return false; }
+  try{ return await fsWrite(S.fb.setDoc(S.fb.doc(S.dbs.sm,'odontologia',r), JSON.parse(JSON.stringify(o)))); }
+  catch(e){ console.error(e); if(!silent) toast('No se pudo guardar la ficha dental. Revisa tu conexión','err'); return false; } }
 
 /* ================= SEGURIDAD: Firebase Authentication =================
    Personas:      correo interno <rut>.<pin>@p.strongmed.app   → las reglas solo dejan leer SU ficha, sus mensajes y sus citas.
@@ -993,12 +1015,14 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
 function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
-window.logout = () => { stopChat(); S._ingLoaded=false; S.ingresos=[]; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+window.logout = () => { stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
   if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; }
   const p=me(); if(!p || !S.fb) return;
+  if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; }
+  if(tieneOral(p)) try{ const r=normRut(p.rut); S.oralUnsub=S.fb.onSnapshot(S.fb.doc(S.dbs.sm,'odontologia',r), sn=>{ if(!sn.exists || !sn.exists()) return; const b=JSON.stringify(S.oralDocs[r]||null), x=sn.data(); if(JSON.stringify(x)===b) return; S.oralDocs[r]=Object.assign(S.oralDocs[r]||{}, x); if(b!=='null') softRender(); }); }catch(e){ console.warn(e); }
   try{ S.meUnsub = S.fb.onSnapshot(S.fb.doc(S.dbs[p.org||'sm'],'evaluaciones',String(p.id)), snap=>{
     if(!snap.exists()) return; const x=snap.data(); x.org=x.org||p.org;
     const i=S.all.findIndex(y=>y.id===x.id && y.org===x.org); const before=i>-1?JSON.stringify(S.all[i]):''; if(i>-1) S.all[i]=x; else S.all.push(x);
@@ -2819,10 +2843,11 @@ function vTratamiento(p){
   return `<header class="top">${!soloOral(p)?`<button class="back" onclick="go('perfil')">${ic('chevl','s')} Perfil</button>`:''}<div class="eyebrow">Odontología general</div><h1 class="disp h1" style="margin-top:6px">Mi tratamiento</h1></header><div class="stack">
   ${oralRing(p)}
   ${pl.tratamiento||pl.detalle?`<section class="card stack"><div class="b">Plan de tratamiento</div>${pl.detalle?`<p class="sm">${esc(pl.detalle)}</p>`:''}<div class="grid2"><div class="stat"><b>${oralHechas(p)}</b><span>Sesiones realizadas</span></div><div class="stat acc"><b>${oralPlan(p)?oralRest(p):'—'}</b><span>Sesiones restantes</span></div></div></section>`:''}
+  ${oralPresupuestoPat(p)}
   <div class="sec-t"><h2>Tareas y recomendaciones</h2></div>${oralTareasList(p)}
   <div class="sec-t"><h2>Registro de atenciones</h2></div>${oralAtencionesList(p)}</div>`;
 }
-window.oralToggle = async id => { const p=me(), t=(p.oral?.tareas||[]).find(x=>x.id===id); if(!t) return; t.hecha=!t.hecha; await save(p); keepScroll(render); };
+window.oralToggle = async id => { const p=me(), t=(p.oral?.tareas||[]).find(x=>x.id===id); if(!t) return; t.hecha=!t.hecha; await saveOral(p); keepScroll(render); };
 
 /* ---------- vistas de la Dra. ---------- */
 function vOralInicio(){
@@ -2851,18 +2876,18 @@ window.crearOral = async () => { const nombre=val('no-n'), rut=fmtRut(val('no-r'
   const p={id:Date.now(), org:'sm', marca:'sm', servicio:'oral', estado:'activo', perfil:'oral', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:val('no-t'), email:val('no-m'), edad:val('no-e'), klgo:S.pro.nombre,
     oral:{proId:S.pro.id, plan:{tratamiento:val('no-tr'), sesiones:+val('no-s')||''}, atenciones:[], tareas:[]}, diarios:[], citas:[], avisos:[], consentimiento:null};
   addAviso(p,'bienvenida',`Bienvenido/a. Aquí verás tu tratamiento con ${S.pro.nombre}.`);
-  if(await save(p)){ toast(`${first(nombre)} creado · clave ${pin}`); openPersona(keyOf(p)); } };
+  if(await saveOral(p) && await save(p)){ toast(`${first(nombre)} creado · clave ${pin}`); openPersona(keyOf(p)); } };
 
 function vPersonaOral(p, k){
-  const seg=['resumen','anamnesis','atenciones','tareas','agenda'].includes(S.pSeg)?S.pSeg:'resumen', o=oralOf(p), tel=String(p.contacto||'').replace(/\D/g,''), wa=tel.length===9?'56'+tel:tel;
-  const body = seg==='anamnesis' ? oralAnamnesisForm(p) : seg==='atenciones' ? `<button class="btn pri block" onclick="sheetAtencion()">${ic('plus','s')} Registrar atención</button>${oralAtencionesList(p)}`
+  const seg=['resumen','anamnesis','presupuesto','atenciones','tareas','agenda'].includes(S.pSeg)?S.pSeg:'resumen', o=oralOf(p), tel=String(p.contacto||'').replace(/\D/g,''), wa=tel.length===9?'56'+tel:tel;
+  const body = seg==='anamnesis' ? oralAnamnesisForm(p) : seg==='presupuesto' ? oralPresupuestoPro(p) : seg==='atenciones' ? `<button class="btn pri block" onclick="sheetAtencion()">${ic('plus','s')} Registrar atención</button>${oralAtencionesList(p)}`
     : seg==='tareas' ? `<section class="card stack"><div class="seg" id="ot-t"><button class="${S.otTipo!=='recomendacion'?'on':''}" onclick="S.otTipo='tarea';keepScroll(render)">Tarea</button><button class="${S.otTipo==='recomendacion'?'on':''}" onclick="S.otTipo='recomendacion';keepScroll(render)">Recomendación</button></div><textarea class="inp" id="ot-x" placeholder="${S.otTipo==='recomendacion'?'Ej: evitar alimentos duros por 48 horas':'Ej: cepillado con técnica de Bass 3 veces al día'}"></textarea><button class="btn pri block" onclick="oralAddTarea()">Agregar y avisar</button></section>${oralTareasList(p,false)}`
     : seg==='agenda' ? pAgenda(p) : oralResumen(p);
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Pacientes</button></header><div class="stack">
   <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.compartido?`<span class="badge acc">${ic('users','s')} Compartido con kinesiología</span>`:''}${consentPro(p)}</div></div></div>
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button><button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn ${p.compartido?'sec':'pri'} sm" onclick="sheetCompartir()">${ic('users','s')} ${p.compartido?'Compartido':'Compartir'}</button></div></section>
   ${isPending(p)?`<section class="card pend stack"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">${p.creadoPor==='reserva'?'Reservó sin cuenta':'Por habilitar'}</div><p class="sm muted" style="margin-top:4px">Confirma su hora en Agenda. Cuando marques la atención como realizada se habilita su app de tratamiento.</p>${p.motivoConsulta?`<p class="sm" style="margin-top:6px"><b>Motivo:</b> ${esc(p.motivoConsulta)}</p>`:''}</div></div><button class="btn pri block" onclick="habilitarOral()">${ic('shield','s')} Habilitar ahora</button></section>`:''}
-  <div class="seg">${[['resumen','Resumen'],['anamnesis','Anamnesis'],['atenciones','Atenciones'],['tareas','Tareas'],['agenda','Agenda']].map(([kk,l])=>`<button class="${seg===kk?'on':''}" onclick="S.pSeg='${kk}';render()">${l}</button>`).join('')}</div>
+  <div class="seg">${[['resumen','Resumen'],['anamnesis','Anamnesis'],['presupuesto','Presupuesto'],['atenciones','Atenciones'],['tareas','Tareas'],['agenda','Agenda']].map(([kk,l])=>`<button class="${seg===kk?'on':''}" onclick="S.pSeg='${kk}';render()">${l}</button>`).join('')}</div>
   ${body}</div>`;
 }
 function oralResumen(p){ const o=p.oral||{}, pl=o.plan||{}, a=o.anamnesis||{};
@@ -2879,9 +2904,9 @@ function oralAnamnesisForm(p){ const a=(p.oral||{}).anamnesis||{};
   ${a.fecha?`<div class="xs muted">Última actualización ${fmtDate(a.fecha)} · ${esc(a.pro||'')}</div>`:''}<button class="btn pri block" onclick="guardarAnamnesisOral()">Guardar anamnesis</button></section>`; }
 const oralP = () => prof(S.proArg);
 window.guardarAnamnesisOral = async () => { const p=oralP(), o=oralOf(p); o.anamnesis={...Object.fromEntries(ORAL_AN.map(([k])=>[k,val('oa-'+k)])), fecha:todayISO(), pro:S.pro.nombre}; if(!o.proId) o.proId=S.pro.id;
-  if(await save(p)){ toast('Anamnesis guardada'); keepScroll(render); } };
+  if(await saveOral(p)){ toast('Anamnesis guardada'); keepScroll(render); } };
 window.guardarPlanOral = async () => { const p=oralP(), o=oralOf(p); o.plan={tratamiento:val('op-t'), detalle:val('op-d'), sesiones:+val('op-s')||''}; if(!o.proId) o.proId=S.pro.id;
-  if(await save(p)){ toast('Plan guardado'); keepScroll(render); } };
+  if(await saveOral(p)){ toast('Plan guardado'); keepScroll(render); } };
 window.sheetAtencion = id => { const p=oralP(), a=(p.oral?.atenciones||[]).find(x=>x.id===id)||{};
   sheet(`<h2 class="disp h2">${a.id?'Editar':'Registrar'} atención</h2><div class="stack" style="margin-top:14px">
   <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" id="at-f" value="${esc(a.fecha||todayISO())}"></label><label class="field"><span class="lbl">Zona / piezas</span><input class="inp" id="at-z" value="${esc(a.zona||'')}" placeholder="Ej: 3.6, arcada inferior"></label></div>
@@ -2893,14 +2918,14 @@ window.guardarAtencion = async id => { if(!val('at-t')) return toast('Indica el 
   let a=id?o.atenciones.find(x=>x.id===id):null; if(!a){ a={id:String(uid())}; o.atenciones.push(a); }
   Object.assign(a,{fecha:val('at-f')||todayISO(), zona:val('at-z'), tratamiento:val('at-t'), detalle:val('at-d'), indicacion:val('at-i'), pro:S.pro.nombre}); if(!o.proId) o.proId=S.pro.id;
   if(!id) addAviso(p,'tarea', `Se registró tu atención: ${a.tratamiento}.${oralPlan(p)?` Te quedan ${oralRest(p)} sesiones.`:''}`);
-  if(await save(p)){ closeSheet(); toast('Atención registrada'); keepScroll(render); } };
-window.oralDelAtencion = async id => { if(!confirm('¿Eliminar esta atención?')) return; const p=oralP(), o=oralOf(p); o.atenciones=o.atenciones.filter(x=>x.id!==id); await save(p); keepScroll(render); };
+  if(await saveOral(p)){ if(!id) save(p); closeSheet(); toast('Atención registrada'); keepScroll(render); } };
+window.oralDelAtencion = async id => { if(!confirm('¿Eliminar esta atención?')) return; const p=oralP(), o=oralOf(p); o.atenciones=o.atenciones.filter(x=>x.id!==id); await saveOral(p); keepScroll(render); };
 window.oralAddTarea = async () => { const x=val('ot-x'); if(!x) return toast('Escribe la tarea o recomendación','err'); const p=oralP(), o=oralOf(p), tipo=S.otTipo==='recomendacion'?'recomendacion':'tarea';
   o.tareas.push({id:String(uid()), tipo, texto:x, fecha:todayISO(), hecha:false, pro:S.pro.nombre}); addAviso(p,'tarea', `${tipo==='tarea'?'Nueva tarea':'Nueva recomendación'}: ${x}`);
-  if(await save(p)){ toast('Agregada y avisada'); keepScroll(render); } };
-window.oralDelTarea = async id => { const p=oralP(), o=oralOf(p); o.tareas=o.tareas.filter(t=>t.id!==id); await save(p); keepScroll(render); };
+  if(await saveOral(p)){ save(p); toast('Agregada y avisada'); keepScroll(render); } };
+window.oralDelTarea = async id => { const p=oralP(), o=oralOf(p); o.tareas=o.tareas.filter(t=>t.id!==id); await saveOral(p); keepScroll(render); };
 window.habilitarOral = async () => { const p=oralP(); Object.assign(p,{estado:'activo', perfil:'oral', habilitadoPor:S.pro.nombre, habilitado:todayISO()}); if(!esOral(p)) p.servicio='oral'; oralOf(p).proId=oralOf(p).proId||S.pro.id;
-  addAviso(p,'habilitado',`¡Tu app de tratamiento fue habilitada por ${S.pro.nombre}!`); if(await save(p)){ closeSheet(); toast('Paciente habilitado'); render(); } };
+  addAviso(p,'habilitado',`¡Tu app de tratamiento fue habilitada por ${S.pro.nombre}!`); if(await saveOral(p) && await save(p)){ closeSheet(); toast('Paciente habilitado'); render(); } };
 window.sheetCompartir = () => { const p=oralP();
   sheet(`<h2 class="disp h2">Compartir con kinesiología</h2><p class="muted sm" style="margin-top:6px">${esc(first(p.nombre))} quedará visible para el equipo de StrongMed y Kin At Home, que podrá agendarle kinesiología o entrenamiento. Tus atenciones siguen siendo tuyas y el paciente conserva su registro.</p>
   <div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Motivo o indicación para el equipo</span><textarea class="inp" id="cp-m" placeholder="Ej: dolor de ATM, derivo para evaluación kinésica">${esc(p.compartidoMotivo||'')}</textarea></label>
@@ -2914,6 +2939,32 @@ function oralCardKine(p){ if(!tieneOral(p) && !p.compartido) return ''; const o=
   return `<section class="card stack"><div class="row"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b">Odontología general</div><div class="xs muted">${esc(oralPro(p))}${p.compartidoFecha?` · compartido ${fmtDate(p.compartidoFecha)}`:''}</div></div></div>
   ${p.compartidoMotivo?`<div class="note">${ic('info','s')}<span><b>Derivación:</b> ${esc(p.compartidoMotivo)}</span></div>`:''}
   <div class="xs muted">${oralHechas(p)} ${oralHechas(p)===1?'atención':'atenciones'}${oralPlan(p)?` de ${oralPlan(p)}`:''}${o.plan?.tratamiento?` · ${esc(o.plan.tratamiento)}`:''}${o.anamnesis?.diagnostico?` · Dx: ${esc(o.anamnesis.diagnostico)}`:''}</div></section>`; }
+
+/* ---------- presupuesto ---------- */
+const PRES_EST = {borrador:['Borrador','mixto'], enviado:['Enviado al paciente','acc'], aceptado:['Aceptado','acc'], rechazado:['No aceptado','red']};
+const presOf = p => { const o=oralOf(p); o.presupuesto=o.presupuesto||{items:[], estado:'borrador'}; o.presupuesto.items=o.presupuesto.items||[]; return o.presupuesto; };
+const presTotal = pr => (pr?.items||[]).reduce((t,x)=>t+(+x.valor||0),0);
+function presTabla(pr){ return `<div class="list">${pr.items.map(x=>`<div class="li"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b sm">${esc(x.desc)}</div>${x.pieza?`<div class="xs muted">${esc(x.pieza)}</div>`:''}</div><b class="sm">${clp(x.valor)}</b>${S.role==='pro'&&pr.estado!=='aceptado'?`<button class="ibtn red" onclick="presDel(${q(x.id)})" aria-label="Quitar">${ic('trash','s')}</button>`:''}</div>`).join('')}</div>
+  <div class="row between card tight"><span class="b">Total</span><b class="h3">${clp(presTotal(pr))}</b></div>`; }
+function oralPresupuestoPro(p){ const pr=presOf(p), [el,ec]=PRES_EST[pr.estado]||PRES_EST.borrador;
+  return `<section class="card stack"><div class="row between"><div class="b">Presupuesto</div><span class="badge ${ec}">${el}${pr.aceptadoFecha&&pr.estado==='aceptado'?` · ${fmtDate(pr.aceptadoFecha)}`:''}</span></div>
+    ${pr.estado!=='aceptado'?`<label class="field"><span class="lbl">Tratamiento</span><input class="inp" id="pr-d" placeholder="Ej: Obturación resina"></label>
+    <div class="grid2"><label class="field"><span class="lbl">Pieza / zona</span><input class="inp" id="pr-p" placeholder="Ej: 3.6"></label><label class="field"><span class="lbl">Valor ($)</span><input class="inp" id="pr-v" inputmode="numeric" placeholder="Ej: 35000"></label></div>
+    <button class="btn sec block" onclick="presAdd()">${ic('plus','s')} Agregar al presupuesto</button>`:''}</section>
+  ${pr.items.length?presTabla(pr):`<div class="card empty">Agrega los tratamientos con su valor.</div>`}
+  ${pr.items.length?`<label class="field"><span class="lbl">Nota para el paciente</span><textarea class="inp" id="pr-n" placeholder="Ej: valores válidos por 30 días; se puede pagar por sesión">${esc(pr.nota||'')}</textarea></label>
+  <div class="grid2">${pr.estado==='aceptado'?`<button class="btn sec" onclick="presEstado('enviado')">Reabrir</button>`:`<button class="btn pri" onclick="presEstado('enviado')">${ic('send','s')} ${pr.estado==='enviado'?'Actualizar':'Enviar al paciente'}</button><button class="btn sec" onclick="presEstado('aceptado')">${ic('check','s')} Marcar aceptado</button>`}</div>`:''}`; }
+function oralPresupuestoPat(p){ const pr=p.oral?.presupuesto; if(!pr || !['enviado','aceptado'].includes(pr.estado) || !(pr.items||[]).length) return '';
+  return `<div class="sec-t"><h2>Presupuesto</h2>${pr.estado==='aceptado'?`<span class="badge acc">${ic('check','s')} Aceptado</span>`:''}</div>${presTabla(pr)}${pr.nota?`<div class="note">${ic('info','s')}<span>${esc(pr.nota)}</span></div>`:''}
+  ${pr.estado==='enviado'&&S.role==='pat'?`<button class="btn pri block" onclick="presAceptar()">${ic('check','s')} Acepto el presupuesto</button>`:''}`; }
+window.presAdd = async () => { const d=val('pr-d'), v=parseInt(String(val('pr-v')).replace(/\D/g,'')); if(!d || !(v>=0)) return toast('Indica el tratamiento y su valor','err');
+  const p=oralP(), pr=presOf(p); pr.items.push({id:String(uid()), desc:d, pieza:val('pr-p'), valor:v||0}); pr.fecha=todayISO(); if(await saveOral(p)) keepScroll(render); };
+window.presDel = async id => { const p=oralP(), pr=presOf(p); pr.items=pr.items.filter(x=>x.id!==id); if(await saveOral(p)) keepScroll(render); };
+window.presEstado = async est => { const p=oralP(), pr=presOf(p); if($('#pr-n')) pr.nota=val('pr-n'); pr.estado=est; pr.fecha=todayISO(); if(est==='aceptado') pr.aceptadoFecha=todayISO();
+  if(est==='enviado') addAviso(p,'tarea',`Tu presupuesto de odontología está listo: ${clp(presTotal(pr))}. Revísalo en Mi tratamiento.`);
+  if(await saveOral(p)){ if(est==='enviado') save(p); toast(est==='enviado'?'Presupuesto enviado':'Presupuesto aceptado'); keepScroll(render); } };
+window.presAceptar = async () => { const p=me(), pr=p?.oral?.presupuesto; if(!pr) return; if(!confirm(`¿Aceptas el presupuesto por ${clp(presTotal(pr))}?`)) return;
+  pr.estado='aceptado'; pr.aceptadoFecha=todayISO(); pr.aceptadoPor='paciente'; if(await saveOral(p)){ toast('Presupuesto aceptado. Tu Dra. coordinará las sesiones.'); keepScroll(render); } };
 
 /* ================= KIN IA =================
    Asistente que responde SOLO con su base de conocimiento:

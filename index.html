@@ -2065,9 +2065,9 @@ window.eliminarPersona = async () => { const p=prof(S.proArg); if(!confirm(`¿El
 
 function pRutinas(p){
   const rs=(p.rutinasAsignadas||[]).slice().reverse(); S.after.push(loadLib);
-  const ed = S.rbEdit ? rs.find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed) S.rbEdit=null;
+  const mr=(p.misRutinas||[]).slice().reverse(); const ed = S.rbEdit ? (S.rbEditMis ? mr : rs).find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed){ S.rbEdit=null; S.rbEditMis=false; }
   const dsel = ed ? (ed.dias||[]) : [];
-  return `<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?'Editando rutina':'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Biblioteca</button></div>
+  return `<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?(S.rbEditMis?'Editando rutina guardada por la persona':'Editando rutina'):'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Biblioteca</button></div>
     <div class="grid2"><input class="inp" id="rb-t" placeholder="Nombre (ej: Rutina 1 · Tren superior)" value="${esc(ed?ed.titulo:'')}"><input class="inp" id="rb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(ed?ed.tiempo||'':'')}"></div>
     <div><div class="lbl">Días de la semana <span class="xs muted">(opcional: se repite cada semana)</span></div><div class="dias" id="rb-dias" style="margin-top:6px">${[1,2,3,4,5,6,7].map(d=>`<button type="button" data-d="${d}" class="${dsel.includes(d)?'on':''}" onclick="this.classList.toggle('on')">${DIAS_C[d]}</button>`).join('')}</div></div>
     ${ed?'':recoPanel('rb-rows',true)}
@@ -2077,13 +2077,19 @@ function pRutinas(p){
   <div class="sec-t"><h2>Rutinas enviadas (${rs.length})</h2></div>
   ${rs.length?`<div class="list">${rs.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico ${r.completada?'':'orange'}">${ic(r.completada?'check':'clock','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${conDias(r)?`<b class="acc-t">${diasTxt(r)}</b> · `:''}${fmtDate(r.fecha)} · ${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Creada por la persona':'Enviada por '+esc(r.pro||'el equipo')} · ${r.completada?'Completada':(conDias(r)?(r.veces?`Hecha ${r.veces} ${r.veces===1?'vez':'veces'}${r.ultima?' · última '+fmtDate(r.ultima):''}`:'Semanal'):'Pendiente')}${r.editada?' · editada '+fmtDate(r.editada):''}</div></div>${ic('chevr','s chev')}</summary>
     <div class="stack" style="padding:10px 0 4px 48px">${(r.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${e.hecho?'✓ ':''}${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg||e.kilos?` · ${esc(e.kg||e.kilos)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${r.id})">${ic('clip','s')} Editar</button><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${r.id})">${ic('clip','s')} Editar</button><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}
+  <div class="sec-t"><h2>Guardadas por la persona (${mr.length})</h2></div>
+  ${mr.length?`<div class="list">${mr.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico">${ic('clip','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${r.creada?`Creada ${fmtDate(r.creada)} · `:''}${(r.ejercicios||[]).length} ejercicios · hecha ${r.veces||0} ${r.veces===1?'vez':'veces'}${r.editor?` · ajustada por ${esc(r.editor)}`:''}</div></div>${ic('chevr','s chev')}</summary>
+    <div class="stack" style="padding:10px 0 4px 48px">${(r.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg||e.kilos?` · ${esc(e.kg||e.kilos)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${q(r.id)},true)">${ic('clip','s')} Editar</button><button class="btn danger sm" onclick="borrarMisRutinaPro(${q(r.id)})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">La persona aún no guarda rutinas propias.</div>`}`;
 }
 const rbDias = () => [...document.querySelectorAll('#rb-dias button.on')].map(b=>+b.dataset.d);
 window.asignarRutina = async () => { const p=prof(S.proArg), t=val('rb-t'), ej=collectRows('rb-rows'), dias=rbDias(); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
   p.rutinasAsignadas=p.rutinasAsignadas||[];
   const cuando = dias.length ? ` (${dias.map(d=>DIAS_L[d].toLowerCase()).join(', ')})` : '';
-  if(S.rbEdit){ const r=p.rutinasAsignadas.find(x=>x.id===S.rbEdit);
+  if(S.rbEdit){ const mis=!!S.rbEditMis, r=(mis?(p.misRutinas||[]):p.rutinasAsignadas).find(x=>x.id===S.rbEdit);
+    if(r && mis){ Object.assign(r, {titulo:t, tiempo:val('rb-m'), ejercicios:ej, editada:todayISO(), editor:S.pro.nombre}); addAviso(p,'rutina',`Tu kine ajustó tu rutina guardada: ${t}`); S.rbEdit=null; S.rbEditMis=false;
+      if(await save(p)) toast('Rutina de la persona actualizada'); render(); return; }
     if(r){ Object.assign(r, {titulo:t, tiempo:val('rb-m'), ejercicios:ej, editada:todayISO(), editor:S.pro.nombre}); if(dias.length){ r.dias=dias; r.completada=false; } else delete r.dias;
       addAviso(p,'rutina',`Tu kine actualizó la rutina: ${t}${cuando}`); S.rbEdit=null;
       if(await save(p)) toast('Cambios guardados y enviados'); render(); return; } }
@@ -2091,8 +2097,9 @@ window.asignarRutina = async () => { const p=prof(S.proArg), t=val('rb-t'), ej=c
   p.rutinasAsignadas.push(nr);
   addAviso(p,'rutina',`Nueva rutina cargada: ${t}${cuando}`);
   if(await save(p)) toast(`Rutina enviada a ${first(p.nombre)}`); render(); };
-window.editarRutina = id => { S.rbEdit=id; render(); setTimeout(()=>{ const c=$('#rb-card'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}); }, 60); loadLib(); };
-window.cancelarEdicion = () => { S.rbEdit=null; render(); };
+window.editarRutina = (id, mis) => { S.rbEdit=id; S.rbEditMis=!!mis; render(); setTimeout(()=>{ const c=$('#rb-card'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}); }, 60); loadLib(); };
+window.borrarMisRutinaPro = async id => { if(!confirm('¿Eliminar esta rutina guardada por la persona?')) return; const p=prof(S.proArg); p.misRutinas=(p.misRutinas||[]).filter(x=>String(x.id)!==String(id)); await save(p); keepScroll(render); };
+window.cancelarEdicion = () => { S.rbEdit=null; S.rbEditMis=false; render(); };
 window.duplicarRutina = async id => { const p=prof(S.proArg), r=p.rutinasAsignadas.find(x=>x.id===id); p.rutinasAsignadas.push({...JSON.parse(JSON.stringify(r)), id:uid(), creador:'pro', pro:S.pro.nombre, fecha:todayISO(), completada:false, ejercicios:r.ejercicios.map(e=>({...e,hecho:false}))}); addAviso(p,'rutina',`Nueva rutina cargada: ${r.titulo}`); await save(p); toast('Copia enviada'); render(); };
 window.borrarRutina = async id => { if(!confirm('¿Eliminar esta rutina?')) return; const p=prof(S.proArg); p.rutinasAsignadas=p.rutinasAsignadas.filter(x=>x.id!==id); await save(p); render(); };
 

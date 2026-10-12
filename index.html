@@ -837,7 +837,7 @@ async function loadDB(orgs, src){
   if(S.role==='pro'){ await loadOralDocs(src); all.forEach(oralAttach); }
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
   else S.all = all;
-  if(S.role==='pro' && src!=='cache') migrarOral(); return true;
+  if(S.role==='pro' && src!=='cache'){ migrarOral(); setTimeout(()=>{ try{ avisarCancelaciones(); }catch(e){} }, 800); } return true;
 }
 /* Escritura que no se queda esperando sin internet: Firestore la guarda en el teléfono y la sube al volver la conexión */
 let offToast=0;
@@ -928,6 +928,7 @@ function alertsOf(p){
   const la=lastActivity(p); if(!isPending(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
   if(!isPending(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
   if((p.escalas||[]).some(e=>e.estado==='respondida' && !e.visto)) a.push({t:'Respondió cuestionarios', c:'acc'});
+  const cn=(p.citas||[]).find(c=>c.estado==='cancelada' && c.canceladaPor==='persona' && !c.cancelVisto && S.role==='pro' && esMiaCita(c)); if(cn) a.push({t:`Canceló su hora del ${fmtDate(cn.fecha)}`, c:'red'});
   return a;
 }
 const hasConfirmed = p => (p.citas||[]).some(c=>c.estado==='confirmada' || c.estado==='realizada');
@@ -1264,7 +1265,7 @@ const citaTitulo = c => `${c.tipo||'Sesión'}${c.nSesion?` ${c.nSesion}${c.planS
 function citaHTML(c, opts={}){ const d=toISO(c.fecha)?parseISO(toISO(c.fecha)):null;
   return `<div class="cita"><div class="cd"><span>${d?DOW[d.getDay()]:''}</span><b>${d?d.getDate():'–'}</b><span>${d?MON[d.getMonth()]:''}</span></div>
   <div class="grow"><div class="b">${esc(citaTitulo(c))}${opts.who?` · ${esc(opts.who)}`:''}</div><div class="sm ${opts.hero?'':'muted'}" style="margin-top:2px">${ic('clock','s')} ${horaTxt(c)}</div><div class="sm ${opts.hero?'':'muted'}">${ic(c.lugar==='Online'?'video':'pin','s')} ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div>
-  <div class="xs b st-${c.estado}" style="margin-top:4px">${({solicitada:'Solicitada · esperando confirmación',confirmada:'Confirmada',cancelada:'Cancelada',realizada:'Realizada'})[c.estado]||''}${c.pro?` · ${esc(c.pro)}`:''}${pagoPend(c)?` · <span style="color:var(--orange)">pago ${c.pago.estado==='informado'?'informado':'pendiente'}</span>`:''}</div></div>${opts.right||''}</div>`; }
+  <div class="xs b st-${c.estado}" style="margin-top:4px">${({solicitada:'Solicitada · esperando confirmación',confirmada:'Confirmada',cancelada:'Cancelada',realizada:'Realizada'})[c.estado]||''}${c.pro?` · ${esc(c.pro)}`:''}${pagoPend(c)&&c.estado!=='cancelada'?` · <span style="color:var(--orange)">pago ${c.pago.estado==='informado'?'informado':'pendiente'}</span>`:''}</div></div>${opts.right||''}</div>`; }
 function proximaCitaCard(p){ const c=proximasCitas(p)[0];
   if(!c) return `<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una sesión</button>`;
   return `<section class="card stack"><div class="row between"><span class="eyebrow">Tu próxima sesión</span><button class="xs b acc-t" onclick="go('agenda')">Ver agenda</button></div>${citaHTML(c,{right: c.lugar==='Online'&&c.link&&c.estado==='confirmada'?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''})}${pagoBox(c,true)}<div class="xs muted">${politicaCita(c)}</div><button class="btn sec sm" onclick="sheetSolicitar()">${ic('plus','s')} Agendar otra sesión</button></section>`; }
@@ -1784,7 +1785,21 @@ function vAgendaPat(p){
   <div class="note">${ic('pin','s')}<span>Atendemos en <b>centro kinésico (Concepción)</b>, a <b>domicilio</b> y <b>online</b>. En el centro pagas directamente antes de la sesión; a domicilio y odontología requieren pago previo.</span></div>
   ${past.length?`<div class="sec-t"><h2>Anteriores</h2></div><div class="list">${past.slice(0,12).map(c=>`<div class="li">${citaHTML(c)}</div>`).join('')}</div>`:''}</div>`;
 }
-window.cancelarCitaPat = async id => { if(!confirm('¿Cancelar esta hora?')) return; const p=me(); const c=(p.citas||[]).find(x=>x.id===id); if(c){ c.estado='cancelada'; c.canceladaPor='persona'; await save(p); toast('Hora cancelada'); keepScroll(render); } };
+window.cancelarCitaPat = async id => { const p=me(); const c=(p.citas||[]).find(x=>x.id===id); if(!c) return;
+  const hrs=(citaTs(c)-Date.now())/3600e3, lim=esOralCita(c)?24:8, tarde = c.estado==='confirmada' && hrs<lim;
+  if(!confirm(tarde?`Faltan menos de ${plazoCambio(c)} para tu hora. Según las condiciones del servicio, la sesión podría considerarse realizada. ¿Cancelar igual?`:'¿Cancelar esta hora? Le avisaremos a tu profesional.')) return;
+  Object.assign(c,{estado:'cancelada', canceladaPor:'persona', canceladaTs:Date.now(), cancelTarde:tarde, cancelVisto:false}); await save(p); toast('Hora cancelada. Avisamos a tu profesional.'); keepScroll(render); };
+/* profesional: cancelaciones hechas por las personas */
+const esMiaCita = c => isAdmin() || (c.proId||'b-sm')===S.pro?.id;
+function cancelacionesNuevas(){ const out=[]; people().forEach(p=>(p.citas||[]).forEach(c=>{ if(c.estado==='cancelada' && c.canceladaPor==='persona' && !c.cancelVisto && esMiaCita(c)) out.push({c,p}); })); return out.sort((a,b)=>(b.c.canceladaTs||0)-(a.c.canceladaTs||0)); }
+function cancelacionesHTML(){ const L=cancelacionesNuevas(); if(!L.length) return '';
+  return `<div class="sec-t"><h2>Horas canceladas</h2><span class="badge red">${L.length}</span></div><div class="list">${L.map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre)})}<div class="stack" style="gap:6px;flex:none">${c.cancelTarde?'<span class="badge red">Fuera de plazo</span>':''}<button class="btn sec sm" onclick="vistoCancel(${q(keyOf(p))},${c.id})">Entendido</button></div></div>`).join('')}</div>`; }
+window.vistoCancel = async (k, id) => { const p=prof(k), c=(p.citas||[]).find(x=>x.id===id); if(!c) return; c.cancelVisto=true; if(await save(p)) keepScroll(render); };
+function avisarCancelaciones(){ let vis=[]; try{ vis=JSON.parse(localStorage.getItem('sm_cancel_notif')||'[]'); }catch(e){}
+  const nuevas=cancelacionesNuevas().filter(({c})=>!vis.includes(c.id)); if(!nuevas.length) return;
+  nuevas.forEach(({c,p})=>{ const t=`${first(p.nombre)} canceló su hora del ${fmtDate(c.fecha)}${c.hora?` a las ${c.hora}`:''}`; notificar('Hora cancelada', t, {tag:'cancel'+c.id}); });
+  toast(nuevas.length===1?`${first(nuevas[0].p.nombre)} canceló su hora`:`${nuevas.length} horas canceladas por personas`,'err');
+  try{ localStorage.setItem('sm_cancel_notif', JSON.stringify([...vis, ...nuevas.map(x=>x.c.id)].slice(-200))); }catch(e){} }
 
 /* ================= BIBLIOTECA DE EJERCICIOS ================= */
 function vLib(){
@@ -2026,7 +2041,7 @@ function allCitas(){ const out=[]; people().forEach(p=>(p.citas||[]).forEach(c=>
 function vProInicio(){
   const ps=people(), act=ps.filter(p=>!isPending(p)), cnt=k=>act.filter(p=>perfilOf(p)===k).length, pend=ps.filter(isPending);
   const cs=allCitas(), sol=cs.filter(x=>x.c.estado==='solicitada'), hoy=cs.filter(x=>toISO(x.c.fecha)===todayISO() && x.c.estado==='confirmada');
-  const al=ps.map(p=>({p,a:alertsOf(p).filter(x=>!/habilitar|Solicitó|primera sesión/.test(x.t))})).filter(x=>x.a.length);
+  const al=ps.map(p=>({p,a:alertsOf(p).filter(x=>!/habilitar|Solicitó|primera sesión|Canceló/.test(x.t))})).filter(x=>x.a.length);
   const feed=[]; ps.forEach(p=>{ sessions(p).forEach(d=>feed.push({p, f:toISO(d.fecha), id:d.id||0, i:d.tipoActividad?'run':'dumbbell', t:d.tipoActividad?`${d.tipoActividad}`:`Entrenó · ${d.nombreSesion||'sesión'}`, s:`RPE ${d.rpe||'—'}`}));
     (p.sesionesRehab||[]).forEach((s,i)=>feed.push({p, f:toISO(s.fecha), id:s.id||0, i:'heart', t:`Sesión #${i+1}`, s:s.eva!==''&&s.eva!=null?`Dolor ${s.eva}/10`:''}));
     animoList(p).forEach(a=>feed.push({p, f:a.fecha, id:a.ts||0, i:'heart', t:`Se siente ${ANIMO[a.v-1][1].toLowerCase()} ${ANIMO[a.v-1][0]}`, s:''})); });
@@ -2036,7 +2051,7 @@ function vProInicio(){
   <div class="grid4"><button class="stat acc" onclick="S.filt='todos';pgo('personas')"><b>${act.length}</b><span>Personas activas</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
   ${pend.length?`<div class="sec-t"><h2>Cuentas nuevas por habilitar</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.map(personRow).join('')}</div>`:''}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes de hora</h2><span class="badge acc">${sol.length}</span></div><div class="list">${sol.slice(0,6).map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre), right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>`:''}
-  ${recordatoriosHTML()}${respaldoCard()}
+  ${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
   <div class="cols2"><div class="stack"><div class="sec-t"><h2>Hoy en agenda</h2><button class="xs b acc-t" onclick="pgo('agenda')">Ver agenda</button></div>
     ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))},'agenda')">${citaHTML(c,{who:first(p.nombre)})}</button>`).join('')}</div>`:`<div class="card empty">Sin sesiones confirmadas para hoy.</div>`}
     <div class="sec-t"><h2>Requieren atención</h2><span class="badge ${al.length?'red':''}">${al.length}</span></div>
@@ -2979,9 +2994,19 @@ function lugarLabel(l){ if(!l) return ''; if(typeof l==='object') return l.lugar
   return {Centro:'Centro kinésico', Domicilio:'Domicilio', Online:'Online', Todos:'Cualquier lugar'}[l] || l; }
 function lugarCol(l){ if(l==='Domicilio') return 'var(--orange)'; if(l==='Online') return 'var(--blue)'; if(l==='Todos') return 'var(--mu)';
   if(String(l).startsWith('C:')){ const i=allCentros().findIndex(c=>c.id===l.slice(2)); return PLACE_COL[Math.max(0,i)%5]; } return 'var(--acc)'; }
-function placesOf(a){ const out=(a?.centros||[]).map(c=>({code:'C:'+c.id, label:c.nombre, sub:c.direccion||''}));
+function placesOf(a, conServicio){ const out=(a?.centros||[]).map(c=>({code:'C:'+c.id, label:c.nombre, sub:c.direccion||''}));
   if(a && a.domicilio!==false) out.push({code:'Domicilio', label:'Domicilio', sub:'Atención en tu casa'});
-  if(a && a.online) out.push({code:'Online', label:'Online', sub:'Videollamada'}); return out; }
+  if(a && a.online) out.push({code:'Online', label:'Online', sub:'Videollamada'});
+  return conServicio && svcsAg(a).length ? out.filter(pl=>svcsLugar(a,pl.code).length) : out; }
+/* Servicios por profesional: cada uno define qué ofrece, en qué modalidad (centro, domicilio, online), su valor y su link de pago */
+const MODS = [['centro','Centro','pin'],['domicilio','Domicilio','home'],['online','Online','video']];
+const modOf = l => String(l||'').startsWith('C:') ? 'centro' : l==='Domicilio' ? 'domicilio' : l==='Online' ? 'online' : '';
+const modsDe = a => MODS.filter(([m])=> m==='centro' ? (a?.centros||[]).length : m==='domicilio' ? a && a.domicilio!==false : !!(a && a.online));
+const svcsAg = a => (a?.servicios||[]).filter(x=>x && x.nombre);
+const svcsLugar = (a, l) => svcsAg(a).filter(x=>x.mod?.[modOf(l)]?.on);
+const clpTxt = n => +n ? '$'+(+n).toLocaleString('es-CL') : '';
+const SVC_SUGERIDOS = { kine:[['Evaluación kinésica','Primera evaluación y plan de tratamiento',60],['Sesión kinésica','Rehabilitación y kinesiología',45],['Entrenamiento personalizado','Fuerza y acondicionamiento',60],['Recovery','Masoterapia, movilidad y recuperación',45]],
+  oral:[['Evaluación odontológica','Incluye evaluación, limpieza y presupuesto',45],['Control','Control de tratamiento',30],['Limpieza','Destartraje y profilaxis',45],['Tratamientos','Según evaluación clínica',60]] };
 const inBlock = (h,b) => b==='AM' ? (h>='08:00' && h<'12:00') : (h>='13:00' && h<'19:00');
 const BLOQ = {AM:'08:00 a 12:00', PM:'13:00 a 19:00'};
 const SITIOS = ['FISIOMET','MDkine','Kin At Home','Domicilio particular','Otro'];
@@ -3004,7 +3029,7 @@ const agendaOf = id => S.agendas.find(a=>a.id===id);
 function myAgenda(){ if(!S.pro) return null; return agendaOf(S.pro.id) || {id:S.pro.id, nombre:S.pro.nombre, titulo:S.pro.titulo||'', orgs:S.pro.org==='all'?['sm','kah']:[S.pro.org], disponible:false, slots:{}, bloqueos:[], centros:[], domicilio:true, online:false}; }
 async function saveAgenda(a){ const i=S.agendas.findIndex(x=>x.id===a.id); if(i>-1) S.agendas[i]=a; else S.agendas.push(a); return fsSet('agendas', a.id, a); }
 const hasSlots = a => !!(a && a.slots && Object.values(a.slots).some(o=>o && Object.keys(o).length));
-function slotsDay(a, d){ if(!a || !d || (a.bloqueos||[]).includes(d)) return []; const o=(a.slots||{})[parseISO(d).getDay()]||{}; return Object.keys(o).sort().map(h=>({h, l:o[h]})); }
+function slotsDay(a, d){ if(!a || !d || (a.bloqueos||[]).includes(d)) return []; const o=(a.slots||{})[parseISO(d).getDay()]||{}, bq=new Set((a.bloqH||{})[d]||[]); return Object.keys(o).sort().filter(h=>!bq.has(h)).map(h=>({h, l:o[h]})); }
 function citasDe(proId, d){ const out=[]; people().forEach(p=>(p.citas||[]).forEach(c=>{ if((c.proId||'b-sm')===proId && (!d || toISO(c.fecha)===d) && c.estado!=='cancelada') out.push({c,p}); })); return out; }
 const nowHM = () => { const n=new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
 function freeSlots(a, d, bloque, lugar){
@@ -3043,24 +3068,31 @@ const servPicker = (cur, fn) => `<div class="grid2">${Object.entries(SERV).map((
 window.bkServ = v => { S.bk.serv=v; S.bk.proId=null; S.bk.tipo='Evaluación'; const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); };
 function bookingDyn(){
   const b=S.bk, ags=agendasFor(b.org, b.serv); if(!ags.find(x=>x.id===b.proId)) b.proId=ags[0]?.id||null; const tipos=b.serv==='oral'?TIPOS_ORAL:(b.cont?b.cont.tipos:TIPOS_CITA); if(!tipos.includes(b.tipo)) b.tipo=tipos[0];
-  const pm=S.role==='pat'?me():null, num=pm&&b.serv==='kine'&&b.cont?bkNumero(pm,b.tipo):null, oral=b.serv==='oral', centro=String(b.lugar||'').startsWith('C:');
-  const a=agendaOf(b.proId), places=placesOf(a), days=bkDays();
+  const a=agendaOf(b.proId), places=placesOf(a,true), days=bkDays();
   if(!places.find(x=>x.code===b.lugar)) b.lugar=places[0]?.code||null;
+  let svcs=svcsLugar(a,b.lugar); if(b.cont && b.serv==='kine') svcs=[...svcs].sort((x,y)=>(b.cont.per==='entrenamiento'?esTipoEnt(y.nombre)-esTipoEnt(x.nombre):esTipoKine(y.nombre)-esTipoKine(x.nombre)) || /evalua/i.test(x.nombre)-/evalua/i.test(y.nombre));
+  if(svcs.length){ if(!svcs.find(x=>x.id===b.servId)){ b.servId=svcs[0].id; } b.tipo=svcs.find(x=>x.id===b.servId).nombre; } else b.servId=null;
+  const svc=svcs.find(x=>x.id===b.servId), precio=svc?.mod?.[modOf(b.lugar)]?.precio;
+  const pm=S.role==='pat'?me():null, num=pm&&b.serv==='kine'&&b.cont?bkNumero(pm,b.tipo):null, oral=b.serv==='oral', centro=String(b.lugar||'').startsWith('C:');
   const dayOk = d => !hasSlots(a) || freeSlots(a,d,'AM',b.lugar).length + freeSlots(a,d,'PM',b.lugar).length > 0;
   if(!b.fecha || !days.includes(b.fecha) || !dayOk(b.fecha)) b.fecha = days.find(dayOk) || days[0];
   const pill=(arr,key,lab=x=>x)=>`<div class="pills" style="flex-wrap:wrap">${arr.map(v=>`<button type="button" class="pill ${b[key]===v?'on':''}" onclick="bkSet('${key}',${q(v)})">${esc(lab(v))}</button>`).join('')}</div>`;
   const chip = d => { const dt=parseISO(d), ok=dayOk(d); return `<button type="button" class="dchip ${b.fecha===d?'on':''}" ${ok?`onclick="bkSet('fecha','${d}')"`:'disabled'}><span>${DOW[dt.getDay()]}</span><b>${dt.getDate()}</b><span>${MON[dt.getMonth()]}</span></button>`; };
   const blk = k => { const s=blockState(a,b.fecha,k,b.lugar); return `<button type="button" class="pcard ${b.bloque===k?'on':''}" ${s.ok?`onclick="bkSet('bloque','${k}')"`:'disabled style="opacity:.45"'}><b>${k==='AM'?'Mañana · AM':'Tarde · PM'}</b><small>${BLOQ[k]}</small><small class="b" style="color:${s.ok?'var(--green)':'var(--red)'}">${s.n==null?'Por coordinar':s.n?`${s.n} hora${s.n>1?'s':''} libre${s.n>1?'s':''}`:'Sin horas'}</small>${s.n?`<small class="muted">${libres(k).slice(0,6).join(' · ')}${s.n>6?' …':''}</small>`:''}</button>`; };
   const libres = k => hasSlots(a) ? freeSlots(a,b.fecha,k,b.lugar).map(s=>s.h) : [];
-  return `${b.ambos?`<div><div class="lbl">Servicio</div>${servPicker(b.serv,'bkServ')}</div>`:''}<div><div class="lbl">${b.cont&&!oral?'¿Qué vas a agendar?':'Tipo de sesión'}</div>${pill(tipos,'tipo')}</div>
+  const tipoHTML = svcs.length ? `<div><div class="lbl">${b.cont&&!oral?'¿Qué vas a agendar?':'Servicio'}</div><div class="stack" style="gap:8px">${svcs.map(x=>{ const pr=x.mod?.[modOf(b.lugar)]?.precio; return `<button type="button" class="pcard ${b.servId===x.id?'on':''}" onclick="bkSet('servId',${q(x.id)})"><div class="row"><div class="grow"><b>${esc(x.nombre)}</b>${x.desc||x.dur?`<small>${esc([x.desc, x.dur?x.dur+' min':''].filter(Boolean).join(' · '))}</small>`:''}</div>${pr?`<b class="acc-t" style="white-space:nowrap">${clpTxt(pr)}</b>`:''}${b.servId===x.id?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`; }).join('')}</div></div>`
+    : `<div><div class="lbl">${b.cont&&!oral?'¿Qué vas a agendar?':'Tipo de sesión'}</div>${pill(tipos,'tipo')}</div>`;
+  return `${b.ambos?`<div><div class="lbl">Servicio</div>${servPicker(b.serv,'bkServ')}</div>`:''}
   ${num?`<div class="aviso acc"><span class="ico">${ic(esTipoEnt(b.tipo)?'dumbbell':'steth')}</span><div class="grow"><div class="xs muted b" style="text-transform:uppercase;letter-spacing:.06em">Continuación de tu ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}</div><div class="b" style="font-size:17px;margin-top:2px">${esTipoEnt(b.tipo)?`Entrenamiento N° ${num.n}`:`Sesión kinésica ${num.n}${num.plan?` de ${num.plan}`:''}`}</div>${num.plan&&num.n>num.plan?`<div class="xs" style="color:var(--orange);margin-top:2px">Ya completaste las ${num.plan} sesiones planificadas: tu kine evaluará si continúas.</div>`:''}</div></div>`:''}
   <div><div class="lbl">Profesional</div><div class="stack" style="gap:8px">${ags.map(x=>`<button type="button" class="pcard ${b.proId===x.id?'on':''}" onclick="bkSet('proId',${q(x.id)})"><div class="row"><span class="ico">${ic('user','s')}</span><div class="grow"><b>${esc(x.nombre)}</b><small>${esc(x.titulo||'')}${placesOf(x).length?' · '+placesOf(x).map(pl=>pl.label).join(', '):''}</small><small class="b" style="color:var(--mu)">${esc(agOrgTxt(x))}</small></div>${b.proId===x.id?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')||'<div class="empty">No hay profesionales disponibles</div>'}</div></div>
   <div><div class="lbl">Lugar de atención</div>${places.length?`<div class="stack" style="gap:8px">${places.map(pl=>`<button type="button" class="pcard ${b.lugar===pl.code?'on':''}" onclick="bkSet('lugar',${q(pl.code)})"><div class="row"><span class="ico" style="color:${lugarCol(pl.code)};background:color-mix(in srgb,${lugarCol(pl.code)} 15%,transparent)">${ic(pl.code==='Online'?'video':pl.code==='Domicilio'?'home':'pin','s')}</span><div class="grow"><b>${esc(pl.label)}</b><small>${esc(pl.sub)}</small></div>${b.lugar===pl.code?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')}</div>`:'<div class="empty">Este profesional aún no configura sus lugares</div>'}</div>
+  ${tipoHTML}
   <div><div class="lbl">Día</div>${a && !hasSlots(a)?`<div class="note" style="margin-bottom:8px">${ic('info','s')}<span>${esc(a.nombre)} aún no publica su disponibilidad: elige tu preferencia y te confirmará el día y la hora.</span></div>`:a && !days.some(dayOk)?`<div class="note" style="margin-bottom:8px">${ic('alert','s')}<span>No quedan horas libres en las próximas 3 semanas. Escríbele por Mensajes para coordinar.</span></div>`:''}<div class="pills dchips" id="bk-days">${days.map(chip).join('')}</div><div class="xs muted" style="margin-top:6px">${a&&hasSlots(a)?'Solo puedes elegir los días en que tu profesional tiene horas libres.':''}</div></div>
   <div><div class="lbl">¿Qué horario te acomoda?</div><div class="grid2">${blk('AM')}${blk('PM')}</div><div class="xs muted" style="margin-top:6px">Tu profesional te confirmará la hora exacta según su disponibilidad.</div></div>
-  ${oral?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span></div>`:centro?`<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:''}${!oral&&b.lugar==='Domicilio'?`<div><div class="lbl">Forma de pago</div>${pill(['Transferencia o link de pago','Efectivo'],'medio')}${b.medio==='Efectivo'?`<label class="check" style="margin-top:8px"><input type="checkbox" id="bk-efe"><span>Me comprometo a pagar en efectivo al inicio de la sesión, antes de comenzar la atención.</span></label>`:''}</div>`:''}<div class="xs muted">Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.</div>`;
+  ${precio?`<div class="row between card tight"><span class="sm">Valor ${esc(b.tipo)}${b.lugar?` · ${esc(lugarLabel(b.lugar))}`:''}</span><b class="acc-t" style="font-size:18px">${clpTxt(precio)}</b></div>`:''}
+  ${oral?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span>${svcs.length?'':`<span>${ORAL_PRECIO}</span>`}</div>`:centro?`<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:b.lugar==='Online'?`<div class="note">${ic('info','s')}<span>Las atenciones <b>online</b> requieren <b>pago previo</b> para confirmar la hora.</span></div>`:''}${!oral&&b.lugar==='Domicilio'?`<div><div class="lbl">Forma de pago</div>${pill(['Transferencia o link de pago','Efectivo'],'medio')}${b.medio==='Efectivo'?`<label class="check" style="margin-top:8px"><input type="checkbox" id="bk-efe"><span>Me comprometo a pagar en efectivo al inicio de la sesión, antes de comenzar la atención.</span></label>`:''}</div>`:''}<div class="xs muted">Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.</div>`;
 }
-window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo' && k!=='medio') S.bk.bloque=null;
+window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo' && k!=='medio' && k!=='servId') S.bk.bloque=null;
   const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); const dd=$('#bk-days'); if(dd) dd.scrollLeft=sc;
   const da=$('#bk-dir'); if(da) da.classList.toggle('hidden', S.bk.lugar!=='Domicilio'); };
 const bkExtra = (p={}) => `<label class="field ${S.bk.lugar==='Domicilio'?'':'hidden'}" id="bk-dir"><span class="lbl">Dirección de la atención *</span><input class="inp" id="bk-dir-i" value="${esc(p.direccion||'')}" placeholder="Calle, número, comuna"></label>
@@ -3076,18 +3108,19 @@ function buildCita(p){
   if(b.lugar==='Domicilio' && !val('bk-dir-i')){ toast('Indica la dirección para la atención a domicilio','err'); return null; }
   const efectivo = b.medio==='Efectivo' && b.lugar==='Domicilio' && b.serv!=='oral';
   if(efectivo && !$('#bk-efe')?.checked){ toast('Marca el compromiso de pago en efectivo para terminar de agendar','err'); return null; }
-  const pagoPrevio = (p.citas||[]).some(c=>c.lugar==='Domicilio' && (c.estado==='realizada' || c.pago?.estado==='pagado'));
+  const pagoPrevio = b.lugar==='Domicilio' && (p.citas||[]).some(c=>c.lugar==='Domicilio' && (c.estado==='realizada' || c.pago?.estado==='pagado'));
   const cen = String(b.lugar).startsWith('C:') ? centroById(b.lugar.slice(2)) : null;
-  const oral=b.serv==='oral', pago = oral ? {requerido:true, estado:'pendiente', link:a?.pagoLink||''} : b.lugar==='Domicilio' && !pagoPrevio ? {requerido:true, estado:'pendiente', link:a?.pagoLink||agendaOf('b-sm')?.pagoLink||''} : null;
+  const svc=svcsAg(a).find(x=>x.id===b.servId), sm=svc?.mod?.[modOf(b.lugar)]||{}, lk=sm.link||a?.pagoLink||'';
+  const oral=b.serv==='oral', pago = oral ? {requerido:true, estado:'pendiente', link:lk} : (b.lugar==='Domicilio'||b.lugar==='Online') && !pagoPrevio ? {requerido:true, estado:'pendiente', link:lk||agendaOf('b-sm')?.pagoLink||''} : null;
   const num = contKine ? bkNumero(p, b.tipo) : null;
   if(a && (a.orgs||[]).length && !(a.orgs||[]).includes(p.org||'sm')){ p.atiende=[...new Set([...(p.atiende||[]), ...a.orgs.filter(o=>o!==(p.org||'sm'))])];
     p.atiende.forEach(o=>{ try{ S.fb.setDoc(S.fb.doc(S.dbs[p.org||'sm'],'atiende',`${normRut(p.rut)}_${o}`), {rut:normRut(p.rut), org:o, ts:Date.now()}).catch(e=>console.warn('atiende',e)); }catch(e){} }); }
-  return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, ...(num?{nSesion:num.n, ...(num.plan?{planSes:num.plan}:{})}:{}), lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot')||(contKine?`Continuación de ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}`:''), nota:val('bk-nota'),
+  return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, ...(svc?{servId:svc.id}:{}), ...(+sm.precio?{precio:+sm.precio}:{}), ...(num?{nSesion:num.n, ...(num.plan?{planSes:num.plan}:{})}:{}), lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot')||(contKine?`Continuación de ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}`:''), nota:val('bk-nota'),
     estado:'solicitada', creadaPor:'persona', creada:Date.now(), pago: efectivo ? {requerido:false, medio:'efectivo', compromiso:Date.now(), estado:'pendiente'} : (pago?{...pago, medio:'transferencia'}:null)};
 }
 function pagoBox(c, own){ if(esCentroCita(c) && !(c.pago && c.pago.requerido)) return `<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`; if(pagoEfe(c)) return `<div class="note">${ic('info','s')}<span>Pago en <b>efectivo</b> al inicio de la sesión, antes de comenzar la atención.</span></div>`; if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
   const lk=safeUrl(c.pago.link||agendaOf(c.proId)?.pagoLink||'');
-  return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:'Para confirmar tu atención a domicilio debes pagar la primera sesión.'}${!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>
+  return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:(c.lugar==='Online'?'Para confirmar tu atención online debes pagar la sesión.':'Para confirmar tu atención a domicilio debes pagar la primera sesión.')}${!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>
   <div class="row" style="gap:8px">${lk?`<a class="btn pri sm" href="${lk}" target="_blank" rel="noopener">Ir a pagar</a>`:''}${own && c.pago.estado!=='informado'?`<button class="btn sec sm" onclick="yaPague(${c.id})">Ya pagué</button>`:''}</div></div>`; }
 window.yaPague = async id => { const p=me(); const c=(p.citas||[]).find(x=>x.id===id); if(!c) return; c.pago.estado='informado'; await save(p); toast('Avisamos a tu profesional'); keepScroll(render); };
 
@@ -3137,7 +3170,7 @@ function voucherHTML(p, c, acceso){ const st=c.estado==='confirmada'?['acc','che
   const emi=new Date(c.creada||Date.now());
   return `<div class="voucher"><div class="vh">${brands(p.marca,false,true)}<span class="badge ${st[0]}">${ic(st[1],'s')} ${st[2]}</span></div>
     <h1 class="disp h2" style="margin-top:16px">${c.estado==='confirmada'?'Hora confirmada':c.estado==='realizada'?'Sesión realizada':c.estado==='cancelada'?'Hora cancelada':'Hora por confirmar'}</h1><p class="sm muted" style="margin-top:6px">${c.estado==='solicitada'?'Tu solicitud quedó registrada. El profesional te confirmará la hora exacta.':c.estado==='confirmada'?'Te esperamos. Si necesitas cambiarla, avisa con anticipación.':''}</p>
-    <dl class="kv" style="margin-top:16px"><dt>Nombre</dt><dd>${esc(p.nombre)}</dd><dt>Sesión</dt><dd>${esc(citaTitulo(c))}</dd><dt>Día</dt><dd>${fmtLong(parseISO(toISO(c.fecha)))}</dd><dt>Horario</dt><dd>${horaTxt(c)}</dd><dt>Lugar</dt><dd>${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</dd><dt>Profesional</dt><dd>${esc(c.pro)}</dd>${c.motivo?`<dt>Motivo</dt><dd>${esc(c.motivo)}</dd>`:''}</dl>
+    <dl class="kv" style="margin-top:16px"><dt>Nombre</dt><dd>${esc(p.nombre)}</dd><dt>Sesión</dt><dd>${esc(citaTitulo(c))}</dd><dt>Día</dt><dd>${fmtLong(parseISO(toISO(c.fecha)))}</dd><dt>Horario</dt><dd>${horaTxt(c)}</dd><dt>Lugar</dt><dd>${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</dd><dt>Profesional</dt><dd>${esc(c.pro)}</dd>${c.precio?`<dt>Valor</dt><dd>${clpTxt(c.precio)}</dd>`:''}${c.motivo?`<dt>Motivo</dt><dd>${esc(c.motivo)}</dd>`:''}</dl>
     <div class="vcut"></div>
     <div class="row between xs muted"><span>N° ${String(c.id).slice(-6)}</span><span>Emitido ${emi.toLocaleDateString('es-CL')} ${pad(emi.getHours())}:${pad(emi.getMinutes())}</span></div>
     ${acceso?`<div class="b" style="margin-top:12px">Revisa el estado de tu solicitud en la app</div><p class="sm muted" style="margin-top:4px">Ingresa con tu RUT (sin puntos y con guion) y tu clave (los primeros 4 dígitos de tu RUT):</p>
@@ -3167,9 +3200,9 @@ function vAgendaPro(){
   const ags=agendasVisibles(); if(!S.agId || !ags.find(a=>a&&a.id===S.agId)) S.agId=(ags.find(a=>a&&a.id===S.pro.id)||ags[0])?.id;
   const a=ags.find(x=>x.id===S.agId)||myAgenda(), seg=S.agSeg||'dia';
   const sol=allCitas().filter(x=>x.c.estado==='solicitada');
-  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas'], ...(canEditAgenda(a)?[['ingresos','Ingresos']]:[])];
+  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas'], ...(canEditAgenda(a)?[['servicios','Servicios y precios'],['ingresos','Ingresos']]:[])];
   S.after.push(async()=>{ if(!S._jorLoaded){ S._jorLoaded=true; await loadJornadas(); if(S.proTab==='agenda') keepScroll(render); } });
-  const body = seg==='dia'?agDia(a): seg==='mes'?agMes(a): seg==='solicitudes'?agSolicitudes(sol): seg==='disponibilidad'?agDisp(a): seg==='ingresos'&&canEditAgenda(a)?agIngresos(a): agHoras(a);
+  const body = seg==='dia'?agDia(a): seg==='mes'?agMes(a): seg==='solicitudes'?agSolicitudes(sol): seg==='disponibilidad'?agDisp(a): seg==='ingresos'&&canEditAgenda(a)?agIngresos(a): seg==='servicios'&&canEditAgenda(a)?agServicios(a): agHoras(a);
   return `${proHead('Mi agenda','Agenda',`<button class="btn pri sm" onclick="sheetCita(null,null,{proId:${q(a.id)}})">${ic('plus','s')} Agendar</button>`)}<div class="stack">
   ${ags.length>1?`<div class="pills">${ags.map(x=>`<button class="pill ${x.id===a.id?'on':''}" onclick="S.agId=${q(x.id)};render()">${esc(x.nombre)}</button>`).join('')}</div>`:''}
   <div class="pills">${segs.map(([k,l])=>`<button class="pill ${seg===k?'on':''}" onclick="S.agSeg='${k}';render()">${l}</button>`).join('')}</div>${body}</div>`;
@@ -3208,14 +3241,18 @@ function agSolicitudes(sol){ return sol.length ? `<div class="list">${sol.map(({
 
 /* disponibilidad: grilla semanal cada 30 minutos */
 function agDisp(a){
-  const ed=canEditAgenda(a); const brushes=[...placesOf(a).map(x=>x.code),'Todos','Borrar']; if(!brushes.includes(S.brush)) S.brush=brushes[0]; S.dispDraft = (S.dispDraft && S.dispDraft.id===a.id) ? S.dispDraft : JSON.parse(JSON.stringify({id:a.id, slots:a.slots||{}, bloqueos:a.bloqueos||[]}));
+  const ed=canEditAgenda(a); const brushes=[...placesOf(a).map(x=>x.code),'Todos','Borrar']; if(!brushes.includes(S.brush)) S.brush=brushes[0]; S.dispDraft = (S.dispDraft && S.dispDraft.id===a.id) ? S.dispDraft : JSON.parse(JSON.stringify({id:a.id, slots:a.slots||{}, bloqueos:a.bloqueos||[], bloqH:a.bloqH||{}}));
   const D=S.dispDraft, order=[1,2,3,4,5,6,0];
   return `${ed?`<div class="note">${ic('info','s')}<span>Elige el lugar y toca (o arrastra) los bloques de 30 minutos en que atiendes. Las personas verán mañana/tarde disponibles según esto.</span></div>
   <div class="pills" style="flex-wrap:wrap">${brushes.map(b=>`<button class="pill ${S.brush===b?'on':''}" onclick="S.brush=${q(b)};keepScroll(render)"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${b==='Borrar'?'transparent':lugarCol(b)};border:1px solid var(--line2)"></span>${b==='Borrar'?'Borrar':esc(lugarLabel(b))}</button>`).join('')}</div>${placesOf(a).length?'':`<div class="note">${ic('alert','s')}<span>Primero agrega tus centros de atención en <b>Ajustes</b>.</span></div>`}`:`<div class="note">${ic('lock','s')}<span>Solo ${esc(a.nombre)} o la cuenta principal pueden editar esta disponibilidad.</span></div>`}
   <div class="card tight" style="overflow-x:auto"><div class="dgrid ${ed?'ed':''}" id="dgrid"><span></span>${order.map(w=>`<span class="hd">${DOW[w]}</span>`).join('')}
   ${HALF.map(h=>`<span class="dh">${h.endsWith(':00')?h:''}</span>${order.map(w=>{ const l=(D.slots[w]||{})[h]; return `<span class="dc" data-w="${w}" data-h="${h}" style="${l?`background:${lugarCol(l)}`:''}"></span>`; }).join('')}`).join('')}</div></div>
-  ${ed?`<section class="card stack"><div class="b">Días bloqueados (vacaciones, feriados)</div><div class="row" style="gap:8px"><input class="inp" type="date" id="bq-d"><button class="btn sec" onclick="addBloqueo()">Bloquear</button></div>
-  <div class="row" style="gap:6px;flex-wrap:wrap">${(D.bloqueos||[]).sort().map(b=>`<span class="badge">${fmtDate(b)} <button onclick="delBloqueo('${b}')">${ic('x','s')}</button></span>`).join('')||'<span class="xs muted">Sin días bloqueados</span>'}</div></section>
+  ${ed?`<div class="xs muted" id="disp-st">${ic('check','s')} Tu disponibilidad semanal se guarda sola al pintar y se repite todas las semanas.</div>
+  <section class="card stack"><div class="b">Bloquear</div><div class="xs muted">Bloquea un día completo (vacaciones, feriados) o solo algunas horas de un día puntual, sin cambiar tu disponibilidad semanal.</div>
+    <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" id="bq-d" value="${todayISO()}"></label><label class="field"><span class="lbl">Qué bloquear</span><select class="inp" id="bq-t" onchange="$('#bq-hh').classList.toggle('hidden',this.value==='dia')"><option value="horas">Algunas horas</option><option value="dia">Todo el día</option></select></label></div>
+    <div class="grid2" id="bq-hh"><label class="field"><span class="lbl">Desde</span><select class="inp" id="bq-i">${HALF.map(h=>`<option ${h==='09:00'?'selected':''}>${h}</option>`).join('')}</select></label><label class="field"><span class="lbl">Hasta</span><select class="inp" id="bq-f">${[...HALF.slice(1),'22:00'].map(h=>`<option ${h==='11:00'?'selected':''}>${h}</option>`).join('')}</select></label></div>
+    <button class="btn sec block" onclick="addBloqueo()">${ic('x','s')} Bloquear</button>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${[...(D.bloqueos||[]).map(b=>[b,'dia']), ...Object.entries(D.bloqH||{}).filter(([,hs])=>hs.length).map(([b,hs])=>[b,hs])].filter(([b])=>b>=todayISO()).sort((x,y)=>x[0].localeCompare(y[0])).map(([b,hs])=>`<span class="badge">${fmtDate(b)} · ${hs==='dia'?'todo el día':rangosTxt(hs)} <button onclick="delBloqueo('${b}','${hs==='dia'?'dia':'horas'}')">${ic('x','s')}</button></span>`).join('')||'<span class="xs muted">Sin bloqueos</span>'}</div></section>
   <button class="btn pri block" onclick="guardarDisp()">Guardar disponibilidad</button>`:''}`;
 }
 let painting=false, paintVal=null;
@@ -3224,11 +3261,40 @@ function paintCell(el){ if(!el || !el.classList.contains('dc')) return; const D=
   if(paintVal) D.slots[w][h]=paintVal; else delete D.slots[w][h]; el.style.background = paintVal ? lugarCol(paintVal) : ''; }
 document.addEventListener('pointerdown', e=>{ const g=e.target.closest('#dgrid.ed'); if(!g) return; painting=true; paintVal=null; paintCell(e.target); e.preventDefault(); });
 document.addEventListener('pointermove', e=>{ if(!painting) return; paintCell(document.elementFromPoint(e.clientX,e.clientY)); });
-document.addEventListener('pointerup', ()=>{ painting=false; paintVal=null; });
-window.addBloqueo = () => { const d=val('bq-d'); if(!d) return; const D=S.dispDraft; D.bloqueos=[...new Set([...(D.bloqueos||[]), d])]; keepScroll(render); };
-window.delBloqueo = d => { S.dispDraft.bloqueos=S.dispDraft.bloqueos.filter(x=>x!==d); keepScroll(render); };
-window.guardarDisp = async () => { const ags=agendasVisibles(); const a={...(ags.find(x=>x.id===S.dispDraft.id)||myAgenda())}; a.slots=S.dispDraft.slots; a.bloqueos=S.dispDraft.bloqueos;
-  if(await saveAgenda(a)){ S.dispDraft=null; toast('Disponibilidad guardada'); render(); } };
+let dispTimer=null;
+document.addEventListener('pointerup', ()=>{ if(painting && S.dispDraft){ clearTimeout(dispTimer); const st=$('#disp-st'); if(st) st.textContent='Guardando…'; dispTimer=setTimeout(()=>guardarDisp(true), 900); } painting=false; paintVal=null; });
+function rangosTxt(hs){ const s=[...hs].sort(), out=[]; let ini=s[0], prev=s[0]; const sig=h=>{ const [H,M]=h.split(':').map(Number), t=H*60+M+30; return `${pad(Math.floor(t/60))}:${pad(t%60)}`; };
+  s.slice(1).concat([null]).forEach(h=>{ if(h && h===sig(prev)){ prev=h; return; } out.push(`${ini}–${sig(prev)}`); ini=h; prev=h; }); return out.join(', '); }
+window.addBloqueo = async () => { const d=val('bq-d'); if(!d) return toast('Elige la fecha','err'); const D=S.dispDraft;
+  if(val('bq-t')==='dia') D.bloqueos=[...new Set([...(D.bloqueos||[]), d])];
+  else { const i=val('bq-i'), f=val('bq-f'); if(f<=i) return toast('La hora final debe ser posterior a la inicial','err'); D.bloqH=D.bloqH||{}; D.bloqH[d]=[...new Set([...(D.bloqH[d]||[]), ...HALF.filter(h=>h>=i && h<f)])]; }
+  await guardarDisp(true); toast('Bloqueo guardado'); };
+window.delBloqueo = async (d, t) => { const D=S.dispDraft; if(t==='dia') D.bloqueos=(D.bloqueos||[]).filter(x=>x!==d); else if(D.bloqH) delete D.bloqH[d]; await guardarDisp(true); };
+window.guardarDisp = async (silencio) => { if(!S.dispDraft) return; const ags=agendasVisibles(); const a={...(ags.find(x=>x.id===S.dispDraft.id)||myAgenda())}; a.slots=S.dispDraft.slots; a.bloqueos=S.dispDraft.bloqueos;
+  const hoy=todayISO(); a.bloqH=Object.fromEntries(Object.entries(S.dispDraft.bloqH||{}).filter(([d,hs])=>d>=hoy && hs.length));
+  if(await saveAgenda(a)){ S.dispDraft=null; if(silencio===true){ keepScroll(render); const st=$('#disp-st'); if(st) st.innerHTML=`${ic('check','s')} <b style="color:var(--green)">Guardado</b> · se repite todas las semanas.`; } else { toast('Disponibilidad guardada'); render(); } } };
+
+/* servicios y precios del profesional */
+function agServicios(a){ if(!S.svDraft || S.svDraft.id!==a.id) S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a)))};
+  const L=S.svDraft.list, ms=modsDe(a), oral=servAg(a)==='oral';
+  return `<div class="note">${ic('info','s')}<span>Define qué servicios ofreces y en qué modalidad. Cada modalidad tiene su propio valor y link de pago (por ejemplo, domicilio y online cuestan distinto). Las personas solo verán lo que actives aquí.</span></div>
+  ${ms.length?'':`<div class="note">${ic('alert','s')}<span>Primero activa tus lugares de atención (centros, domicilio u online) en Ajustes → Mi agenda.</span></div>`}
+  <div class="stack" id="sv-list">${L.map((x,i)=>svcCard(x,i,ms,oral)).join('')||`<div class="card empty">Aún no tienes servicios. Las personas verán los tipos de sesión generales.</div>`}</div>
+  <div class="grid2"><button class="btn sec" onclick="svAdd()">${ic('plus','s')} Agregar servicio</button>${L.length?`<span></span>`:`<button class="btn sec" onclick="svSugeridos()">${ic('spark','s')} Cargar sugeridos</button>`}</div>
+  <button class="btn pri block" onclick="guardarServicios()">${ic('check','s')} Guardar servicios</button>`; }
+const svcCard = (x,i,ms,oral) => `<section class="card stack sv" data-id="${esc(x.id)}"><div class="row" style="gap:6px"><input class="inp sv-n" placeholder="Nombre del servicio" value="${esc(x.nombre||'')}"><button class="ibtn red" onclick="svDel(${i})" aria-label="Quitar">${ic('trash','s')}</button></div>
+  <div class="grid2"><input class="inp sv-d" placeholder="Descripción breve (opcional)" value="${esc(x.desc||'')}"><input class="inp sv-t" inputmode="numeric" placeholder="Duración (min)" value="${esc(x.dur||'')}"></div>
+  ${ms.map(([m,l,icn])=>{ const v=x.mod?.[m]||{}; return `<div class="trow sv-m" data-m="${m}"><label class="check"><input type="checkbox" class="sv-on" ${v.on?'checked':''}><span><b style="color:var(--tx)">${ic(icn,'s')} ${l}</b>${m==='centro'&&!oral?' · se paga en el centro':''}</span></label>
+    <div class="${m==='centro'&&!oral?'':'g2'}" style="${m==='centro'&&!oral?'':'display:grid;grid-template-columns:1fr 1.6fr;gap:6px'}"><input class="inp sv-p" inputmode="numeric" placeholder="Valor $" value="${esc(v.precio||'')}">${m==='centro'&&!oral?'':`<input class="inp sv-l" placeholder="Link de pago (Mercado Pago, Flow…)" value="${esc(v.link||'')}">`}</div></div>`; }).join('')}</section>`;
+function svCollect(){ S.svDraft.list=[...document.querySelectorAll('#sv-list .sv')].map(c=>{ const g=k=>c.querySelector(k)?.value.trim()||''; const mod={};
+  c.querySelectorAll('.sv-m').forEach(r=>{ mod[r.dataset.m]={on:r.querySelector('.sv-on').checked, precio:parseInt(String(r.querySelector('.sv-p').value).replace(/\D/g,''))||'', link:(r.querySelector('.sv-l')?.value||'').trim()}; });
+  return {id:c.dataset.id, nombre:g('.sv-n'), desc:g('.sv-d'), dur:parseInt(g('.sv-t'))||'', mod}; }); return S.svDraft.list; }
+window.svAdd = () => { svCollect(); const a=agendaOf(S.svDraft.id)||myAgenda(); S.svDraft.list.push({id:'sv'+uid(), nombre:'', mod:Object.fromEntries(modsDe(a).map(([m])=>[m,{on:true}]))}); keepScroll(render); };
+window.svDel = i => { svCollect(); if(S.svDraft.list[i]?.nombre && !confirm(`¿Quitar "${S.svDraft.list[i].nombre}"?`)) return; S.svDraft.list.splice(i,1); keepScroll(render); };
+window.svSugeridos = () => { const a=agendaOf(S.svDraft.id)||myAgenda(); S.svDraft.list=SVC_SUGERIDOS[servAg(a)].map(([nombre,desc,dur])=>({id:'sv'+uid(), nombre, desc, dur, mod:Object.fromEntries(modsDe(a).map(([m])=>[m,{on:true, precio:nombre==='Evaluación odontológica'?20000:''}]))})); keepScroll(render); };
+window.guardarServicios = async () => { const L=svCollect().filter(x=>x.nombre); const a={...(agendaOf(S.svDraft.id)||myAgenda())};
+  const sinMod=L.find(x=>!Object.values(x.mod||{}).some(v=>v.on)); if(sinMod) return toast(`"${sinMod.nombre}" no tiene ninguna modalidad activa`,'err');
+  a.servicios=L; if(await saveAgenda(a)){ S.svDraft=null; toast('Servicios guardados'); keepScroll(render); } };
 
 /* horas trabajadas */
 function agHoras(a){
@@ -3259,7 +3325,7 @@ window.sheetCita = (k, id, preset={}) => {
   ${c&&c.creadaPor==='persona'?`<div class="note" style="margin-top:10px;flex-direction:column;gap:4px"><span><b>Pidió:</b> ${fmtDate(c.fecha)} · ${c.bloque==='AM'?'mañana':'tarde'} · ${esc(lugarLabel(c))}</span>${c.motivo?`<span><b>Motivo:</b> ${esc(c.motivo)}</span>`:''}${c.nota?`<span><b>Comentario:</b> ${esc(c.nota)}</span>`:''}</div>`:''}
   <div class="stack" style="margin-top:14px">
   ${p?`<div class="row">${avatar(p,36)}<div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(p.contacto||'')}</div></div><button class="btn sec sm" onclick="closeSheet();openPersona(${q(k)})">Ficha</button></div><input type="hidden" id="ci-p" value="${esc(k)}">`:`<label class="field"><span class="lbl">Persona</span><select class="inp" id="ci-p">${ps.map(x=>`<option value="${esc(keyOf(x))}">${esc(x.nombre)}${S.pro.org==='all'?` (${x.org==='kah'?'KAH':'SM'})`:''}</option>`).join('')}</select></label>`}
-  <div><div class="lbl">Tipo</div>${pills(servAg(agendaOf(S.ci.proId))==='oral'?TIPOS_ORAL:TIPOS_CITA,'tipo')}</div>
+  <div><div class="lbl">Tipo</div>${pills(svcsAg(agendaOf(S.ci.proId)).length?[...new Set([...svcsAg(agendaOf(S.ci.proId)).map(x=>x.nombre), ...(c&&c.tipo?[c.tipo]:[])])]:servAg(agendaOf(S.ci.proId))==='oral'?TIPOS_ORAL:TIPOS_CITA,'tipo')}</div>
   <label class="field"><span class="lbl">Profesional</span><select class="inp" id="ci-k" onchange="S.ci.proId=this.value;ciLugares();ciHoras()">${ags.map(a=>`<option value="${esc(a.id)}" ${a.id===S.ci.proId?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></label>
   <div><div class="lbl">Lugar</div><div id="ci-lug"></div></div>
   <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" id="ci-f" value="${esc(toISO(c?.fecha)||preset.fecha||todayISO())}" onchange="ciHoras()"></label><label class="field"><span class="lbl">Hora</span><input class="inp" type="time" id="ci-h" value="${esc(c?.hora||preset.hora||'')}"></label></div>
@@ -3267,7 +3333,7 @@ window.sheetCita = (k, id, preset={}) => {
   <label class="field"><span class="lbl">Dirección / indicaciones</span><input class="inp" id="ci-n" value="${esc(c?.direccion||c?.notaPro||p?.direccion||'')}" placeholder="Dirección del domicilio, box, qué traer…"></label>
   ${c?`<div class="card tight stack"><div class="row between"><span class="b sm">Pago${c.pago?.medio==='efectivo'?' en efectivo (al inicio de la sesión)':c.pago?.requerido?' previo':''}</span><span class="badge ${c.pago?.estado==='pagado'?'acc':c.pago?.estado==='reembolsado'?'red':'mixto'}">${({pagado:'Pagado', informado:'Persona informó pago', reembolsado:'Reembolsado'})[c.pago?.estado]||'Pendiente'}</span></div>
     <label class="check"><input type="checkbox" id="ci-pg" ${c.pago?.estado==='pagado'||c.pago?.estado==='reembolsado'?'checked':''}><span>Pago recibido</span></label>
-    <label class="field"><span class="lbl">Medio de pago</span><select class="inp" id="ci-me">${MEDIOS.map(([k,l])=>`<option value="${k}" ${(c.pago?.medio||'transferencia')===k?'selected':''}>${l}</option>`).join('')}</select></label><div class="grid2"><label class="field"><span class="lbl">Monto pagado ($)</span><input class="inp" id="ci-mo" inputmode="numeric" value="${esc(c.pago?.monto||'')}" placeholder="Ej: 20000"></label><label class="field"><span class="lbl">N° de boleta</span><input class="inp" id="ci-bo" value="${esc(c.pago?.boleta||'')}" placeholder="Opcional"></label></div>
+    <label class="field"><span class="lbl">Medio de pago</span><select class="inp" id="ci-me">${MEDIOS.map(([k,l])=>`<option value="${k}" ${(c.pago?.medio||'transferencia')===k?'selected':''}>${l}</option>`).join('')}</select></label><div class="grid2"><label class="field"><span class="lbl">Monto pagado ($)</span><input class="inp" id="ci-mo" inputmode="numeric" value="${esc(c.pago?.monto||c.precio||'')}" placeholder="Ej: 20000"></label><label class="field"><span class="lbl">N° de boleta</span><input class="inp" id="ci-bo" value="${esc(c.pago?.boleta||'')}" placeholder="Opcional"></label></div>
     ${c.pago?.reembolso?`<div class="xs b" style="color:var(--red)">Reembolso por cancelación: $${(+c.pago.reembolso).toLocaleString('es-CL')} (${c.pago.reembolsoPct||40} %)</div>`:''}</div>`:''}
   ${c&&c.link?`<a class="btn sec block" href="${safeUrl(c.link)}" target="_blank" rel="noopener">${ic('video','s')} Abrir sala de videollamada</a>`:''}
   ${p&&c&&waNum(p.contacto)?`<div class="card tight stack"><div class="xs b muted">Si no responde en la app, escríbele por WhatsApp</div><div class="row" style="gap:6px;flex-wrap:wrap">${c.estado==='solicitada'?waBtn(p,c,'confirmar','btn sec sm','Confirmar'):waBtn(p,c,'recordatorio','btn sec sm','Recordatorio')}${pagoPend(c)?waBtn(p,c,'pago','btn sec sm','Cobrar pago'):''}${waBtn(p,null,'','btn ghost sm','Mensaje libre')}</div></div>`:''}

@@ -387,7 +387,10 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .dchip[disabled]{opacity:.35;text-decoration:line-through}
 .voucher{background:var(--card);border:1.5px dashed color-mix(in srgb,var(--acc) 55%,transparent);border-radius:22px;padding:18px;position:relative}
 .voucher .vh{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.vcut{height:0;border-top:2px dashed var(--line2);margin:16px -18px}
+.vcut{height:0;border-top:2px dashed var(--line2);margin:16px -18px;position:relative}
+.vcut:before,.vcut:after{content:'';position:absolute;top:-12px;width:22px;height:22px;border-radius:50%;background:var(--bg);border:1.5px dashed color-mix(in srgb,var(--acc) 55%,transparent)}
+.vcut:before{left:-12px;clip-path:inset(0 0 0 50%)}.vcut:after{right:-12px;clip-path:inset(0 50% 0 0)}
+.sheet .voucher{background:var(--card2)}.sheet .vcut:before,.sheet .vcut:after{background:var(--card)}
 .slot{display:flex;gap:10px;align-items:stretch;min-height:38px;border-top:1px solid var(--line)}
 .slot:first-child{border-top:0}
 .slot .sh{width:44px;flex:none;font-size:12px;font-weight:700;color:var(--mu);padding-top:10px;font-variant-numeric:tabular-nums}
@@ -622,6 +625,7 @@ const BUILTIN_PROS = [
 const ORGS = { sm:{label:'StrongMed'}, kah:{label:'Kin At Home'} };
 const TIPOS_CITA = ['Evaluación','Kinesiología','Entrenamiento','Recovery'];
 const TIPOS_ORAL = ['Evaluación','Control','Limpieza','Tratamientos'];
+const PAGO_CENTRO = 'En el centro kinésico <b>pagas directamente antes de la sesión</b>. Confirma el valor y la forma de pago con tu kinesiólogo.';
 const ORAL_PAGO = 'Para confirmar tu hora debes registrar el pago previo.';
 const ORAL_PRECIO = 'La primera evaluación tiene un valor de $20.000 e incluye evaluación, limpieza y presupuesto. Otros tratamientos están sujetos a evaluación clínica.';
 const KIA_NO = 'No tengo la información requerida. Si necesitas algo específico, no dudes en consultar a tu kinesiólogo.';
@@ -716,7 +720,7 @@ const soloOral = p => esOral(p) && (isPending(p) || p.perfil==='oral' || !p.perf
 const tieneOral = p => !!p && (esOral(p) || !!(p.oral && ((p.oral.atenciones||[]).length || p.oral.anamnesis)));
 function puedeVer(p){ if(!S.pro || isAdmin()) return true;
   if(isOdonto()) return esOral(p) || (p.oral && p.oral.proId===S.pro.id) || (p.citas||[]).some(c=>c.proId===S.pro.id);
-  return !esOral(p) || !!p.compartido; }
+  return !esOral(p) || !!p.compartido || (p.citas||[]).some(c=>c.estado!=='cancelada' && !esOralCita(c)); }
 const perfilOf = p => PERFIL[p?.perfil] ? p.perfil : 'mixto';
 const isPending = p => p && p.estado === 'pendiente';
 const CI = [
@@ -826,6 +830,10 @@ async function loadDB(orgs, src){
   const res = await Promise.allSettled(orgs.map(o=>loadOrg(o, src)));
   const all=[]; res.forEach((r,i)=>{ if(r.status==='fulfilled') all.push(...r.value); else if(src!=='cache'){ console.error(r.reason); toast(`No se pudo cargar ${ORGS[orgs[i]].label}`,'err'); } });
   if(src==='cache' && !all.length) return false;
+  // atención cruzada: un profesional de una sola empresa también carga las fichas de la otra que lo agendaron
+  if(S.role==='pro' && S.pro && S.pro.org!=='all' && src!=='cache' && S.fb.where){ const mine=S.pro.org;
+    for(const o of Object.keys(ORGS).filter(x=>x!==mine && !orgs.includes(x))){ try{ const sn=await S.fb.getDocs(S.fb.query(S.fb.collection(S.dbs[o],'evaluaciones'), S.fb.where('atiende','array-contains',mine)));
+      sn.forEach(d=>{ const x=d.data(); if(x && x.rut){ x.org=x.org||o; all.push(x); } }); }catch(e){ console.warn('atención cruzada', e); } } }
   if(S.role==='pro'){ await loadOralDocs(src); all.forEach(oralAttach); }
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
   else S.all = all;
@@ -1252,9 +1260,10 @@ window.sheetAvisos = async () => { const p=me(); const av=(p.avisos||[]).slice()
   ${'Notification' in window && Notification.permission!=='granted'?`<button class="btn sec block" style="margin-top:12px" onclick="pedirNotis()">${ic('bell','s')} Activar notificaciones en este teléfono</button>`:''}`);
   if(unreadAvisos(p).length){ p.avisos.forEach(a=>a.leido=true); await save(p); keepScroll(render); } };
 
+const citaTitulo = c => `${c.tipo||'Sesión'}${c.nSesion?` ${c.nSesion}${c.planSes?` de ${c.planSes}`:''}`:''}`;
 function citaHTML(c, opts={}){ const d=toISO(c.fecha)?parseISO(toISO(c.fecha)):null;
   return `<div class="cita"><div class="cd"><span>${d?DOW[d.getDay()]:''}</span><b>${d?d.getDate():'–'}</b><span>${d?MON[d.getMonth()]:''}</span></div>
-  <div class="grow"><div class="b">${esc(c.tipo||'Sesión')}${opts.who?` · ${esc(opts.who)}`:''}</div><div class="sm ${opts.hero?'':'muted'}" style="margin-top:2px">${ic('clock','s')} ${horaTxt(c)}</div><div class="sm ${opts.hero?'':'muted'}">${ic(c.lugar==='Online'?'video':'pin','s')} ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div>
+  <div class="grow"><div class="b">${esc(citaTitulo(c))}${opts.who?` · ${esc(opts.who)}`:''}</div><div class="sm ${opts.hero?'':'muted'}" style="margin-top:2px">${ic('clock','s')} ${horaTxt(c)}</div><div class="sm ${opts.hero?'':'muted'}">${ic(c.lugar==='Online'?'video':'pin','s')} ${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</div>
   <div class="xs b st-${c.estado}" style="margin-top:4px">${({solicitada:'Solicitada · esperando confirmación',confirmada:'Confirmada',cancelada:'Cancelada',realizada:'Realizada'})[c.estado]||''}${c.pro?` · ${esc(c.pro)}`:''}${pagoPend(c)?` · <span style="color:var(--orange)">pago ${c.pago.estado==='informado'?'informado':'pendiente'}</span>`:''}</div></div>${opts.right||''}</div>`; }
 function proximaCitaCard(p){ const c=proximasCitas(p)[0];
   if(!c) return `<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una sesión</button>`;
@@ -1746,9 +1755,11 @@ window.guardarAnamnesis = async e => { e.preventDefault(); const p=me(); if(!val
 function vAgendaPat(p){
   const up=proximasCitas(p), past=(p.citas||[]).filter(c=>!up.includes(c)).sort((a,b)=>citaTs(b)-citaTs(a));
   return `<header class="top"><div class="eyebrow">Sesiones</div><h1 class="disp h1" style="margin-top:6px">Mi agenda</h1></header><div class="stack">
-  <button class="btn pri block" onclick="sheetSolicitar()">${ic('plus','s')} Solicitar una hora</button>
-  ${up.length?up.map(c=>`<section class="card stack">${citaHTML(c,{right: c.estado==='confirmada'&&c.lugar==='Online'&&c.link?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">Unirme</a>`:`<button class="ibtn red" onclick="cancelarCitaPat(${c.id})" aria-label="Cancelar">${ic('x','s')}</button>`})}${pagoBox(c,true)}</section>`).join(''):`<div class="card empty">No tienes horas agendadas.</div>`}
-  <div class="note">${ic('pin','s')}<span>Atendemos en <b>centro kinésico (Concepción)</b>, a <b>domicilio</b> y <b>online</b>. Tú eliges mañana o tarde y tu profesional confirma la hora exacta.</span></div>
+  ${(()=>{ const cont=bkCont(p); return `<button class="btn pri block" onclick="sheetSolicitar()">${ic('plus','s')} ${cont?(cont.per==='entrenamiento'?'Agendar entrenamiento':'Agendar sesión kinésica'):'Solicitar una hora'}</button>`; })()}
+  ${up.length?up.map(c=>`<section class="card stack">${citaHTML(c,{right: c.estado==='confirmada'&&c.lugar==='Online'&&c.link?`<a class="btn pri sm" href="${safeUrl(c.link)}" target="_blank" rel="noopener">Unirme</a>`:`<button class="ibtn red" onclick="cancelarCitaPat(${c.id})" aria-label="Cancelar">${ic('x','s')}</button>`})}${pagoBox(c,true)}<button class="btn ghost sm" style="align-self:flex-start" onclick="verComprobante(${c.id})">${ic('file','s')} Ver comprobante</button></section>`).join(''):`<div class="card empty">No tienes horas agendadas.</div>`}
+  ${esOral(p)&&soloOral(p)?`<button class="li card" onclick="sheetSolicitar('kine')"><span class="ico">${ic('steth','s')}</span><div class="grow"><div class="b sm">¿También quieres kinesiología o entrenamiento?</div><div class="xs muted">Agenda con el equipo StrongMed × Kin At Home</div></div>${ic('chevr','s chev')}</button>`
+    :`<button class="li card" onclick="sheetSolicitar('oral')"><span class="ico">${ic('tooth','s')}</span><div class="grow"><div class="b sm">¿Necesitas dentista?</div><div class="xs muted">Odontología general con la Dra. Nicole Escobar · evaluación, limpieza y presupuesto</div></div>${ic('chevr','s chev')}</button>`}
+  <div class="note">${ic('pin','s')}<span>Atendemos en <b>centro kinésico (Concepción)</b>, a <b>domicilio</b> y <b>online</b>. En el centro pagas directamente antes de la sesión; a domicilio y odontología requieren pago previo.</span></div>
   ${past.length?`<div class="sec-t"><h2>Anteriores</h2></div><div class="list">${past.slice(0,12).map(c=>`<div class="li">${citaHTML(c)}</div>`).join('')}</div>`:''}</div>`;
 }
 window.cancelarCitaPat = async id => { if(!confirm('¿Cancelar esta hora?')) return; const p=me(); const c=(p.citas||[]).find(x=>x.id===id); if(c){ c.estado='cancelada'; c.canceladaPor='persona'; await save(p); toast('Hora cancelada'); keepScroll(render); } };
@@ -2694,6 +2705,7 @@ function evalMetrics(d){ const M=[], add=(l,v,u,m)=>{ const n=numv(v); if(isFini
   add('FC reposo',d.fcr,'lpm','bajo'); add('Handgrip der.',d.hgd,'kg','alto'); add('Handgrip izq.',d.hgi,'kg','alto');
   PERIM.forEach(([k,l,u,m])=>add(l,d[k],u,m));
   if(d.poblacion && d.bat) (BAT[d.poblacion]||[]).forEach(([k,l])=>add(l,d.bat[k],'',/agi|tug|vel/.test(k)?'bajo':'alto'));
+  lsiPares(d).forEach(({l,x})=>add('Simetría '+l, x.toFixed(0),'%','alto'));
   (d.fuerza||[]).forEach(r=>{ const c=rmCalc(+r.kg,+r.reps); if(c) add('1RM '+r.name,c.avg.toFixed(1),'kg','alto'); });
   (d.gonio||[]).forEach(r=>{ add(r.mov+' der.',r.d,'°','alto'); add(r.mov+' izq.',r.i,'°','alto'); const l=lsiOf(r.d,r.i,d.lado); if(l!=null) add(r.mov+' LSI',l.toFixed(0),'%','alto'); });
   (d.fzm||[]).forEach(r=>{ const u=(r.u||'Daniels')==='Daniels'?'/5':' '+r.u; add('Fuerza '+r.mus+' der.',r.d,u,'alto'); add('Fuerza '+r.mus+' izq.',r.i,u,'alto'); const l=lsiOf(r.d,r.i,d.lado); if(l!=null) add('Fuerza '+r.mus+' LSI',l.toFixed(0),'%','alto'); });
@@ -2736,10 +2748,17 @@ const PRESETS = {
   }
 };
 const BAT = {
-  deportiva: [['agi','Agilidad 5-10-5 (s)'],['ybal','Y-Balance (cm)'],['push','Push-up 30 s (reps)'],['sq','Sentadilla 30 s (reps)'],['monoD','Monopodal der (s)'],['monoI','Monopodal izq (s)'],['saltoL','Salto largo (cm)'],['saltoV','Salto vertical CMJ (cm)']],
-  nna: [['ybal','Y-Balance NNA (cm)'],['push','Push-up modificado 30 s'],['sq','Sentadilla 30 s'],['agi','Agilidad 5-10-5 (s)'],['saltoL','Salto largo (cm)'],['saltoV','Salto vertical (cm)']],
+  deportiva: [['agi','Agilidad 5-10-5 (s)'],['ybalD','Y-Balance der (% largo pierna)'],['ybalI','Y-Balance izq (% largo pierna)'],['hopD','Single hop der (cm)'],['hopI','Single hop izq (cm)'],['push','Push-up 30 s (reps)'],['sq','Sentadilla 30 s (reps)'],['monoD','Monopodal der (s)'],['monoI','Monopodal izq (s)'],['saltoL','Salto largo (cm)'],['saltoV','Salto vertical CMJ (cm)']],
+  nna: [['ybalD','Y-Balance der (%)'],['ybalI','Y-Balance izq (%)'],['push','Push-up modificado 30 s'],['sq','Sentadilla 30 s'],['agi','Agilidad 5-10-5 (s)'],['saltoL','Salto largo (cm)'],['saltoV','Salto vertical (cm)']],
   mayor: [['arm','Arm Curl 30 s (reps)'],['chair','Chair Stand 30 s (reps)'],['tug','Timed Up & Go (s)'],['vel','Velocidad marcha 4 m (s)'],['sppb','SPPB (0–12)'],['monoD','Unipodal der (s)'],['monoI','Unipodal izq (s)']]
 };
+const PARQ = ['¿Algún médico le ha dicho que tiene una enfermedad del corazón o presión arterial alta?','¿Siente dolor en el pecho en reposo, en sus actividades diarias o al hacer actividad física?','¿Ha perdido el equilibrio por mareo o ha perdido el conocimiento en los últimos 12 meses?','¿Le han diagnosticado otra enfermedad crónica (además de corazón o presión alta)?','¿Toma actualmente medicamentos recetados para una enfermedad crónica?','¿Tiene (o tuvo en los últimos 12 meses) un problema de huesos, articulaciones o músculos que podría empeorar con más actividad física?','¿Algún médico le ha dicho que solo debe hacer actividad física con supervisión médica?'];
+const parqNote = (n,t) => n ? `${ic('alert','s')}<span><b style="color:var(--red)">${n} respuesta${n>1?'s':''} Sí.</b> Antes de cargas intensas: evaluación adicional o autorización médica (PAR-Q+ / ePARmed-X+).</span>` : t ? `${ic('check','s')}<span>${t}/${PARQ.length} respondidas · apto para progresar la actividad física.</span>` : `${ic('info','s')}<span>Responde las 7 preguntas antes de evaluar.</span>`;
+window.parqCheck = () => { const b=$('#ev-parq'); if(b) b.innerHTML=parqNote(document.querySelectorAll('#evform .pqrow input[value="Sí"]:checked').length, document.querySelectorAll('#evform .pqrow input:checked').length); };
+window.parqTodoNo = () => { document.querySelectorAll('#evform .pqrow').forEach(r=>{ if(!r.querySelector('input[value="Sí"]').checked) r.querySelector('input[value="No"]').checked=true; }); parqCheck(); };
+const LSI_PARES = [['hgd','hgi','Handgrip',0],['monoD','monoI','Monopodal',1],['ybalD','ybalI','Y-Balance',1],['hopD','hopI','Single hop',1]];
+function lsiPares(d){ return LSI_PARES.map(([a,b,l,inBat])=>{ const v=k=>inBat?(d.bat||{})[k]:d[k], x=lsiOf(v(a),v(b),d.lado); return x!=null?{l, x}:null; }).filter(Boolean); }
+const lsiParesHTML = d => { const L=lsiPares(d); return L.length ? `${ic('chart','s')}<span>Simetría (LSI): ${L.map(({l,x})=>`${l} <b style="color:${x<90?'var(--red)':'var(--green)'}">${Math.round(x)} %</b>`).join(' · ')}</span>` : `${ic('info','s')}<span>Completa ambos lados (handgrip, monopodal, Y-Balance, single hop) para ver la simetría.</span>`; };
 const POB = {deportiva:'Adulto / deportiva', nna:'Niños y adolescentes (NNA)', mayor:'Persona mayor'};
 const presetRows = pob => ({ mov:PRESETS[pob].mov.map(([mov,dos,obs])=>({mov,dos,dolor:'No',obs})), fuerza:PRESETS[pob].fuerza.map(([name,tipo,obs])=>({name,tipo,kg:'',reps:'',res:'',obs})), tests:PRESETS[pob].tests.map(([test,res,obs])=>({test,res,obs})) });
 
@@ -2792,6 +2811,9 @@ function vEvaluar(){
   : `<section class="card stack"><div class="row between"><div class="eyebrow">Perfil evaluativo</div></div>
     <select class="inp" id="ev-poblacion" data-k="poblacion" onchange="evPob(this.value)">${Object.entries(POB).map(([k,l])=>`<option value="${k}" ${d.poblacion===k?'selected':''}>${l}</option>`).join('')}</select>
     ${f('enfoque','Molestia o enfoque','Ej: potencia, control')}<div class="grid2">${f('comorbilidades','Comorbilidades','HTA, diabetes, asma, ninguna')}${f('lesiones','Lesiones / cirugías','Esguince tobillo der.')}</div></section>
+  <section class="card stack"><div class="row between"><div class="eyebrow" style="color:var(--red)">0 · Aptitud para el ejercicio (PAR-Q+)</div><button class="btn ghost sm" onclick="parqTodoNo()">Resto en No</button></div>
+    <div>${PARQ.map((t,i)=>`<div class="rfrow pqrow"><span>${t}</span><span class="yn"><label class="si"><input type="radio" name="pq-${i}" value="Sí" ${(d.parq||{})[i]==='Sí'?'checked':''} onchange="parqCheck()">Sí</label><label><input type="radio" name="pq-${i}" value="No" ${(d.parq||{})[i]==='No'?'checked':''} onchange="parqCheck()">No</label></span></div>`).join('')}</div>
+    <div id="ev-parq" class="note">${parqNote(Object.values(d.parq||{}).filter(x=>x==='Sí').length, Object.keys(d.parq||{}).length)}</div></section>
   <section class="card stack"><div class="eyebrow">1 · Antropometría y signos vitales</div>
     <div class="grid2">${f('peso','Peso (kg)','74','num')}${f('talla','Talla (cm)','170','num')}</div><div id="ev-imc" class="note hidden"></div>
     <div class="grid2">${f('pa','Presión arterial','120/80')}${f('fcr','FC reposo (lpm)','65','num')}</div><div class="grid2">${f('spo2','SpO2 (%)','98','num')}${f('pasos','Pasos promedio','8000','num')}</div></section>
@@ -2805,7 +2827,9 @@ function vEvaluar(){
   <section class="card stack"><div class="eyebrow">4 · Umbrales en treadmill</div><div class="grid2">${f('vt1','VT1 (aeróbico)','Velocidad | pendiente | FC | test del habla')}${f('vt2','VT2 (anaeróbico)','Velocidad | pendiente | FC | hiperventilación')}</div></section>
   <section class="card stack"><div class="row between"><div><div class="eyebrow">5 · Fuerza · 1RM</div><div class="xs muted">Epley, O'Conner y Brzycki. Los 1RM quedan en el gráfico de la persona.</div></div><button class="btn ghost sm" onclick="evAdd('fuerza')">${ic('plus','s')} Ejercicio</button></div><div class="tbl" id="ev-fuerza">${(d.fuerza||[]).map(fzRow).join('')}</div></section>
   <section class="card stack"><div class="eyebrow">6 · Batería · ${POB[d.poblacion]}</div><div class="grid2">${BAT[d.poblacion].map(([k,l])=>`<label class="field"><span class="lbl">${l}</span><input class="inp" data-b="${k}" value="${esc((d.bat||{})[k]||'')}"></label>`).join('')}</div>
+    <div id="ev-lsi" class="note">${lsiParesHTML(d)}</div>
     <div class="row between"><span class="lbl" style="margin:0">Pruebas específicas / test manuales</span><button class="btn ghost sm" onclick="evAdd('tests')">${ic('plus','s')} Test</button></div><div class="tbl" id="ev-tests">${(d.tests||[]).map(tsRow).join('')}</div></section>
+  <section class="card stack"><div class="eyebrow">Escalas y cuestionarios</div>${escResumenEval(p)}</section>
   <section class="card stack"><div class="eyebrow">7 · Conclusiones</div>${a('conclusiones','Conclusiones y observaciones finales','Resumen del rendimiento, banderas rojas, objetivos…',4)}</section>`}
   <button class="btn pri block" onclick="guardarEvaluacion()">${ic('check','s')} ${editing?'Guardar cambios':'Guardar evaluación'}</button>
   ${editing?`<button class="btn danger block" onclick="borrarEval()">${ic('trash','s')} Eliminar esta evaluación</button>`:''}</div>`;
@@ -2830,6 +2854,7 @@ function evCollect(){
     d.fzm=[...document.querySelectorAll('#ev-fzm .trow')].map(r=>({mus:g(r,'.t-mov'), d:g(r,'.t-d'), i:g(r,'.t-i'), u:g(r,'.t-u'), pd:r.dataset.pd, pi:r.dataset.pi})).filter(x=>x.mus);
   }
   if(d.tipo==='funcional'){
+    d.parq={}; PARQ.forEach((_,i)=>{ const x=document.querySelector(`#evform input[name="pq-${i}"]:checked`); if(x) d.parq[i]=x.value; });
     d.bat={}; document.querySelectorAll('#evform [data-b]').forEach(i=>{ if(i.value.trim()) d.bat[i.dataset.b]=i.value.trim(); });
     d.mov=[...document.querySelectorAll('#ev-mov .trow')].map(r=>({mov:g(r,'.t-mov'), dos:g(r,'.t-dos'), dolor:g(r,'.t-dol'), obs:g(r,'.t-obs')})).filter(x=>x.mov);
     d.fuerza=[...document.querySelectorAll('#ev-fuerza .trow')].map(r=>({name:g(r,'.t-name'), tipo:r.dataset.tipo, kg:g(r,'.t-kg'), reps:g(r,'.t-reps'), res:g(r,'.t-res'), obs:g(r,'.t-obs')})).filter(x=>x.name);
@@ -2843,6 +2868,7 @@ window.evPob = pob => { const d=evCollect(); d.poblacion=pob;
   S.evDraft=d; keepScroll(render); };
 document.addEventListener('input', e => {
   const id=e.target.id||'';
+  if(id==='ev-hgd' || id==='ev-hgi' || e.target.dataset?.b){ const b=$('#ev-lsi'); if(b){ const dd={bat:{}}; ['hgd','hgi'].forEach(k=>dd[k]=val('ev-'+k)); document.querySelectorAll('#evform [data-b]').forEach(i=>dd.bat[i.dataset.b]=i.value); b.innerHTML=lsiParesHTML(dd); } }
   if(/^ev-(per_|pl_|comp_|talla)/.test(id)){ const b=$('#ev-per'); if(b){ const dd={}; document.querySelectorAll('#evform [data-k]').forEach(i=>dd[i.dataset.k]=i.value); const c=perimCalc(dd); b.classList.toggle('hidden',!c.length); b.innerHTML=`${ic('info','s')}<span>${esc(c.join(' · '))}</span>`; } }
   if(['ev-peso','ev-talla','ev-edad'].includes(id)){ const pe=+val('ev-peso'), ta=+val('ev-talla'), ed=+val('ev-edad'), b=$('#ev-imc'); if(!b) return;
     const parts=[]; if(pe&&ta){ const imc=pe/Math.pow(ta/100,2); parts.push(`IMC <b>${imc.toFixed(1)}</b> · ${imc<18.5?'bajo peso':imc<25?'normopeso':imc<30?'sobrepeso':'obesidad'}`); } if(ed) parts.push(`FC máx. teórica <b>${220-ed}</b> lpm`);
@@ -2873,6 +2899,7 @@ function evalLines(d){
     if(has('plan')) L.push(`<strong>Objetivos y plan:</strong> ${V('plan')}`);
   } else {
     L.push(`<span class="badge entrenamiento">Evaluación funcional · ${esc(POB[d.poblacion]||'')}</span>`);
+    const pq=d.parq||{}, pk=Object.keys(pq); if(pk.length){ const pos=pk.filter(i=>pq[i]==='Sí').map(i=>PARQ[i].replace(/^¿|\?$/g,'')); L.push(`<span data-pro="1"><strong>PAR-Q+:</strong> ${pos.length?`<b style="color:var(--red)">${pos.length} Sí — ${esc(pos.join('; '))}</b>`:`sin contraindicaciones (${pk.length}/7)`}</span>`); }
     if(has('enfoque')) L.push(`<strong>Enfoque:</strong> ${V('enfoque')}`);
     if(has('comorbilidades')||has('lesiones')) L.push(`<strong>Antecedentes:</strong> ${[d.comorbilidades,d.lesiones].filter(Boolean).map(esc).join(' · ')}`);
     const pe=+d.peso, ta=+d.talla; if(pe||ta) L.push(`<strong>Antropometría:</strong> ${V('peso')||'—'} kg · ${V('talla')||'—'} cm${pe&&ta?` · IMC ${(pe/Math.pow(ta/100,2)).toFixed(1)}`:''}`);
@@ -2882,8 +2909,9 @@ function evalLines(d){
     if(has('hgd')||has('hgi')) L.push(`<strong>Handgrip:</strong> D ${V('hgd')||'—'} kg · I ${V('hgi')||'—'} kg`);
     (d.mov||[]).forEach(r=>L.push(`<strong>Movilidad · ${esc(r.mov)}:</strong> ${esc(r.dos)}${r.dolor==='Sí'?' · <b style="color:var(--red)">con dolor</b>':''}${r.obs?` · ${esc(r.obs)}`:''}`));
     if(has('vt1')||has('vt2')) L.push(`<strong>Umbrales:</strong> VT1 ${V('vt1')||'—'} · VT2 ${V('vt2')||'—'}`);
-    (d.fuerza||[]).forEach(r=>{ const c=rmCalc(+r.kg,+r.reps); if(r.tipo==='manual'){ if(r.res||r.obs) L.push(`<strong>${esc(r.name)}:</strong> ${esc(r.res)}${r.obs?` · ${esc(r.obs)}`:''}`); } else if(c) L.push(`<strong>1RM ${esc(r.name)}:</strong> ${esc(r.kg)} kg × ${esc(r.reps)} → <b>${c.avg.toFixed(1)} kg</b>${r.obs?` · ${esc(r.obs)}`:''}`); else if(r.obs) L.push(`<strong>${esc(r.name)}:</strong> ${esc(r.obs)}`); });
-    const bt=BAT[d.poblacion].filter(([k])=>d.bat&&d.bat[k]).map(([k,l])=>`${l}: ${esc(d.bat[k])}`); if(bt.length) L.push(`<strong>Batería:</strong> ${bt.join(' · ')}`);
+    (d.fuerza||[]).forEach(r=>{ const c=rmCalc(+r.kg,+r.reps); if(r.tipo==='manual'){ if(r.res||r.obs) L.push(`<strong>${esc(r.name)}:</strong> ${esc(r.res)}${r.obs?` · ${esc(r.obs)}`:''}`); } else if(c) L.push(`<strong>1RM ${esc(r.name)}:</strong> ${esc(r.kg)} kg × ${esc(r.reps)} → <b>${c.avg.toFixed(1)} kg</b>${+d.peso?` (${(c.avg/+d.peso).toFixed(2).replace('.',',')}× peso corporal)`:''}${r.obs?` · ${esc(r.obs)}`:''}`); else if(r.obs) L.push(`<strong>${esc(r.name)}:</strong> ${esc(r.obs)}`); });
+    const bt=[...BAT[d.poblacion],['ybal','Y-Balance (cm)']].filter(([k])=>d.bat&&d.bat[k]).map(([k,l])=>`${l}: ${esc(d.bat[k])}`); if(bt.length) L.push(`<strong>Batería:</strong> ${bt.join(' · ')}`);
+    const ls=lsiPares(d); if(ls.length) L.push(`<strong>Simetría (LSI):</strong> ${ls.map(({l,x})=>`${l} ${Math.round(x)} %`).join(' · ')}`);
     (d.tests||[]).forEach(r=>{ if(r.res||r.obs) L.push(`<strong>${esc(r.test)}:</strong> ${esc(r.res)}${r.obs?` (${esc(r.obs)})`:''}`); });
     if(has('conclusiones')) L.push(`<strong>Conclusiones:</strong> ${V('conclusiones')}`);
   }
@@ -2962,7 +2990,8 @@ function freeSlots(a, d, bloque, lugar){
   return slotsDay(a,d).filter(s=>(!bloque || inBlock(s.h,bloque)) && (!lugar || s.l==='Todos' || s.l===lugar || (s.l==='Centro' && String(lugar).startsWith('C:'))) && !taken.has(s.h) && !(d===todayISO() && s.h<=nowHM()));
 }
 const blockState = (a, d, b, l) => hasSlots(a) ? (n=>({ok:n>0, n}))(freeSlots(a,d,b,l).length) : {ok:true, n:null};
-const agendasFor = (org, serv='kine') => S.agendas.filter(a=>a.disponible!==false && servAg(a)===serv && (serv==='oral' || (a.orgs||[]).includes(org)));
+const agendasFor = (org, serv='kine') => S.agendas.filter(a=>a.disponible!==false && servAg(a)===serv).sort((x,y)=>((y.orgs||[]).includes(org))-((x.orgs||[]).includes(org)));
+const agOrgTxt = a => servAg(a)==='oral' ? 'StrongMed × Kin At Home' : (a.orgs||[]).map(o=>ORGS[o]?.label).filter(Boolean).join(' · ');
 function agendasVisibles(){ if(!S.pro) return []; if(isAdmin()) return S.agendas.length?S.agendas:[myAgenda()];
   const mine=myAgenda(); const orgs=S.pro.org==='all'?['sm','kah']:[S.pro.org], serv=isOdonto()?'oral':'kine';
   return [mine, ...S.agendas.filter(a=>a.id!==mine.id && servAg(a)===serv && (serv==='oral' || (a.orgs||[]).some(o=>orgs.includes(o))))]; }
@@ -2976,48 +3005,64 @@ const pagoTag = c => pagoPend(c)?' · pago pendiente':pagoEfe(c)?' · paga en ef
 
 /* ---- formulario de reserva (persona, con o sin cuenta) ---- */
 function bkDays(){ const out=[], d=new Date(); for(let i=0;i<21;i++){ const x=new Date(d); x.setDate(d.getDate()+i); out.push(iso(x)); } return out; }
-function bkInit(org, serv='kine', ambos=false){ S.bk={org, serv, ambos, tipo:'Evaluación', lugar:null, proId:null, fecha:null, bloque:null}; }
+function bkInit(org, serv='kine', ambos=false, cont=null){ S.bk={org, serv, ambos, cont, tipo:cont?cont.tipos[0]:'Evaluación', lugar:null, proId:null, fecha:null, bloque:null}; }
+const esTipoKine = t => /kin[eé]s|rehab/i.test(t||''), esTipoEnt = t => /entren/i.test(t||'');
+/* persona que ya está en tratamiento o entrenando: agenda la continuación, no una evaluación nueva */
+function bkCont(p){ if(!p || isPending(p) || esOral(p)&&soloOral(p)) return null; const per=perfilOf(p), activas=c=>c.estado!=='cancelada';
+  const hizo = rehabDone(p)>0 || (p.citas||[]).some(c=>c.estado==='realizada' && !esOralCita(c)) || sessions(p).length>0; if(!hizo) return null;
+  const tipos = per==='entrenamiento' ? ['Entrenamiento','Reevaluación','Sesión kinésica','Recovery'] : per==='rehabilitacion' ? ['Sesión kinésica','Reevaluación','Entrenamiento','Recovery'] : ['Sesión kinésica','Entrenamiento','Reevaluación','Recovery'];
+  return {per, tipos}; }
+function bkNumero(p, tipo){ const futuras=(p.citas||[]).filter(c=>c.estado!=='cancelada' && c.estado!=='realizada');
+  if(esTipoKine(tipo)) return {n: rehabDone(p) + futuras.filter(c=>esTipoKine(c.tipo)).length + 1, plan: rehabPlan(p)||null};
+  if(esTipoEnt(tipo)) return {n: (p.citas||[]).filter(c=>c.estado!=='cancelada' && esTipoEnt(c.tipo)).length + 1, plan:null};
+  return null; }
 const SERV = {kine:{t:'Servicio de kinesiología o entrenamiento', s:'Rehabilitación, kinesiología y entrenamiento', i:'steth'}, oral:{t:'Servicio de odontología general', s:'Atención con la Dra. Nicole Escobar', i:'tooth'}};
 const servPicker = (cur, fn) => `<div class="grid2">${Object.entries(SERV).map(([k,v])=>`<button type="button" class="pcard ${cur===k?'on':''}" onclick="${fn}('${k}')"><span class="ico">${ic(v.i,'s')}</span><b>${v.t}</b><small>${v.s}</small></button>`).join('')}</div>`;
 window.bkServ = v => { S.bk.serv=v; S.bk.proId=null; S.bk.tipo='Evaluación'; const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); };
 function bookingDyn(){
-  const b=S.bk, ags=agendasFor(b.org, b.serv); if(!ags.find(x=>x.id===b.proId)) b.proId=ags[0]?.id||null; const tipos=b.serv==='oral'?TIPOS_ORAL:TIPOS_CITA; if(!tipos.includes(b.tipo)) b.tipo=tipos[0];
+  const b=S.bk, ags=agendasFor(b.org, b.serv); if(!ags.find(x=>x.id===b.proId)) b.proId=ags[0]?.id||null; const tipos=b.serv==='oral'?TIPOS_ORAL:(b.cont?b.cont.tipos:TIPOS_CITA); if(!tipos.includes(b.tipo)) b.tipo=tipos[0];
+  const pm=S.role==='pat'?me():null, num=pm&&b.serv==='kine'&&b.cont?bkNumero(pm,b.tipo):null, oral=b.serv==='oral', centro=String(b.lugar||'').startsWith('C:');
   const a=agendaOf(b.proId), places=placesOf(a), days=bkDays();
   if(!places.find(x=>x.code===b.lugar)) b.lugar=places[0]?.code||null;
   const dayOk = d => !hasSlots(a) || freeSlots(a,d,'AM',b.lugar).length + freeSlots(a,d,'PM',b.lugar).length > 0;
   if(!b.fecha || !days.includes(b.fecha) || !dayOk(b.fecha)) b.fecha = days.find(dayOk) || days[0];
   const pill=(arr,key,lab=x=>x)=>`<div class="pills" style="flex-wrap:wrap">${arr.map(v=>`<button type="button" class="pill ${b[key]===v?'on':''}" onclick="bkSet('${key}',${q(v)})">${esc(lab(v))}</button>`).join('')}</div>`;
   const chip = d => { const dt=parseISO(d), ok=dayOk(d); return `<button type="button" class="dchip ${b.fecha===d?'on':''}" ${ok?`onclick="bkSet('fecha','${d}')"`:'disabled'}><span>${DOW[dt.getDay()]}</span><b>${dt.getDate()}</b><span>${MON[dt.getMonth()]}</span></button>`; };
-  const blk = k => { const s=blockState(a,b.fecha,k,b.lugar); return `<button type="button" class="pcard ${b.bloque===k?'on':''}" ${s.ok?`onclick="bkSet('bloque','${k}')"`:'disabled style="opacity:.45"'}><b>${k==='AM'?'Mañana · AM':'Tarde · PM'}</b><small>${BLOQ[k]}</small><small class="b" style="color:${s.ok?'var(--green)':'var(--red)'}">${s.n==null?'Disponible':s.n?`${s.n} horas libres`:'Sin horas'}</small></button>`; };
-  return `${b.ambos?`<div><div class="lbl">Servicio</div>${servPicker(b.serv,'bkServ')}</div>`:''}<div><div class="lbl">Tipo de sesión</div>${pill(tipos,'tipo')}</div>
-  <div><div class="lbl">Profesional</div><div class="stack" style="gap:8px">${ags.map(x=>`<button type="button" class="pcard ${b.proId===x.id?'on':''}" onclick="bkSet('proId',${q(x.id)})"><div class="row"><span class="ico">${ic('user','s')}</span><div class="grow"><b>${esc(x.nombre)}</b><small>${esc(x.titulo||'')}${placesOf(x).length?' · '+placesOf(x).map(pl=>pl.label).join(', '):''}</small></div>${b.proId===x.id?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')||'<div class="empty">No hay profesionales disponibles</div>'}</div></div>
+  const blk = k => { const s=blockState(a,b.fecha,k,b.lugar); return `<button type="button" class="pcard ${b.bloque===k?'on':''}" ${s.ok?`onclick="bkSet('bloque','${k}')"`:'disabled style="opacity:.45"'}><b>${k==='AM'?'Mañana · AM':'Tarde · PM'}</b><small>${BLOQ[k]}</small><small class="b" style="color:${s.ok?'var(--green)':'var(--red)'}">${s.n==null?'Por coordinar':s.n?`${s.n} hora${s.n>1?'s':''} libre${s.n>1?'s':''}`:'Sin horas'}</small>${s.n?`<small class="muted">${libres(k).slice(0,6).join(' · ')}${s.n>6?' …':''}</small>`:''}</button>`; };
+  const libres = k => hasSlots(a) ? freeSlots(a,b.fecha,k,b.lugar).map(s=>s.h) : [];
+  return `${b.ambos?`<div><div class="lbl">Servicio</div>${servPicker(b.serv,'bkServ')}</div>`:''}<div><div class="lbl">${b.cont&&!oral?'¿Qué vas a agendar?':'Tipo de sesión'}</div>${pill(tipos,'tipo')}</div>
+  ${num?`<div class="aviso acc"><span class="ico">${ic(esTipoEnt(b.tipo)?'dumbbell':'steth')}</span><div class="grow"><div class="xs muted b" style="text-transform:uppercase;letter-spacing:.06em">Continuación de tu ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}</div><div class="b" style="font-size:17px;margin-top:2px">${esTipoEnt(b.tipo)?`Entrenamiento N° ${num.n}`:`Sesión kinésica ${num.n}${num.plan?` de ${num.plan}`:''}`}</div>${num.plan&&num.n>num.plan?`<div class="xs" style="color:var(--orange);margin-top:2px">Ya completaste las ${num.plan} sesiones planificadas: tu kine evaluará si continúas.</div>`:''}</div></div>`:''}
+  <div><div class="lbl">Profesional</div><div class="stack" style="gap:8px">${ags.map(x=>`<button type="button" class="pcard ${b.proId===x.id?'on':''}" onclick="bkSet('proId',${q(x.id)})"><div class="row"><span class="ico">${ic('user','s')}</span><div class="grow"><b>${esc(x.nombre)}</b><small>${esc(x.titulo||'')}${placesOf(x).length?' · '+placesOf(x).map(pl=>pl.label).join(', '):''}</small><small class="b" style="color:var(--mu)">${esc(agOrgTxt(x))}</small></div>${b.proId===x.id?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')||'<div class="empty">No hay profesionales disponibles</div>'}</div></div>
   <div><div class="lbl">Lugar de atención</div>${places.length?`<div class="stack" style="gap:8px">${places.map(pl=>`<button type="button" class="pcard ${b.lugar===pl.code?'on':''}" onclick="bkSet('lugar',${q(pl.code)})"><div class="row"><span class="ico" style="color:${lugarCol(pl.code)};background:color-mix(in srgb,${lugarCol(pl.code)} 15%,transparent)">${ic(pl.code==='Online'?'video':pl.code==='Domicilio'?'home':'pin','s')}</span><div class="grow"><b>${esc(pl.label)}</b><small>${esc(pl.sub)}</small></div>${b.lugar===pl.code?`<span class="cc on">${ic('check')}</span>`:''}</div></button>`).join('')}</div>`:'<div class="empty">Este profesional aún no configura sus lugares</div>'}</div>
-  <div><div class="lbl">Día</div><div class="pills dchips" id="bk-days">${days.map(chip).join('')}</div></div>
+  <div><div class="lbl">Día</div>${a && !hasSlots(a)?`<div class="note" style="margin-bottom:8px">${ic('info','s')}<span>${esc(a.nombre)} aún no publica su disponibilidad: elige tu preferencia y te confirmará el día y la hora.</span></div>`:a && !days.some(dayOk)?`<div class="note" style="margin-bottom:8px">${ic('alert','s')}<span>No quedan horas libres en las próximas 3 semanas. Escríbele por Mensajes para coordinar.</span></div>`:''}<div class="pills dchips" id="bk-days">${days.map(chip).join('')}</div><div class="xs muted" style="margin-top:6px">${a&&hasSlots(a)?'Solo puedes elegir los días en que tu profesional tiene horas libres.':''}</div></div>
   <div><div class="lbl">¿Qué horario te acomoda?</div><div class="grid2">${blk('AM')}${blk('PM')}</div><div class="xs muted" style="margin-top:6px">Tu profesional te confirmará la hora exacta según su disponibilidad.</div></div>
-  ${b.serv==='oral'?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:''}${b.lugar&&b.lugar!=='Online'?`<div><div class="lbl">Forma de pago</div>${pill(['Transferencia o link de pago','Efectivo'],'medio')}${b.medio==='Efectivo'?`<label class="check" style="margin-top:8px"><input type="checkbox" id="bk-efe"><span>Me comprometo a pagar en efectivo al inicio de la sesión, antes de comenzar la atención.</span></label>`:''}</div>`:''}<div class="xs muted">Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.</div>`;
+  ${oral?`<div class="note" style="flex-direction:column;gap:6px">${ic('info','s')}<span><b>${ORAL_PAGO}</b></span><span>${ORAL_PRECIO}</span></div>`:centro?`<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`:b.lugar==='Domicilio'?`<div class="note">${ic('info','s')}<span>Las atenciones a <b>domicilio</b> requieren <b>pago previo</b> de la primera sesión para confirmar la hora.</span></div>`:''}${!oral&&b.lugar==='Domicilio'?`<div><div class="lbl">Forma de pago</div>${pill(['Transferencia o link de pago','Efectivo'],'medio')}${b.medio==='Efectivo'?`<label class="check" style="margin-top:8px"><input type="checkbox" id="bk-efe"><span>Me comprometo a pagar en efectivo al inicio de la sesión, antes de comenzar la atención.</span></label>`:''}</div>`:''}<div class="xs muted">Cambios de hora, cancelaciones y reembolsos según las <button type="button" class="b acc-t" style="display:inline;text-decoration:underline" onclick="verConsentimiento()">condiciones del servicio</button>.</div>`;
 }
 window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k==='proId') S.bk.lugar=null; if(k!=='bloque' && k!=='tipo' && k!=='medio') S.bk.bloque=null;
   const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); const dd=$('#bk-days'); if(dd) dd.scrollLeft=sc;
   const da=$('#bk-dir'); if(da) da.classList.toggle('hidden', S.bk.lugar!=='Domicilio'); };
 const bkExtra = (p={}) => `<label class="field ${S.bk.lugar==='Domicilio'?'':'hidden'}" id="bk-dir"><span class="lbl">Dirección de la atención *</span><input class="inp" id="bk-dir-i" value="${esc(p.direccion||'')}" placeholder="Calle, número, comuna"></label>
-  <label class="field"><span class="lbl">Motivo de consulta *</span><textarea class="inp" id="bk-mot" placeholder="Ej: dolor lumbar hace 2 semanas, control respiratorio…"></textarea></label>
+  <label class="field"><span class="lbl">${S.bk?.cont?'Comentario para tu profesional (opcional)':'Motivo de consulta *'}</span><textarea class="inp" id="bk-mot" placeholder="${S.bk?.cont?'Ej: me ha molestado menos la rodilla esta semana':'Ej: dolor lumbar hace 2 semanas, control respiratorio…'}"></textarea></label>
   <label class="field"><span class="lbl">Otra disponibilidad o comentario</span><input class="inp" id="bk-nota" placeholder="Ej: también puedo el jueves después de las 18:00"></label>`;
 function buildCita(p){
   const b=S.bk, a=agendaOf(b.proId);
   if(!b.proId) { toast('Elige un profesional','err'); return null; }
   if(!b.lugar) { toast('Elige el lugar de atención','err'); return null; }
   if(!b.bloque){ toast('Elige si prefieres mañana o tarde','err'); return null; }
-  if(!val('bk-mot')){ toast('Cuéntanos el motivo de consulta','err'); return null; }
+  const contKine = b.cont && b.serv==='kine';
+  if(!val('bk-mot') && !contKine){ toast('Cuéntanos el motivo de consulta','err'); return null; }
   if(b.lugar==='Domicilio' && !val('bk-dir-i')){ toast('Indica la dirección para la atención a domicilio','err'); return null; }
-  const efectivo = b.medio==='Efectivo' && b.lugar!=='Online';
+  const efectivo = b.medio==='Efectivo' && b.lugar==='Domicilio' && b.serv!=='oral';
   if(efectivo && !$('#bk-efe')?.checked){ toast('Marca el compromiso de pago en efectivo para terminar de agendar','err'); return null; }
   const pagoPrevio = (p.citas||[]).some(c=>c.lugar==='Domicilio' && (c.estado==='realizada' || c.pago?.estado==='pagado'));
   const cen = String(b.lugar).startsWith('C:') ? centroById(b.lugar.slice(2)) : null;
   const oral=b.serv==='oral', pago = oral ? {requerido:true, estado:'pendiente', link:a?.pagoLink||''} : b.lugar==='Domicilio' && !pagoPrevio ? {requerido:true, estado:'pendiente', link:a?.pagoLink||agendaOf('b-sm')?.pagoLink||''} : null;
-  return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot'), nota:val('bk-nota'),
+  const num = contKine ? bkNumero(p, b.tipo) : null;
+  if(a && (a.orgs||[]).length && !(a.orgs||[]).includes(p.org||'sm')) p.atiende=[...new Set([...(p.atiende||[]), ...a.orgs.filter(o=>o!==(p.org||'sm'))])];
+  return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, ...(num?{nSesion:num.n, ...(num.plan?{planSes:num.plan}:{})}:{}), lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot')||(contKine?`Continuación de ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}`:''), nota:val('bk-nota'),
     estado:'solicitada', creadaPor:'persona', creada:Date.now(), pago: efectivo ? {requerido:false, medio:'efectivo', compromiso:Date.now(), estado:'pendiente'} : (pago?{...pago, medio:'transferencia'}:null)};
 }
-function pagoBox(c, own){ if(pagoEfe(c)) return `<div class="note">${ic('info','s')}<span>Pago en <b>efectivo</b> al inicio de la sesión, antes de comenzar la atención.</span></div>`; if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
+function pagoBox(c, own){ if(esCentroCita(c) && !(c.pago && c.pago.requerido)) return `<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`; if(pagoEfe(c)) return `<div class="note">${ic('info','s')}<span>Pago en <b>efectivo</b> al inicio de la sesión, antes de comenzar la atención.</span></div>`; if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
   const lk=safeUrl(c.pago.link||agendaOf(c.proId)?.pagoLink||'');
   return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:'Para confirmar tu atención a domicilio debes pagar la primera sesión.'}${!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>
   <div class="row" style="gap:8px">${lk?`<a class="btn pri sm" href="${lk}" target="_blank" rel="noopener">Ir a pagar</a>`:''}${own && c.pago.estado!=='informado'?`<button class="btn sec sm" onclick="yaPague(${c.id})">Ya pagué</button>`:''}</div></div>`; }
@@ -3064,28 +3109,35 @@ window.reservar = async () => {
   if(!(await save(p))){ b.disabled=false; b.textContent='Solicitar hora'; return; }
   S.voucher={key:keyOf(p), citaId:c.id}; S.loginMode='voucher'; render(); scrollTo({top:0});
 };
+/* comprobante tipo boleta: con datos de acceso solo en la reserva sin cuenta */
+function voucherHTML(p, c, acceso){ const st=c.estado==='confirmada'?['acc','check','Confirmada']:c.estado==='realizada'?['acc','check','Realizada']:c.estado==='cancelada'?['red','x','Cancelada']:['mixto','clock','Por confirmar'];
+  const emi=new Date(c.creada||Date.now());
+  return `<div class="voucher"><div class="vh">${brands(p.marca,false,true)}<span class="badge ${st[0]}">${ic(st[1],'s')} ${st[2]}</span></div>
+    <h1 class="disp h2" style="margin-top:16px">${c.estado==='confirmada'?'Hora confirmada':c.estado==='realizada'?'Sesión realizada':c.estado==='cancelada'?'Hora cancelada':'Hora por confirmar'}</h1><p class="sm muted" style="margin-top:6px">${c.estado==='solicitada'?'Tu solicitud quedó registrada. El profesional te confirmará la hora exacta.':c.estado==='confirmada'?'Te esperamos. Si necesitas cambiarla, avisa con anticipación.':''}</p>
+    <dl class="kv" style="margin-top:16px"><dt>Nombre</dt><dd>${esc(p.nombre)}</dd><dt>Sesión</dt><dd>${esc(citaTitulo(c))}</dd><dt>Día</dt><dd>${fmtLong(parseISO(toISO(c.fecha)))}</dd><dt>Horario</dt><dd>${horaTxt(c)}</dd><dt>Lugar</dt><dd>${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</dd><dt>Profesional</dt><dd>${esc(c.pro)}</dd>${c.motivo?`<dt>Motivo</dt><dd>${esc(c.motivo)}</dd>`:''}</dl>
+    <div class="vcut"></div>
+    <div class="row between xs muted"><span>N° ${String(c.id).slice(-6)}</span><span>Emitido ${emi.toLocaleDateString('es-CL')} ${pad(emi.getHours())}:${pad(emi.getMinutes())}</span></div>
+    ${acceso?`<div class="b" style="margin-top:12px">Revisa el estado de tu solicitud en la app</div><p class="sm muted" style="margin-top:4px">Ingresa con tu RUT (sin puntos y con guion) y tu clave (los primeros 4 dígitos de tu RUT):</p>
+    <div class="grid2" style="margin-top:10px"><div class="stat"><span>RUT</span><b style="font-size:clamp(17px,5.2vw,24px);white-space:nowrap">${esc(fmtRut(p.rut))}</b></div><div class="stat acc"><span>Clave</span><b style="font-size:24px">${esc(p.pin)}</b></div></div>`:''}
+    <div style="margin-top:12px">${pagoBox(c,!acceso)}</div><p class="xs muted" style="margin-top:10px">${politicaCita(c)}</p></div>`; }
+window.verComprobante = id => { const p=me(), c=(p?.citas||[]).find(x=>x.id===id); if(!c) return;
+  sheet(`${voucherHTML(p,c,false)}<button class="btn pri block" style="margin-top:14px" onclick="closeSheet();go('agenda')">${ic('cal','s')} Ir a mi agenda</button><p class="xs muted center" style="margin-top:8px">Puedes tomarle una captura para guardarlo.</p>`); };
 function vVoucher(){
   const p=prof(S.voucher.key), c=(p?.citas||[]).find(x=>x.id===S.voucher.citaId); if(!p||!c){ S.loginMode='pat'; return vLogin(); }
   return `<div class="login"><div class="glow"></div><div class="login-in fade">
-  <div class="voucher"><div class="vh">${brands(p.marca,false,true)}<span class="badge mixto">${ic('clock','s')} Por confirmar</span></div>
-    <h1 class="disp h2" style="margin-top:16px">Hora por confirmar</h1><p class="sm muted" style="margin-top:6px">Tu solicitud quedó registrada. El profesional te confirmará la hora exacta.</p>
-    <dl class="kv" style="margin-top:16px"><dt>Nombre</dt><dd>${esc(p.nombre)}</dd><dt>Sesión</dt><dd>${esc(c.tipo)}</dd><dt>Día</dt><dd>${fmtLong(parseISO(c.fecha))}</dd><dt>Horario</dt><dd>${horaTxt(c)}</dd><dt>Lugar</dt><dd>${esc(lugarLabel(c))}${c.direccion?` · ${esc(c.direccion)}`:''}</dd><dt>Profesional</dt><dd>${esc(c.pro)}</dd><dt>Motivo</dt><dd>${esc(c.motivo)}</dd></dl>
-    <div class="vcut"></div>
-    <div class="b">Revisa el estado de tu solicitud en la app</div><p class="sm muted" style="margin-top:4px">Ingresa con tu RUT (sin puntos y con guion) y tu clave (los primeros 4 dígitos de tu RUT):</p>
-    <div class="grid2" style="margin-top:10px"><div class="stat"><span>RUT</span><b style="font-size:clamp(17px,5.2vw,24px);white-space:nowrap">${esc(fmtRut(p.rut))}</b></div><div class="stat acc"><span>Clave</span><b style="font-size:24px">${esc(p.pin)}</b></div></div>
-    ${pagoPend(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}${pagoEfe(c)?`<div style="margin-top:12px">${pagoBox(c,false)}</div>`:''}<p class="xs muted" style="margin-top:10px">${politicaCita(c)}</p></div>
+  ${voucherHTML(p,c,true)}
   <button class="btn pri block" onclick="entrarVoucher()">Entrar a mi cuenta ${ic('chevr','s')}</button>
   <p class="xs muted center">Toma una captura de pantalla para guardar tus datos de acceso.</p></div></div>`;
 }
 window.entrarVoucher = () => { S.role='pat'; S.me=S.voucher.key; S.patTab='hoy'; S.loginMode='pat'; afterPatLogin(); };
 
 /* ---- solicitar desde la app ---- */
-window.sheetSolicitar = async () => { const p=me(); const ambos = esOral(p) ? !!p.compartido : !!p.oral; bkInit(p.org||'sm', soloOral(p)?'oral':'kine', ambos); if(!S.agendas.length) await loadAgendas();
-  sheet(`<h2 class="disp h2">Solicitar sesión</h2><p class="muted sm" style="margin-top:6px">Elige el día y si prefieres mañana o tarde. Tu profesional confirmará la hora.</p>
+window.sheetSolicitar = async (serv) => { const p=me(), cont=bkCont(p); bkInit(p.org||'sm', serv || (soloOral(p)?'oral':'kine'), true, cont); if(!S.agendas.length) await loadAgendas();
+  sheet(`<h2 class="disp h2">${cont?(cont.per==='entrenamiento'?'Agendar entrenamiento':'Agendar sesión'):'Solicitar una hora'}</h2><p class="muted sm" style="margin-top:6px">Elige el día y si prefieres mañana o tarde. Tu profesional confirmará la hora.</p>
   <div class="stack" style="margin-top:16px"><div id="bk-dyn" class="stack">${bookingDyn()}</div>${bkExtra(p)}<button class="btn pri block" onclick="solicitarCita()">Enviar solicitud</button></div>`);
   const m=$('#bk-mot'); if(m && p.motivoConsulta && isPending(p)) m.value=p.motivoConsulta; };
 window.solicitarCita = async () => { const p=me(), c=buildCita(p); if(!c) return; p.citas=p.citas||[]; p.citas.push(c); if(c.lugar==='Domicilio' && c.direccion && !p.direccion) p.direccion=c.direccion;
-  if(await save(p)){ closeSheet(); toast('Solicitud enviada. Te avisaremos cuando esté confirmada.'); go('agenda'); } };
+  if(await save(p)){ go('agenda'); verComprobante(c.id); } };
 
 /* ================= AGENDA PROFESIONAL ================= */
 function vAgendaPro(){

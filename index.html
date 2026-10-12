@@ -342,6 +342,30 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .trow .inp{background:var(--card);min-height:38px;padding:8px 11px;font-size:13.5px}
 .trow .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .trow .g2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.g4h{display:grid;grid-template-columns:1fr 1fr 1fr 1.15fr;gap:6px;padding:0 10px;font-size:10.5px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin-bottom:-4px}
+.trow .g4t{display:grid;grid-template-columns:1fr 1fr 1fr 1.15fr;gap:6px}
+.esq{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.esq legend{font-weight:700;font-size:14px;margin-bottom:6px;line-height:1.35;padding:0}
+.esq.miss legend{color:var(--red)}.esq.miss .opt{border-color:color-mix(in srgb,var(--red) 50%,transparent)}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--line);font-size:13.5px;line-height:1.35;cursor:pointer;transition:background .15s,border-color .15s}
+.opt input{accent-color:var(--acc);width:18px;height:18px;flex:none;margin:0}
+.opt:has(input:checked){border-color:var(--acc);background:color-mix(in srgb,var(--acc) 13%,var(--card2));color:var(--tx)}
+.sec-sub{font-size:11.5px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-top:8px}
+.yn{display:inline-flex;background:var(--card2);border-radius:10px;padding:2px;gap:2px;flex:none}
+.yn label{padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--mu);cursor:pointer}
+.yn input{display:none}.yn label:has(input:checked){background:var(--card);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.yn label.si:has(input:checked){background:var(--red);color:#fff}
+.rfrow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.35}
+.body-map{display:grid;grid-template-columns:1fr 1fr;gap:10px}.body-map figure{margin:0;text-align:center}
+.body-map svg{width:100%;max-height:330px}.body-map figcaption{font-size:12px;font-weight:700;color:var(--mu)}
+.body-map text{fill:var(--mu);font-size:9px;font-weight:800}
+.body-map .z{fill:var(--card3);stroke:var(--bg);stroke-width:1.2;cursor:pointer;transition:fill .15s}
+.body-map .z:hover{fill:color-mix(in srgb,var(--red) 35%,var(--card3))}.body-map .z.on{fill:var(--red)}
+.pchk{display:inline-flex;align-items:center;cursor:pointer}.pchk input{display:none}.pchk:has(input:checked){background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.nd{background:var(--card2);border-radius:14px;padding:10px 12px}.nd summary{list-style:none;cursor:pointer}.nd summary::-webkit-details-marker{display:none}
+.nrow{display:grid;grid-template-columns:1fr 88px 88px;gap:6px;align-items:center}.nrow .inp{min-height:36px;padding:6px 8px;font-size:13px;background:var(--card)}
+.cmp{width:100%;border-collapse:collapse;font-size:13px}.cmp td,.cmp th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.cmp td:first-child,.cmp th:first-child{text-align:left;white-space:normal}.cmp th{font-size:11px;color:var(--mu);text-transform:uppercase}
+.up{color:var(--green)}.dn{color:var(--red)}
 .rmres{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
 .rmres div{background:var(--card2);border-radius:12px;padding:8px 4px}
 .rmres b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800}
@@ -895,6 +919,7 @@ function alertsOf(p){
   if(an && daysAgo(an.fecha)<=3 && an.sueno && an.sueno<=2) a.push({t:'Durmió mal', c:'orange'});
   const la=lastActivity(p); if(!isPending(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
   if(!isPending(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
+  if((p.escalas||[]).some(e=>e.estado==='respondida' && !e.visto)) a.push({t:'Respondió cuestionarios', c:'acc'});
   return a;
 }
 const hasConfirmed = p => (p.citas||[]).some(c=>c.estado==='confirmada' || c.estado==='realizada');
@@ -1211,12 +1236,12 @@ function weekStrip(p, rehab=false){ const sd=stepDays(p), tr=new Set(sessions(p)
   const n=rehab ? [...set].filter(s=>s>=iso(ws)).length : sessWeek(p);
   return `<section class="card tight"><div class="row between" style="padding:2px 4px 8px"><span class="eyebrow">Esta semana</span><span class="xs muted b">${rehab?`${n} sesiones · ● próxima hora`:`${n} de ${meta(p)} días activos`}</span></div><div class="week">${h}</div></section>`; }
 
-const AV_ICON = {rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
+const AV_ICON = {escala:'clip', rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
 function avisoAction(a){ return ({rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
 function avisosHoy(p){
-  let h=notisCard();
+  let h=notisCard()+escalasPendCard(p);
   const v=p.videoActiva, vOn = videoOn(p); if(vOn) h+=`<div class="aviso red"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b">Tu kine te invita a una videollamada</div><div class="xs muted">${esc(v.pro||'')} · ${relTs(v.ts)}</div></div><a class="btn pri sm" href="${safeUrl(v.url)}" target="_blank" rel="noopener">Unirme</a></div>`;
-  unreadAvisos(p).filter(a=>!(vOn && a.tipo==='video')).slice(-3).reverse().forEach(a=>{ const act=avisoAction(a);
+  unreadAvisos(p).filter(a=>!(vOn && a.tipo==='video') && a.tipo!=='escala').slice(-3).reverse().forEach(a=>{ const act=avisoAction(a);
     h+=`<div class="aviso ${a.tipo==='rutina'||a.tipo==='habilitado'?'acc':''}"><span class="ico ${a.tipo==='rutina'||a.tipo==='habilitado'?'':'blue'}">${ic(AV_ICON[a.tipo]||'bell')}</span><div class="grow"><div class="sm b">${esc(a.texto)}</div><div class="xs muted">${relTs(a.ts)}</div>${act?`<button class="btn ghost sm" style="padding:0;height:28px" onclick="leerAviso(${a.id});${act}">Ver ${ic('chevr','s')}</button>`:''}</div><button class="ibtn" style="width:30px;height:30px;background:transparent" onclick="leerAviso(${a.id})" aria-label="Descartar">${ic('x','s')}</button></div>`; });
   return h ? `<div class="stack" style="gap:8px">${h}</div>` : '';
 }
@@ -1340,7 +1365,7 @@ function misInformesHTML(p){ const inf=(p.informes||[]).filter(i=>i.enviado).sli
   return `<div class="sec-t"><h2>Mis informes</h2></div><div class="list">${inf.map(i=>`<div class="li"><span class="ico">${ic('file','s')}</span><button class="grow" style="text-align:left" onclick="verMiInforme(${q(i.id)})"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'kinesiológico'}</div><div class="xs muted">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</div></button><button class="btn pri sm" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} PDF</button></div>`).join('')}</div>`; }
 function fichasHTML(p){
   const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length).reverse();
-  return misInformesHTML(p) + tratAnterioresHTML(p,false) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
+  return escalasPendCard(p) + misInformesHTML(p) + tratAnterioresHTML(p,false) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).filter(r=>!String(r).includes('data-pro')).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
     + `<button class="btn sec block" onclick="go('ficha')">${ic('clip','s')} ${p.anamnesis?'Actualizar':'Completar'} mi cuestionario inicial</button>`;
 }
 window.toggleEj = async (rid,i) => { const p=me(); const r=(p.rutinasAsignadas||[]).find(x=>x.id===rid); if(!r) return; r.ejercicios[i].hecho=!r.ejercicios[i].hecho; await save(p); keepScroll(render); };
@@ -2172,7 +2197,8 @@ window.continuarTratamiento = async () => { const p=prof(S.proArg), t=(p.tratami
 function pClinico(p){
   const per=perfilOf(p), ts=tareas(p), k=keyOf(p);
   const tl=[...evalsOf(k).filter(e=>(e.resultados||[]).length).map(e=>({f:toISO(e.fecha)||'0', id:e.id, k:'eval', e})), ...(p.sesionesRehab||[]).map((s,i)=>({f:toISO(s.fecha)||'0', id:s.id||0, k:'ses', s, n:i+1}))].sort((a,b)=>b.f.localeCompare(a.f)||b.id-a.id);
-  if(p.sinTratamiento) return `${anamnesisHTML(p.anamnesis)}${tratNuevoCard(p)}${tratAnterioresHTML(p,true)}`;
+  if(p.sinTratamiento) return `${anamnesisHTML(p.anamnesis)}${tratNuevoCard(p)}${escalasCard(p)}${tratAnterioresHTML(p,true)}`;
+  const ce=evalsOf(k).filter(e=>e.evalData).map(e=>e.id);
   return `${anamnesisHTML(p.anamnesis)}${tratActualCard(p)}
   <section class="card stack"><div class="row"><span class="ico blue">${ic('heart','s')}</span><div class="grow"><div class="b">Registrar sesión ${rehabDone(p)+1}${rehabPlan(p)?` de ${rehabPlan(p)}`:''}</div><div class="xs muted">${esc(p.diagnostico||'Sin diagnóstico registrado')}</div></div></div>
     ${sesionForm({}, 'cs')}
@@ -2181,10 +2207,11 @@ function pClinico(p){
     ${ts.length?`<div class="stack" style="gap:6px">${ts.map(t=>`<div class="ex"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span><button class="ibtn red" onclick="borrarTarea(${q(t.id)})" aria-label="Eliminar">${ic('x','s')}</button></div>`).join('')}</div>`:'<div class="xs muted">Sin tareas asignadas.</div>'}</section>
   <div class="sec-t"><h2>Informes</h2><button class="btn ghost sm" onclick="pgo('informe',${q(k)})">${ic('plus','s')} Informe</button></div>
   ${(p.informes||[]).length?`<div class="list">${p.informes.slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'de inicio'} · ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}${i.enviado?` · enviado al paciente ${fmtDate(i.enviadoFecha)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
+  ${escalasCard(p)}
   ${tratAnterioresHTML(p,true)}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
   <section class="card">${tl.length?`<div class="tl">${tl.map(x=> x.k==='eval'
-    ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div><button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${(x.e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`
+    ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div>${ce.indexOf(x.e.id)>0?`<button class="ibtn" style="width:30px;height:30px" onclick="compararEval(${x.e.id})" aria-label="Comparar con la anterior" title="Comparar con la anterior">${ic('chart','s')}</button>`:''}<button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${(x.e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`
     : `<div class="tl-i blue"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Sesión ${x.n}${x.s.eva!==''&&x.s.eva!=null?` · EVA ${esc(x.s.eva)}/10`:''}</div><div class="xs muted">${fmtDate(x.s.fecha)}${x.s.klgo?` · ${esc(x.s.klgo)}`:''}</div></div><button class="ibtn" style="width:30px;height:30px" onclick="editarSesion(${x.s.id})" aria-label="Editar">${ic('edit','s')}</button></div>${x.s.tolerancia?`<div class="xs b" style="margin-top:2px;color:var(--blue)">${esc(x.s.tolerancia)}</div>`:''}${x.s.nota?`<div class="body muted">${esc(x.s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Sin registros clínicos todavía.</div>'}</section>`;
 }
 function sesionForm(s, pre){ const hasEva = s.eva!==''&&s.eva!=null;
@@ -2337,6 +2364,359 @@ function respaldoAjustesHTML(){ const d=respaldoUlt();
     <button class="btn pri block" onclick="exportDB()">${ic('download','s')} Respaldar ahora</button></section>`; }
 window.importDB = e => { const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=async ev=>{ try{ let d=JSON.parse(ev.target.result); if(d && Array.isArray(d.fichas)) d=d.fichas; if(!Array.isArray(d)) throw 0; if(!confirm(`¿Importar ${d.length} registros? Los que tengan el mismo ID se sobrescriben.`)) return; for(const it of d){ if(!it.org) it.org = S.pro.org==='kah'?'kah':'sm'; await save(it); } await loadDB(); toast('Respaldo importado'); render(); }catch(x){ toast('Archivo no válido','err'); } }; r.readAsText(f); };
 
+/* ================= ESCALAS Y CUESTIONARIOS (puntaje automático, resultados solo para profesionales) ================= */
+const _o = a => a.map((t,i)=>[t,i]);
+const OPF = {
+  frec:_o(['Nunca','Rara vez','A veces','A menudo','Siempre']), frecR:[['Siempre',0],['A menudo',1],['A veces',2],['Rara vez',3],['Nunca',4]],
+  sev:_o(['Ninguna','Leve','Moderada','Severa','Extrema']), dif:_o(['Ninguna dificultad','Dificultad leve','Dificultad moderada','Dificultad severa','Dificultad extrema']),
+  dash:_o(['Ninguna dificultad','Dificultad leve','Dificultad moderada','Mucha dificultad','Imposible de hacer']), dashS:_o(['Ninguno','Leve','Moderado','Grave','Muy grave']),
+  lefs:[['Dificultad extrema o no puedo hacerla',0],['Bastante dificultad',1],['Dificultad moderada',2],['Un poco de dificultad',3],['Ninguna dificultad',4]],
+  tsk:[['Totalmente en desacuerdo',1],['En desacuerdo',2],['De acuerdo',3],['Totalmente de acuerdo',4]],
+  pdq:_o(['Nunca','Ocasionalmente','Algunas veces','Frecuentemente','Siempre o no puedo hacerlo']),
+  pfeffer:[['Lo hace normalmente',0],['Nunca lo ha hecho, pero podría hacerlo',0],['Lo hace con dificultad, pero solo',1],['Nunca lo ha hecho y le costaría',1],['Necesita ayuda',2],['No puede hacerlo / depende de otros',3]],
+  pfeiffer:[['Correcto',0],['Error',1]]
+};
+const its = (arr, o, x={}) => arr.map(t=>({t, o, ...x}));
+const sec6 = (t, a, x={}) => ({t, o:_o(a), ...x});
+const _sum = a => a.reduce((s,x)=>s+(+x||0),0);
+const band = (n, B) => { for(const [mx,txt,c] of B) if(n<=mx) return {txt,c}; const l=B[B.length-1]; return {txt:l[1], c:l[2]}; };
+const pctScore = (v, min, B) => { const a=v.filter(x=>x!=null); if(a.length<min) return null; const n=Math.round(_sum(a)/(5*a.length)*100); return {n, v:n+' %', ...band(n,B)}; };
+
+const ESC = {
+ odi:{n:'Oswestry (ODI)', pn:'Cuestionario de dolor lumbar', area:'Columna lumbar', quien:'pat', mejor:'bajo', mcid:10,
+  ins:'En cada sección marca la frase que mejor describe cómo estás hoy.',
+  items:[
+   sec6('Intensidad del dolor',['Puedo soportar el dolor sin necesidad de tomar calmantes','El dolor es fuerte pero me arreglo sin tomar calmantes','Los calmantes me alivian completamente el dolor','Los calmantes me alivian un poco el dolor','Los calmantes apenas me alivian el dolor','Los calmantes no me quitan el dolor y no los tomo']),
+   sec6('Cuidados personales (lavarse, vestirse, etc.)',['Me las puedo arreglar solo sin que me aumente el dolor','Me las puedo arreglar solo, pero esto me aumenta el dolor','Lavarme, vestirme, etc. me produce dolor y tengo que hacerlo despacio y con cuidado','Necesito alguna ayuda, pero consigo hacer la mayoría de las cosas yo solo','Necesito ayuda para hacer la mayoría de las cosas','No puedo vestirme, me cuesta lavarme y suelo quedarme en la cama']),
+   sec6('Levantar peso',['Puedo levantar objetos pesados sin que me aumente el dolor','Puedo levantar objetos pesados, pero me aumenta el dolor','El dolor me impide levantar objetos pesados del suelo, pero puedo hacerlo si están en un sitio cómodo (por ejemplo, en una mesa)','El dolor me impide levantar objetos pesados, pero sí puedo levantar objetos livianos o medianos si están en un sitio cómodo','Solo puedo levantar objetos muy livianos','No puedo levantar ni cargar ningún objeto']),
+   sec6('Caminar',['El dolor no me impide caminar cualquier distancia','El dolor me impide caminar más de 1 km','El dolor me impide caminar más de 500 metros','El dolor me impide caminar más de 250 metros','Solo puedo caminar con bastón o muletas','Permanezco en la cama casi todo el tiempo y tengo que ir a rastras al baño']),
+   sec6('Estar sentado',['Puedo estar sentado en cualquier tipo de silla todo el tiempo que quiera','Puedo estar sentado en mi silla favorita todo el tiempo que quiera','El dolor me impide estar sentado más de una hora','El dolor me impide estar sentado más de media hora','El dolor me impide estar sentado más de diez minutos','El dolor me impide estar sentado']),
+   sec6('Estar de pie',['Puedo estar de pie tanto tiempo como quiera sin que me aumente el dolor','Puedo estar de pie tanto tiempo como quiera, pero me aumenta el dolor','El dolor me impide estar de pie más de una hora','El dolor me impide estar de pie más de media hora','El dolor me impide estar de pie más de diez minutos','El dolor me impide estar de pie']),
+   sec6('Dormir',['El dolor no me impide dormir bien','Solo puedo dormir si tomo pastillas','Incluso tomando pastillas duermo menos de seis horas','Incluso tomando pastillas duermo menos de cuatro horas','Incluso tomando pastillas duermo menos de dos horas','El dolor me impide totalmente dormir']),
+   sec6('Actividad sexual',['Mi actividad sexual es normal y no me aumenta el dolor','Mi actividad sexual es normal, pero me aumenta el dolor','Mi actividad sexual es casi normal, pero me aumenta mucho el dolor','Mi actividad sexual se ha visto muy limitada a causa del dolor','Mi actividad sexual es casi nula a causa del dolor','El dolor me impide todo tipo de actividad sexual'],{opc:1}),
+   sec6('Vida social',['Mi vida social es normal y no me aumenta el dolor','Mi vida social es normal, pero me aumenta el dolor','El dolor no tiene un efecto importante en mi vida social, pero sí impide mis actividades más enérgicas (bailar, deporte, etc.)','El dolor ha limitado mi vida social y no salgo tan a menudo','El dolor ha limitado mi vida social al hogar','No tengo vida social a causa del dolor']),
+   sec6('Viajar',['Puedo viajar a cualquier sitio sin que me aumente el dolor','Puedo viajar a cualquier sitio, pero me aumenta el dolor','El dolor es fuerte, pero aguanto viajes de más de dos horas','El dolor me limita a viajes de menos de una hora','El dolor me limita a viajes cortos y necesarios de menos de media hora','El dolor me impide viajar, excepto para ir al médico o al hospital'])],
+  score:v=>pctScore(v,8,[[20,'Limitación funcional mínima','acc'],[40,'Limitación funcional moderada','orange'],[60,'Limitación funcional intensa','red'],[80,'Discapacidad','red'],[100,'Limitación funcional máxima','red']])},
+
+ ndi:{n:'Índice de discapacidad cervical (NDI)', pn:'Cuestionario de dolor de cuello', area:'Columna cervical', quien:'pat', mejor:'bajo', mcid:10,
+  ins:'En cada sección marca la frase que mejor describe cómo estás hoy.',
+  items:[
+   sec6('Intensidad del dolor de cuello',['No tengo dolor en este momento','El dolor es muy leve en este momento','El dolor es moderado en este momento','El dolor es fuerte en este momento','El dolor es muy fuerte en este momento','En este momento el dolor es el peor que uno se puede imaginar']),
+   sec6('Cuidados personales (lavarse, vestirse, etc.)',['Puedo cuidarme con normalidad sin que me aumente el dolor','Puedo cuidarme con normalidad, pero esto me aumenta el dolor','Cuidarme me duele, así que tengo que hacerlo despacio y con cuidado','Aunque necesito alguna ayuda, me las arreglo para casi todos mis cuidados','Todos los días necesito ayuda para la mayor parte de mis cuidados','No puedo vestirme, me lavo con dificultad y me quedo en la cama']),
+   sec6('Levantar peso',['Puedo levantar objetos pesados sin que me aumente el dolor','Puedo levantar objetos pesados, pero me aumenta el dolor','El dolor me impide levantar objetos pesados del suelo, pero puedo si están en un sitio cómodo (por ejemplo, en una mesa)','El dolor me impide levantar objetos pesados, pero puedo levantar objetos medianos o livianos si están en un sitio cómodo','Solo puedo levantar objetos muy livianos','No puedo levantar ni cargar ningún tipo de peso']),
+   sec6('Lectura',['Puedo leer todo lo que quiera sin que me duela el cuello','Puedo leer todo lo que quiera con un dolor leve en el cuello','Puedo leer todo lo que quiera con un dolor moderado en el cuello','No puedo leer todo lo que quiero debido a un dolor moderado en el cuello','Apenas puedo leer por el gran dolor que me produce en el cuello','No puedo leer nada en absoluto']),
+   sec6('Dolor de cabeza',['No tengo ningún dolor de cabeza','A veces tengo un pequeño dolor de cabeza','A veces tengo un dolor de cabeza moderado','Con frecuencia tengo un dolor de cabeza moderado','Con frecuencia tengo un dolor de cabeza fuerte','Tengo dolor de cabeza casi continuo']),
+   sec6('Concentración',['Me concentro totalmente cuando quiero, sin dificultad','Me concentro totalmente cuando quiero, con alguna dificultad','Tengo alguna dificultad para concentrarme cuando quiero','Tengo bastante dificultad para concentrarme cuando quiero','Tengo mucha dificultad para concentrarme cuando quiero','No puedo concentrarme nunca']),
+   sec6('Trabajo',['Puedo trabajar todo lo que quiero','Puedo hacer mi trabajo habitual, pero no más','Puedo hacer casi todo mi trabajo habitual, pero no más','No puedo hacer mi trabajo habitual','A duras penas puedo hacer algún tipo de trabajo','No puedo trabajar en nada']),
+   sec6('Conducir (déjalo en blanco si no conduces)',['Puedo conducir sin dolor de cuello','Puedo conducir todo lo que quiero con un dolor leve en el cuello','Puedo conducir todo lo que quiero con un dolor moderado en el cuello','No puedo conducir todo lo que quiero debido al dolor de cuello','Apenas puedo conducir debido al intenso dolor en el cuello','No puedo conducir nada por el dolor de cuello'],{opc:1}),
+   sec6('Sueño',['No tengo ningún problema para dormir','El dolor de cuello me hace perder menos de 1 hora de sueño cada noche','El dolor de cuello me hace perder de 1 a 2 horas de sueño cada noche','El dolor de cuello me hace perder de 2 a 3 horas de sueño cada noche','El dolor de cuello me hace perder de 3 a 5 horas de sueño cada noche','El dolor de cuello me hace perder de 5 a 7 horas de sueño cada noche']),
+   sec6('Actividades de tiempo libre',['Puedo hacer todas mis actividades de tiempo libre sin dolor de cuello','Puedo hacer todas mis actividades de tiempo libre con algún dolor de cuello','No puedo hacer algunas de mis actividades de tiempo libre por el dolor de cuello','Solo puedo hacer unas pocas actividades de tiempo libre por el dolor de cuello','Apenas puedo hacer las cosas que me gustan debido al dolor de cuello','No puedo realizar ninguna actividad de tiempo libre'])],
+  score:v=>pctScore(v,8,[[8,'Sin discapacidad','acc'],[28,'Discapacidad leve','acc'],[48,'Discapacidad moderada','orange'],[68,'Discapacidad severa','red'],[100,'Discapacidad completa','red']])},
+
+ koos:{n:'KOOS (rodilla)', pn:'Cuestionario de rodilla', area:'Rodilla', quien:'pat', mejor:'alto', mcid:10,
+  ins:'Responde pensando en tu rodilla durante la última semana.',
+  items:[
+   ...its(['¿Se te hincha la rodilla?','¿Sientes crujidos, chasquidos u otros ruidos al mover la rodilla?','¿Se te bloquea o se te engancha la rodilla al moverla?'],OPF.frec,{g:'S',sec:'Síntomas'}),
+   ...its(['¿Puedes estirar la rodilla completamente?','¿Puedes doblar la rodilla completamente?'],OPF.frecR,{g:'S'}),
+   ...its(['¿Qué grado de rigidez tienes en la rodilla al despertar por la mañana?','¿Qué grado de rigidez tienes durante el resto del día, después de estar sentado, acostado o descansando?'],OPF.sev,{g:'S'}),
+   {t:'¿Con qué frecuencia te duele la rodilla?', o:_o(['Nunca','Cada mes','Cada semana','Cada día','Siempre']), g:'P', sec:'Dolor'},
+   ...its(['Dolor al girar o pivotar sobre la rodilla','Dolor al estirar la rodilla completamente','Dolor al doblar la rodilla completamente','Dolor al caminar en una superficie plana','Dolor al subir o bajar escaleras','Dolor por la noche en la cama','Dolor estando sentado o acostado','Dolor estando de pie'],OPF.sev,{g:'P'}),
+   ...its(['Bajar escaleras','Subir escaleras','Levantarte estando sentado','Estar de pie','Agacharte o recoger algo del suelo','Caminar en una superficie plana','Subir o bajar de un auto','Ir de compras','Ponerte los calcetines','Levantarte de la cama','Quitarte los calcetines','Estar acostado en la cama (darte vuelta, mantener la posición de la rodilla)','Entrar o salir de la ducha o tina','Estar sentado','Sentarte o levantarte del inodoro','Hacer tareas pesadas de la casa (mover cajas, fregar el piso, etc.)','Hacer tareas livianas de la casa (cocinar, limpiar el polvo, etc.)'],OPF.dif,{g:'A'}).map((x,i)=>i?x:{...x,sec:'Dificultad en actividades diarias'}),
+   ...its(['Ponerte en cuclillas','Correr','Saltar','Girar o pivotar sobre la rodilla lesionada','Arrodillarte'],OPF.dif,{g:'SP'}).map((x,i)=>i?x:{...x,sec:'Deporte y recreación'}),
+   {t:'¿Con qué frecuencia eres consciente de tu problema de rodilla?', o:_o(['Nunca','Cada mes','Cada semana','Cada día','Constantemente']), g:'Q', sec:'Calidad de vida'},
+   {t:'¿Has cambiado tu estilo de vida para evitar actividades que puedan dañar tu rodilla?', o:_o(['Nada','Levemente','Moderadamente','Mucho','Totalmente']), g:'Q'},
+   {t:'¿Cuánto te preocupa la falta de confianza en tu rodilla?', o:_o(['Nada','Levemente','Moderadamente','Mucho','Extremadamente']), g:'Q'},
+   {t:'En general, ¿cuánta dificultad tienes con tu rodilla?', o:_o(['Ninguna','Leve','Moderada','Severa','Extrema']), g:'Q'}],
+  score:(v,r,def)=>{ const G={S:'Síntomas',P:'Dolor',A:'AVD',SP:'Deporte',Q:'Calidad de vida'}, sub={};
+    Object.keys(G).forEach(g=>{ const idx=def.items.map((it,i)=>it.g===g?i:-1).filter(i=>i>=0), a=idx.map(i=>v[i]).filter(x=>x!=null); if(a.length>=Math.ceil(idx.length/2)) sub[g]=Math.round(100-_sum(a)/a.length*25); });
+    const ks=Object.keys(sub); if(!ks.length) return null; const n=Math.round(_sum(ks.map(k=>sub[k]))/ks.length);
+    return {n, v:n+'/100', txt:'100 = sin problemas de rodilla', c:n>=80?'acc':n>=50?'orange':'red', sub:ks.map(k=>`${G[k]} ${sub[k]}`).join(' · ')}; }},
+
+ lefs:{n:'LEFS (extremidad inferior)', pn:'Cuestionario de extremidad inferior', area:'Miembro inferior', quien:'pat', mejor:'alto', mcid:9,
+  ins:'Hoy, ¿tienes o tendrías dificultad con estas actividades debido a tu problema en la pierna, cadera, rodilla, tobillo o pie?',
+  items:its(['Tus actividades habituales de trabajo, casa o estudio','Tus pasatiempos, actividades recreativas o deportivas habituales','Entrar o salir de la ducha o tina','Caminar de una habitación a otra','Ponerte los zapatos o los calcetines','Ponerte en cuclillas','Levantar del suelo un objeto, como una bolsa de compras','Hacer tareas livianas en la casa','Hacer tareas pesadas en la casa','Subir o bajar de un auto','Caminar 2 cuadras','Caminar 1,5 km (unas 15 cuadras)','Subir o bajar 10 escalones (un piso)','Estar de pie durante 1 hora','Estar sentado durante 1 hora','Correr en terreno plano','Correr en terreno irregular','Hacer giros bruscos mientras corres rápido','Saltar en un pie','Darte vuelta en la cama'],OPF.lefs),
+  score:v=>{ const a=v.filter(x=>x!=null); if(a.length<18) return null; const n=Math.round(_sum(a)/a.length*20); return {n, v:n+'/80', txt:`${Math.round(n/80*100)} % de su función máxima`, c:n>=60?'acc':n>=40?'orange':'red'}; }},
+
+ lysholm:{n:'Lysholm (rodilla)', pn:'Cuestionario de rodilla (Lysholm)', area:'Rodilla', quien:'pat', mejor:'alto', mcid:10,
+  ins:'Marca la opción que mejor describe tu rodilla hoy.',
+  items:[
+   {t:'Cojera', o:[['No cojeo',5],['Leve o de vez en cuando',3],['Severa y constante',0]]},
+   {t:'Uso de apoyo (bastón o muletas)', o:[['No uso',5],['Uso bastón o muleta',2],['No puedo cargar peso en la pierna',0]]},
+   {t:'Bloqueo', o:[['Sin bloqueo ni sensación de enganche',15],['Sensación de enganche, pero sin bloqueo',10],['Bloqueo ocasional',6],['Bloqueo frecuente',2],['Rodilla bloqueada al examen',0]]},
+   {t:'Inestabilidad (la rodilla "se va" o falla)', o:[['Nunca',25],['Rara vez, durante deporte u otros esfuerzos intensos',20],['Frecuentemente durante deporte u otros esfuerzos intensos (o no puedo hacerlos por eso)',15],['Ocasionalmente en actividades diarias',10],['A menudo en actividades diarias',5],['A cada paso',0]]},
+   {t:'Dolor', o:[['Ninguno',25],['Leve y ocasional durante esfuerzos intensos',20],['Marcado durante esfuerzos intensos',15],['Marcado al caminar más de 2 km o después',10],['Marcado al caminar menos de 2 km o después',5],['Constante',0]]},
+   {t:'Hinchazón', o:[['Ninguna',10],['Con esfuerzos intensos',6],['Con esfuerzos normales',2],['Constante',0]]},
+   {t:'Subir escaleras', o:[['Sin problemas',10],['Levemente alterado',6],['Un escalón a la vez',2],['No puedo',0]]},
+   {t:'Ponerse en cuclillas', o:[['Sin problemas',5],['Levemente alterado',4],['No más allá de 90°',2],['No puedo',0]]}],
+  score:v=>{ if(v.some(x=>x==null)) return null; const n=_sum(v); return {n, v:n+'/100', ...band(n,[[64,'Malo','red'],[83,'Regular','orange'],[94,'Bueno','acc'],[100,'Excelente','acc']])}; }},
+
+ dash:{n:'DASH (miembro superior)', pn:'Cuestionario de brazo, hombro y mano', area:'Miembro superior', quien:'pat', mejor:'bajo', mcid:10,
+  ins:'Responde según tu capacidad durante la última semana. Si no hiciste alguna actividad, marca lo que crees que te habría pasado.',
+  items:[
+   ...its(['Abrir un frasco nuevo o con la tapa muy apretada','Escribir','Girar una llave','Preparar la comida','Empujar y abrir una puerta pesada','Poner un objeto en una repisa por encima de tu cabeza','Hacer tareas pesadas de la casa (fregar el piso, limpiar paredes, etc.)','Trabajar en el jardín','Hacer la cama','Cargar una bolsa de supermercado o un maletín','Cargar un objeto pesado (más de 5 kg)','Cambiar una ampolleta del techo o más alta que tu cabeza','Lavarte o secarte el pelo','Lavarte la espalda','Ponerte un chaleco o polerón','Usar un cuchillo para cortar la comida','Actividades de entretenimiento de poco esfuerzo (jugar cartas, tejer, etc.)','Actividades de entretenimiento que exigen fuerza o impacto en el brazo, hombro o mano (golf, martillar, tenis, etc.)','Actividades de entretenimiento en las que mueves el brazo libremente (frisbee, bádminton, nadar, etc.)','Desplazarte (manejar o usar transporte público)'],OPF.dash).map((x,i)=>i?x:{...x,sec:'¿Cuánta dificultad tienes para…?'}),
+   {t:'Actividad sexual', o:OPF.dash, opc:1},
+   {t:'¿Cuánto ha interferido tu problema de brazo, hombro o mano en tus actividades sociales con familia, amigos, vecinos o grupos?', o:_o(['Nada','Un poco','Regular','Bastante','Extremadamente']), sec:'Durante la última semana'},
+   {t:'¿Has tenido limitaciones en tu trabajo u otras actividades diarias por tu problema de brazo, hombro o mano?', o:_o(['No, para nada','Un poco','Regular','Bastante','No he podido hacerlas'])},
+   ...its(['Dolor en el brazo, hombro o mano','Dolor en el brazo, hombro o mano al hacer alguna actividad específica','Hormigueo (sensación de alfileres) en el brazo, hombro o mano','Debilidad o falta de fuerza en el brazo, hombro o mano','Rigidez o falta de movilidad en el brazo, hombro o mano'],OPF.dashS).map((x,i)=>i?x:{...x,sec:'Intensidad de tus síntomas la última semana'}),
+   {t:'¿Cuánta dificultad has tenido para dormir por el dolor de brazo, hombro o mano?', o:_o(['Ninguna dificultad','Dificultad leve','Dificultad moderada','Mucha dificultad','Tanta que no puedo dormir'])},
+   {t:'Me siento menos capaz, menos útil o con menos confianza en mí mismo por mi problema de brazo, hombro o mano', o:_o(['Totalmente en desacuerdo','En desacuerdo','Ni de acuerdo ni en desacuerdo','De acuerdo','Totalmente de acuerdo'])}],
+  score:v=>{ const a=v.filter(x=>x!=null); if(a.length<27) return null; const n=Math.round(_sum(a)/a.length*25); return {n, v:n+'/100', txt:'0 = sin discapacidad · 100 = máxima discapacidad', c:n<=20?'acc':n<=50?'orange':'red'}; }},
+
+ tsk:{n:'Tampa de kinesiofobia (TSK-11)', pn:'Cuestionario sobre el movimiento y el dolor', area:'Psicosocial', quien:'pat', mejor:'bajo', mcid:4,
+  ins:'Indica cuánto estás de acuerdo con cada frase según lo que sientes.',
+  items:its(['Tengo miedo de lesionarme si hago ejercicio físico','Si me dejara vencer por el dolor, el dolor aumentaría','Mi cuerpo me está diciendo que tengo algo serio','Tener dolor siempre quiere decir que en el cuerpo hay una lesión','Tengo miedo a lesionarme sin querer','Lo más seguro para evitar que aumente el dolor es tener cuidado y no hacer movimientos innecesarios','No me dolería tanto si no tuviera algo serio en el cuerpo','El dolor me dice cuándo debo parar la actividad para no lesionarme','No es seguro para una persona con mi problema hacer actividad física','No puedo hacer todo lo que la gente normal hace porque me podría lesionar con facilidad','Nadie debería hacer actividad física cuando tiene dolor'],OPF.tsk),
+  score:v=>{ if(v.some(x=>x==null)) return null; const n=_sum(v); return {n, v:n+'/44', txt:'Mayor puntaje = mayor miedo al movimiento', c:n>=30?'red':n>=23?'orange':'acc'}; }},
+
+ psfs:{n:'Escala funcional específica del paciente (PSFS)', pn:'Actividades que te cuestan', area:'Función general', quien:'pat', mejor:'alto', mcid:2, psfs:1,
+  ins:'Escribe hasta 5 actividades importantes para ti que hoy te cuesta hacer por tu problema, y puntúa cada una: 0 = no puedo hacerla, 10 = la hago igual que antes del problema.',
+  items:[],
+  score:(v,r)=>{ const a=(r.acts||[]).filter(x=>x.a && x.v!=='' && x.v!=null); if(!a.length) return null; const n=Math.round(_sum(a.map(x=>+x.v))/a.length*10)/10;
+    return {n, v:String(n).replace('.',',')+'/10', txt:'10 = nivel previo al problema', c:n>=7?'acc':n>=4?'orange':'red', sub:a.map(x=>`${x.a} ${x.v}`).join(' · ')}; }},
+
+ ipaq:{n:'IPAQ corto (actividad física)', pn:'Cuestionario de actividad física', area:'Función general', quien:'pat', mejor:'alto', mcid:null,
+  ins:'Piensa en los últimos 7 días. Cuenta solo las actividades que hiciste por al menos 10 minutos seguidos.',
+  items:[
+   {t:'Días con actividad física intensa (levantar pesos, correr, aeróbicos, bicicleta rápida)', k:'num', max:7, sec:'Actividad intensa'},
+   {t:'Minutos por día de actividad intensa (en esos días)', k:'num', max:600},
+   {t:'Días con actividad física moderada (cargar cosas livianas, bicicleta a ritmo normal; no incluye caminar)', k:'num', max:7, sec:'Actividad moderada'},
+   {t:'Minutos por día de actividad moderada', k:'num', max:600},
+   {t:'Días que caminaste al menos 10 minutos seguidos', k:'num', max:7, sec:'Caminata'},
+   {t:'Minutos por día caminando', k:'num', max:600},
+   {t:'Horas al día que pasas sentado (en un día de semana)', k:'num', max:24, sec:'Tiempo sentado', opc:1}],
+  score:v=>{ const z=i=>Math.max(0,+v[i]||0), m=i=>Math.min(180,z(i)); if(v.slice(0,6).some(x=>x==null)) return null;
+    const vig=8*z(0)*m(1), mod=4*z(2)*m(3), cam=3.3*z(4)*m(5), n=Math.round(vig+mod+cam), dias=Math.min(7,z(0)+z(2)+z(4));
+    const alta=(z(0)>=3&&vig>=1500)||(dias>=7&&n>=3000), modr=(z(0)>=3&&m(1)>=20)||((z(2)+z(4))>=5&&Math.max(m(3),m(5))>=30)||(dias>=5&&n>=600);
+    return {n, v:n.toLocaleString('es-CL')+' MET-min/sem', txt:`Nivel de actividad ${alta?'alto':modr?'moderado':'bajo'}${v[6]!=null?` · ${v[6]} h sentado al día`:''}`, c:alta?'acc':modr?'orange':'red'}; }},
+
+ barthel:{n:'Índice de Barthel', pn:'Cuestionario de actividades de la vida diaria', area:'Persona mayor', quien:'pat', mejor:'alto', mcid:10,
+  ins:'Puede responderlo la persona o un familiar o cuidador que la conozca bien. Marca lo que hace actualmente.',
+  items:[
+   {t:'Comer', o:[['Independiente',10],['Necesita ayuda para cortar, untar, etc.',5],['Dependiente',0]]},
+   {t:'Bañarse', o:[['Independiente',5],['Dependiente',0]]},
+   {t:'Vestirse', o:[['Independiente (incluye botones, cierres, cordones)',10],['Necesita ayuda, pero hace la mitad sin ayuda',5],['Dependiente',0]]},
+   {t:'Arreglarse (lavarse la cara, peinarse, lavarse los dientes, afeitarse)', o:[['Independiente',5],['Dependiente',0]]},
+   {t:'Control intestinal (deposiciones)', o:[['Continente',10],['Accidente ocasional (máximo uno por semana)',5],['Incontinente',0]]},
+   {t:'Control de la orina', o:[['Continente',10],['Accidente ocasional (máximo uno en 24 horas)',5],['Incontinente o necesita sonda',0]]},
+   {t:'Usar el baño', o:[['Independiente',10],['Necesita alguna ayuda',5],['Dependiente',0]]},
+   {t:'Trasladarse (sillón a cama y viceversa)', o:[['Independiente',15],['Necesita mínima ayuda',10],['Necesita gran ayuda, pero puede sentarse solo',5],['Dependiente',0]]},
+   {t:'Desplazarse (caminar)', o:[['Independiente, camina 50 metros (puede usar bastón)',15],['Necesita ayuda o supervisión',10],['Independiente en silla de ruedas',5],['Dependiente',0]]},
+   {t:'Subir y bajar escaleras', o:[['Independiente',10],['Necesita ayuda o supervisión',5],['Dependiente',0]]}],
+  score:v=>{ if(v.some(x=>x==null)) return null; const n=_sum(v); return {n, v:n+'/100', ...band(n,[[19,'Dependencia total','red'],[35,'Dependencia severa','red'],[55,'Dependencia moderada','orange'],[95,'Dependencia leve','acc'],[100,'Independiente','acc']])}; }},
+
+ pfeffer:{n:'Cuestionario de actividades funcionales de Pfeffer', pn:'Cuestionario para un familiar o cuidador', area:'Persona mayor', quien:'cuidador', mejor:'bajo', mcid:null,
+  ins:'Este cuestionario debe responderlo un familiar o cuidador que conozca bien a la persona. Marca cómo se desenvuelve actualmente.',
+  items:its(['¿Es capaz de manejar su propio dinero (pagar cuentas, usar cheques o cajero)?','¿Es capaz de hacer trámites solo (papeles, pensiones, impuestos)?','¿Es capaz de hacer compras solo (ropa, artículos del hogar, mercadería)?','¿Puede jugar juegos de habilidad o tener un pasatiempo (cartas, ajedrez, crucigramas)?','¿Puede calentar agua, preparar un café o té y apagar la cocina?','¿Puede preparar una comida completa?','¿Está al tanto de las noticias y lo que pasa en el barrio, la familia o el país?','¿Pone atención, entiende y comenta programas de TV, libros o revistas?','¿Recuerda compromisos, citas, fechas familiares y tomar sus medicamentos?','¿Puede salir solo fuera del barrio y volver (caminar, micro o colectivo)?'],OPF.pfeffer),
+  score:v=>{ if(v.some(x=>x==null)) return null; const n=_sum(v); return {n, v:n+'/30', ...(n>=6?{txt:'Sugiere deterioro funcional (≥ 6)',c:'red'}:{txt:'Sin alteración funcional',c:'acc'})}; }},
+
+ pdq8:{n:'PDQ-8 (Parkinson)', pn:'Cuestionario de Parkinson', area:'Neurológico', quien:'pat', mejor:'bajo', mcid:null,
+  ins:'Debido a tu enfermedad de Parkinson, ¿con qué frecuencia te ha pasado esto durante el último mes?',
+  items:its(['Has tenido dificultad para desplazarte en lugares públicos','Has tenido dificultad para vestirte','Te has sentido deprimido o triste','Has tenido problemas en tus relaciones personales más cercanas','Has tenido problemas de concentración (por ejemplo, al leer o ver TV)','Has sentido que no puedes comunicarte bien con la gente','Has tenido calambres o espasmos musculares dolorosos','Te has sentido avergonzado en público por tener Parkinson'],OPF.pdq),
+  score:v=>{ if(v.some(x=>x==null)) return null; const n=Math.round(_sum(v)/32*100); return {n, v:n+'/100', txt:'Mayor puntaje = peor calidad de vida', c:n<=25?'acc':n<=50?'orange':'red'}; }},
+
+ hy:{n:'Hoehn y Yahr modificada (Parkinson)', pn:'Hoehn y Yahr', area:'Neurológico', quien:'pro', mejor:'bajo', mcid:null,
+  ins:'Estadificación clínica realizada por el profesional.',
+  items:[{t:'Estadio', o:[['0 · Sin signos de enfermedad',0],['1 · Afectación unilateral',1],['1,5 · Unilateral con afectación axial',1.5],['2 · Bilateral sin alteración del equilibrio',2],['2,5 · Bilateral leve, se recupera en la prueba de retropulsión',2.5],['3 · Bilateral leve a moderada, inestabilidad postural, físicamente independiente',3],['4 · Discapacidad grave, aún camina o se mantiene de pie sin ayuda',4],['5 · En silla de ruedas o en cama si no tiene ayuda',5]]}],
+  score:v=>v[0]==null?null:{n:v[0], v:'Estadio '+String(v[0]).replace('.',','), txt:v[0]<=2?'Enfermedad leve':v[0]<=3?'Enfermedad moderada':'Enfermedad avanzada', c:v[0]<=2?'acc':v[0]<=3?'orange':'red'}},
+
+ pfeiffer:{n:'Test de Pfeiffer (SPMSQ)', pn:'Test de Pfeiffer', area:'Persona mayor', quien:'pro', mejor:'bajo', mcid:null,
+  ins:'El profesional hace las preguntas y marca si la respuesta es correcta. Ajuste por escolaridad incluido.',
+  items:[...its(['¿Qué día es hoy? (día, mes y año)','¿Qué día de la semana es hoy?','¿Cómo se llama este lugar?','¿Cuál es su número de teléfono? (si no tiene, ¿cuál es su dirección?)','¿Cuántos años tiene?','¿Cuál es su fecha de nacimiento?','¿Quién es el actual presidente del país?','¿Quién fue el presidente anterior?','¿Cuál es el apellido de su madre?','Reste de 3 en 3 desde 20 (cualquier error en la serie cuenta como error)'],OPF.pfeiffer),
+   {t:'Escolaridad', o:[['Sin estudios o básica incompleta (se permite 1 error más)',1],['Básica completa o media',0],['Estudios superiores (se permite 1 error menos)',-1]], sec:'Ajuste'}],
+  score:v=>{ if(v.some(x=>x==null)) return null; const e=_sum(v.slice(0,10)), n=Math.max(0,e-v[10]); return {n, v:`${n} error${n===1?'':'es'}`, ...band(n,[[2,'Función cognitiva normal','acc'],[4,'Deterioro cognitivo leve','orange'],[7,'Deterioro cognitivo moderado','red'],[10,'Deterioro cognitivo severo','red']])}; }}
+};
+const ESC_GR = [['Columna',['odi','ndi']],['Miembro inferior',['koos','lefs','lysholm']],['Miembro superior',['dash']],['Dolor y función general',['psfs','tsk','ipaq']],['Persona mayor y neurológico',['barthel','pfeffer','pdq8','hy','pfeiffer']]];
+const ESC_CORTO = {odi:'Oswestry (ODI)', ndi:'NDI', koos:'KOOS', lefs:'LEFS', lysholm:'Lysholm', dash:'DASH', tsk:'TSK-11', psfs:'PSFS', ipaq:'IPAQ', barthel:'Barthel', pfeffer:'Pfeffer', pdq8:'PDQ-8', hy:'Hoehn y Yahr', pfeiffer:'Pfeiffer'};
+const QUIEN = {pat:'La responde la persona', cuidador:'La responde un familiar o cuidador', pro:'Solo la aplica el profesional'};
+
+function escVals(def, r){ return def.items.map((it,i)=> it.k==='num' ? (r[i]===''||r[i]==null?null:+r[i]) : (r[i]==null||!it.o[r[i]]?null:it.o[r[i]][1])); }
+function escScore(e){ const def=ESC[e&&e.esc]; if(!def||!e.r) return null; try{ return def.score(escVals(def,e.r), e.r, def); }catch(x){ return null; } }
+function escFormHTML(key, r={}, pre='es'){ const def=ESC[key]; let sec='', h='';
+  if(def.psfs){ const acts=(r.acts||[]).concat([{},{},{},{},{}]).slice(0,5);
+    return acts.map((a,j)=>`<div class="trow"><input class="inp" id="${pre}-pa${j}" placeholder="Actividad ${j+1}${j?' (opcional)':''}${j===0?' · ej: subir escaleras':''}" value="${esc(a.a||'')}"><select class="inp" id="${pre}-pv${j}"><option value="">Puntaje 0–10</option>${[...Array(11).keys()].map(n=>`<option value="${n}" ${String(a.v)===String(n)?'selected':''}>${n}${n===0?' · no puedo':n===10?' · como antes':''}</option>`).join('')}</select></div>`).join(''); }
+  def.items.forEach((it,i)=>{ if(it.sec && it.sec!==sec){ sec=it.sec; h+=`<div class="sec-sub">${esc(sec)}</div>`; }
+    const lg=`<legend>${i+1}. ${esc(it.t)}${it.opc?' <span class="xs muted">(opcional)</span>':''}</legend>`;
+    h+= it.k==='num' ? `<fieldset class="esq" data-i="${i}">${lg}<input class="inp" id="${pre}-${i}" type="number" inputmode="decimal" min="0" max="${it.max||999}" value="${esc(r[i]??'')}"></fieldset>`
+      : `<fieldset class="esq" data-i="${i}">${lg}${it.o.map(([l],j)=>`<label class="opt"><input type="radio" name="${pre}-${i}" value="${j}" ${r[i]===j?'checked':''}><span>${esc(l)}</span></label>`).join('')}</fieldset>`; });
+  return h; }
+function escRead(key, pre='es'){ const def=ESC[key], r={}, miss=[];
+  if(def.psfs){ r.acts=[...Array(5).keys()].map(j=>({a:(val(pre+'-pa'+j)||'').trim(), v:val(pre+'-pv'+j)})).filter(x=>x.a);
+    if(!r.acts.length || r.acts.some(x=>x.v==='')) miss.push(0); return {r, miss}; }
+  def.items.forEach((it,i)=>{ if(it.k==='num'){ const x=val(pre+'-'+i); if(x!=='' && x!=null) r[i]=Math.min(+it.max||999, Math.max(0,+x)); else if(!it.opc) miss.push(i); }
+    else { const x=document.querySelector(`input[name="${pre}-${i}"]:checked`); if(x) r[i]=+x.value; else if(!it.opc) miss.push(i); } });
+  return {r, miss}; }
+function escMarcarFaltantes(miss){ document.querySelectorAll('.esq.miss').forEach(f=>f.classList.remove('miss'));
+  miss.forEach(i=>document.querySelector(`.esq[data-i="${i}"]`)?.classList.add('miss'));
+  const f=document.querySelector('.esq.miss'); if(f) f.scrollIntoView({behavior:'smooth', block:'center'}); }
+const escRerender = () => { if($('#evform') && S.evDraft) S.evDraft=evCollect(); keepScroll(render); };
+const escPend = p => (p.escalas||[]).filter(e=>e.estado==='pendiente' && ESC[e.esc]);
+const escUltimaPSFS = p => (p.escalas||[]).filter(e=>e.esc==='psfs' && e.estado==='respondida').sort((a,b)=>(a.ts||0)-(b.ts||0)).pop();
+
+/* ---- persona: responder lo que su profesional le envió (nunca ve puntajes) ---- */
+function escalasPendCard(p){ const pe=p?escPend(p):[]; if(!pe.length) return '';
+  return `<div class="aviso acc"><span class="ico">${ic('clip')}</span><div class="grow"><div class="b sm">${pe.length===1?'Tienes un cuestionario por responder':`Tienes ${pe.length} cuestionarios por responder`}</div><div class="xs muted">Te lo envió tu profesional para tu evaluación. Respóndelo antes de tu sesión.</div>
+    <div class="stack" style="gap:6px;margin-top:10px">${pe.map(e=>`<button class="btn pri sm" style="justify-content:space-between" onclick="responderEscala(${q(e.id)})">${esc(ESC[e.esc].pn)} ${ic('chevr','s')}</button>`).join('')}</div></div></div>`; }
+window.responderEscala = id => { const p=me(), e=(p.escalas||[]).find(x=>x.id===id); if(!e) return; const def=ESC[e.esc];
+  const r = def.psfs ? {acts:(escUltimaPSFS(p)?.r?.acts||[]).map(x=>({a:x.a}))} : {};
+  sheet(`<h2 class="disp h2">${esc(def.pn)}</h2>${def.quien==='cuidador'?`<div class="note" style="margin-top:10px">${ic('info','s')}<span><b>Para un familiar o cuidador.</b> ${esc(def.ins)}</span></div>`:`<p class="sm muted" style="margin-top:6px">${esc(def.ins)}</p>`}
+    <div class="stack" style="margin-top:14px;gap:12px" id="es-form">${escFormHTML(e.esc, r, 'es')}</div>
+    <p class="xs muted" style="margin-top:14px">Tus respuestas las revisa solo tu profesional.</p>
+    <button class="btn pri block" style="margin-top:10px" onclick="enviarEscala(${q(id)})">${ic('send','s')} Enviar respuestas</button>`); };
+window.enviarEscala = async id => { const p=me(), e=(p.escalas||[]).find(x=>x.id===id); if(!e) return;
+  const {r, miss}=escRead(e.esc,'es'); if(miss.length){ escMarcarFaltantes(miss); return toast(ESC[e.esc].psfs?'Escribe al menos una actividad con su puntaje':`Te faltan ${miss.length} pregunta${miss.length>1?'s':''}`,'err'); }
+  Object.assign(e,{r, estado:'respondida', fecha:todayISO(), ts:Date.now(), quien:'pat', visto:false});
+  if(await save(p)){ closeSheet(); toast('¡Gracias! Tus respuestas se enviaron a tu profesional'); celebrar?.(); keepScroll(render); } };
+
+/* ---- profesional: enviar, aplicar, ver resultados y su evolución ---- */
+const escDelta = (def, s, prev) => { if(!s||!prev) return ''; const d=Math.round((s.n-prev.n)*10)/10; if(!d) return `<div class="xs muted">sin cambio</div>`;
+  const mejora = def.mejor==='alto' ? d>0 : d<0, rel = def.mcid && Math.abs(d)>=def.mcid;
+  return `<div class="xs b ${mejora?'up':'dn'}">${d>0?'▲':'▼'} ${String(Math.abs(d)).replace('.',',')}${rel?' · relevante':''}</div>`; };
+function escGrupos(p){ const by={}; (p.escalas||[]).filter(e=>e.estado==='respondida' && ESC[e.esc]).forEach(e=>(by[e.esc]=by[e.esc]||[]).push(e));
+  Object.values(by).forEach(a=>a.sort((x,y)=>(x.ts||0)-(y.ts||0))); return by; }
+function escalasCard(p){ const pend=escPend(p), by=escGrupos(p);
+  const rows=Object.entries(by).map(([key,a])=>{ const def=ESC[key], last=a[a.length-1], s=escScore(last), prev=a.length>1?escScore(a[a.length-2]):null, nuevo=a.some(e=>!e.visto);
+    return `<button class="li" onclick="verEscala(${q(key)})"><span class="ico ${nuevo?'blue':''}">${ic('clip','s')}</span><div class="grow" style="min-width:0"><div class="b sm">${esc(def.n)}${nuevo?' <span class="badge acc">Nueva</span>':''}</div><div class="xs muted">${fmtDate(last.fecha)} · ${s?esc(s.txt):'incompleta'}${a.length>1?` · ${a.length} aplicaciones`:''}</div></div><div style="text-align:right;flex:none"><div class="b sm ${s&&s.c?`badge ${s.c}`:''}">${s?esc(s.v):'—'}</div>${escDelta(def,s,prev)}</div></button>`; });
+  return `<div class="sec-t"><h2>Escalas y cuestionarios</h2><div class="row" style="gap:4px"><button class="btn ghost sm" onclick="sheetEscalas(0)">${ic('send','s')} Enviar</button><button class="btn ghost sm" onclick="sheetEscalas(1)">${ic('edit','s')} Aplicar</button></div></div>
+  <div class="xs muted" style="margin:-4px 2px 0">${ic('shield','s')} Los resultados solo los ven los profesionales. La persona solo responde las que le envías.</div>
+  ${pend.length?`<div class="list">${pend.map(e=>`<div class="li"><span class="ico orange">${ic('clock','s')}</span><div class="grow"><div class="b sm">${esc(ESC[e.esc].n)}</div><div class="xs muted">Pendiente · enviada ${fmtDate(e.enviada)}</div></div><button class="btn ghost sm" onclick="aplicarEscala(${q(e.esc)},${q(e.id)})">Aplicar</button><button class="ibtn red" onclick="anularEscala(${q(e.id)})" aria-label="Anular">${ic('x','s')}</button></div>`).join('')}</div>`:''}
+  ${rows.length?`<div class="list">${rows.join('')}</div>`:pend.length?'':`<div class="card empty">Aún no hay escalas aplicadas.</div>`}`; }
+window.sheetEscalas = aplicar => { const p=prof(S.proArg), pe=new Set(escPend(p).map(e=>e.esc));
+  sheet(`<h2 class="disp h2">${aplicar?'Aplicar una escala':'Enviar escalas'}</h2><p class="sm muted" style="margin-top:6px">${aplicar?'Complétala tú ahora, en la sesión o por teléfono.':`${esc(first(p.nombre))} verá en su Inicio solo las que marques, y no verá los puntajes.`}</p>
+  <div class="stack" style="margin-top:14px">${ESC_GR.map(([g,ks])=>`<div class="sec-sub">${g}</div>${ks.map(k=>{ const d=ESC[k], solo=d.quien==='pro';
+    return aplicar ? `<button class="li" onclick="aplicarEscala(${q(k)})"><div class="grow"><div class="b sm">${esc(d.n)}</div><div class="xs muted">${esc(d.area)} · ${d.psfs?'actividades libres':d.items.length+' ítems'}</div></div>${ic('chevr','s chev')}</button>`
+      : `<label class="check" style="padding:6px 2px;${solo?'opacity:.55':''}"><input type="checkbox" data-esc="${k}" ${solo||pe.has(k)?'disabled':''}><span><b style="color:var(--tx)">${esc(d.n)}</b><br>${solo?'Solo la aplica el profesional (usa "Aplicar")':pe.has(k)?'Ya está pendiente':esc(QUIEN[d.quien])} · ${d.psfs?'actividades libres':d.items.length+' ítems'}</span></label>`; }).join('')}`).join('')}
+  ${aplicar?'':`<button class="btn pri block" style="margin-top:6px" onclick="enviarEscalas()">${ic('send','s')} Enviar a ${esc(first(p.nombre))}</button>`}</div>`); };
+window.enviarEscalas = async () => { const ks=[...document.querySelectorAll('[data-esc]:checked')].map(i=>i.dataset.esc); if(!ks.length) return toast('Marca al menos una escala','err');
+  const p=prof(S.proArg); p.escalas=p.escalas||[]; ks.forEach(k=>p.escalas.push({id:'es'+uid(), esc:k, estado:'pendiente', enviada:todayISO(), por:S.pro.nombre}));
+  addAviso(p,'escala', ks.length===1?'Tu profesional te envió un cuestionario para responder':`Tu profesional te envió ${ks.length} cuestionarios para responder`);
+  if(await save(p)){ closeSheet(); toast(ks.length===1?'Escala enviada':`${ks.length} escalas enviadas`); escRerender(); } };
+window.anularEscala = async id => { if(!confirm('¿Anular esta escala pendiente?')) return; const p=prof(S.proArg); p.escalas=(p.escalas||[]).filter(e=>e.id!==id); if(await save(p)) escRerender(); };
+window.aplicarEscala = (key, pendId) => { const p=prof(S.proArg), def=ESC[key]; if(!def) return;
+  const r = def.psfs ? {acts:(escUltimaPSFS(p)?.r?.acts||[]).map(x=>({a:x.a}))} : {};
+  sheet(`<h2 class="disp h2">${esc(def.n)}</h2><p class="sm muted" style="margin-top:6px">${esc(def.ins)}</p>
+  <label class="field" style="margin-top:12px"><span class="lbl">Fecha</span><input class="inp" type="date" id="ap-f" value="${todayISO()}"></label>
+  <div class="stack" style="margin-top:12px;gap:12px">${escFormHTML(key, r, 'ap')}</div>
+  <div id="ap-out" class="note" style="margin-top:12px">${ic('info','s')}<span>El puntaje se calcula al guardar.</span></div>
+  <button class="btn pri block" style="margin-top:10px" onclick="guardarAplicada(${q(key)},${q(pendId||'')})">${ic('check','s')} Guardar resultado</button>`);
+  $('#sheet')?.addEventListener('change', ()=>{ const {r}=escRead(key,'ap'), s=escScore({esc:key, r}), o=$('#ap-out'); if(o) o.innerHTML=`${ic('chart','s')}<span>${s?`<b>${esc(s.v)}</b> · ${esc(s.txt)}`:'Completa las preguntas para ver el puntaje.'}</span>`; }); };
+window.guardarAplicada = async (key, pendId) => { const {r, miss}=escRead(key,'ap'); if(miss.length){ escMarcarFaltantes(miss); return toast(`Faltan ${miss.length} ítem${miss.length>1?'s':''}`,'err'); }
+  const p=prof(S.proArg); p.escalas=p.escalas||[]; const e=(pendId && p.escalas.find(x=>x.id===pendId)) || (p.escalas.push({id:'es'+uid(), esc:key}), p.escalas[p.escalas.length-1]);
+  Object.assign(e,{r, estado:'respondida', fecha:val('ap-f')||todayISO(), ts:Date.now(), quien:'pro', por:S.pro.nombre, visto:true});
+  if(await save(p)){ const s=escScore(e); closeSheet(); toast(s?`${ESC_CORTO[key]}: ${s.v}`:'Escala guardada'); escRerender(); } };
+function escRespuestasHTML(e){ const def=ESC[e.esc];
+  if(def.psfs) return (e.r.acts||[]).map(x=>`<div class="sm" style="margin-top:4px">${esc(x.a)}: <b>${esc(x.v)}/10</b></div>`).join('');
+  return def.items.map((it,i)=>{ const v=e.r[i]; const t= it.k==='num' ? (v==null?'—':v) : (v==null?'—':it.o[v]?.[0]); return `<div class="sm" style="margin-top:6px"><span class="muted">${i+1}. ${esc(it.t)}</span><br><b>${esc(t)}</b></div>`; }).join(''); }
+window.verEscala = async key => { const p=prof(S.proArg), def=ESC[key], a=(escGrupos(p)[key]||[]).slice().reverse(); if(!a.length) return;
+  sheet(`<h2 class="disp h2">${esc(def.n)}</h2><p class="xs muted" style="margin-top:6px">${esc(def.area)} · ${def.mejor==='alto'?'Mayor puntaje = mejor':'Menor puntaje = mejor'}${def.mcid?` · cambio clínicamente relevante ≥ ${def.mcid}`:''}</p>
+  <div class="stack" style="margin-top:14px">${a.map((e,i)=>{ const s=escScore(e), prev=a[i+1]?escScore(a[i+1]):null;
+    return `<details class="card"><summary class="row between" style="gap:10px"><div class="grow"><div class="b sm">${fmtDate(e.fecha)}</div><div class="xs muted">${e.quien==='pro'?`Aplicada por ${esc(e.por||'profesional')}`:'Respondida por la persona'}</div></div><div style="text-align:right"><div class="b">${s?esc(s.v):'—'}</div>${escDelta(def,s,prev)}</div></summary>
+      ${s?`<div class="note" style="margin-top:10px">${ic('chart','s')}<span><b>${esc(s.txt)}</b>${s.sub?`<br>${esc(s.sub)}`:''}</span></div>`:''}
+      <div style="margin-top:8px">${escRespuestasHTML(e)}</div><button class="btn danger sm" style="margin-top:12px" onclick="borrarEscala(${q(e.id)},${q(key)})">${ic('trash','s')} Eliminar esta aplicación</button></details>`; }).join('')}</div>
+  <button class="btn sec block" style="margin-top:12px" onclick="aplicarEscala(${q(key)})">${ic('plus','s')} Aplicar de nuevo</button>`);
+  const nv=a.filter(e=>!e.visto); if(nv.length){ nv.forEach(e=>e.visto=true); await save(p); } };
+window.borrarEscala = async (id, key) => { if(!confirm('¿Eliminar esta aplicación de la escala?')) return; const p=prof(S.proArg); p.escalas=(p.escalas||[]).filter(e=>e.id!==id);
+  if(await save(p)){ closeSheet(); escRerender(); if((escGrupos(p)[key]||[]).length) verEscala(key); } };
+/* texto para informes: en el de inicio el último puntaje; en el de alta, el primero → último */
+function escalasTexto(p, alta){ return Object.entries(escGrupos(p)).map(([k,a])=>{ const d=ESC[k], s=escScore(a[a.length-1]), f=a.length>1?escScore(a[0]):null; if(!s) return '';
+  const nm=ESC_CORTO[k]||d.n;
+  return alta && f ? `${nm}: ${f.v} → ${s.v} (${s.txt})` : `${nm}: ${s.v} (${s.txt})`; }).filter(Boolean).join('; '); }
+
+/* ================= EXAMEN FÍSICO ESTRUCTURADO ================= */
+const RED_FLAGS = ['Baja de peso inexplicada (más de 5 % en 6 meses)','Antecedente de cáncer','Fiebre, escalofríos o sudoración nocturna','Dolor nocturno o en reposo que no cede con cambios de posición','Trauma importante reciente (caída de altura, accidente)','Alteración del control de esfínteres (orina o deposiciones)','Anestesia en silla de montar (zona perineal)','Déficit neurológico progresivo o debilidad marcada','Uso prolongado de corticoides u osteoporosis conocida','Inmunosupresión, VIH o consumo de drogas endovenosas','Dolor torácico, falta de aire o palpitaciones','Signos de TVP (pantorrilla dolorosa, edema, calor o enrojecimiento unilateral)','Mareo, visión doble, dificultad para hablar o tragar, caídas súbitas (5D 3N)','Malestar general o dolor que empeora de forma progresiva','Menor de 20 o mayor de 50 años con dolor de inicio reciente sin causa clara'];
+const GONIO = {Cervical:[['Flexión',50],['Extensión',60],['Inclinación',45],['Rotación',80]], Lumbar:[['Flexión',60],['Extensión',25],['Inclinación',25],['Rotación',30]],
+  Hombro:[['Flexión',180],['Extensión',60],['Abducción',180],['Rotación interna',70],['Rotación externa',90]], Codo:[['Flexión',150],['Extensión',0],['Pronación',80],['Supinación',80]],
+  Muñeca:[['Flexión',80],['Extensión',70],['Desviación radial',20],['Desviación cubital',30]], Cadera:[['Flexión',120],['Extensión',30],['Abducción',45],['Aducción',30],['Rotación interna',45],['Rotación externa',45]],
+  Rodilla:[['Flexión',135],['Extensión',0]], Tobillo:[['Dorsiflexión',20],['Flexión plantar',50],['Inversión',35],['Eversión',15]]};
+const FZM = {Hombro:['Flexores','Extensores','Abductores','Rotadores internos','Rotadores externos'], Codo:['Flexores','Extensores'], Mano:['Prensión (handgrip)'], Tronco:['Flexores','Extensores'],
+  Cadera:['Flexores','Extensores','Abductores','Aductores','Rotadores externos'], Rodilla:['Extensores (cuádriceps)','Flexores (isquiotibiales)'], Tobillo:['Flexores plantares','Dorsiflexores']};
+const NEURO = [
+  {g:'Dermatomas (sensibilidad)', o:['Normal','Hipoestesia','Anestesia','Hiperestesia'], it:['C5','C6','C7','C8','T1','L2','L3','L4','L5','S1']},
+  {g:'Miotomas (fuerza)', o:['Normal','Disminuido','Ausente'], it:['C5 · abducción de hombro','C6 · flexión de codo / extensión de muñeca','C7 · extensión de codo / flexión de muñeca','C8 · flexión de dedos','T1 · abducción de dedos','L2 · flexión de cadera','L3 · extensión de rodilla','L4 · dorsiflexión','L5 · extensión del hallux','S1 · flexión plantar']},
+  {g:'Reflejos osteotendíneos', o:['2+','0','1+','3+','4+'], it:['Bicipital (C5)','Braquiorradial (C6)','Tricipital (C7)','Patelar (L4)','Aquiliano (S1)']},
+  {g:'Pruebas neurodinámicas', o:['Negativo','Positivo'], it:['SLR / Lasègue','Slump','Flexión de rodilla en prono (femoral)','ULNT1 (mediano)','ULNT2b (radial)','ULNT3 (cubital)']},
+  {g:'Motoneurona superior', o:['Negativo','Positivo'], it:['Babinski','Hoffmann','Clonus']}];
+const DOLOR_TIPO = ['Mecánico','Inflamatorio','Neuropático','Irradiado','Referido','Nociplástico'];
+const PERIM = [['per_cin','Cintura','cm','bajo'],['per_cad','Cadera','cm',null],['per_brD','Brazo der.','cm','alto'],['per_brI','Brazo izq.','cm','alto'],['per_muD','Muslo der.','cm','alto'],['per_muI','Muslo izq.','cm','alto'],['per_paD','Pantorrilla der.','cm','alto'],['per_paI','Pantorrilla izq.','cm','alto'],
+  ['comp_grasa','% de grasa','%','bajo'],['comp_musc','Masa muscular','kg','alto'],['comp_visc','Grasa visceral','','bajo'],['pl_tri','Pliegue tricipital','mm','bajo'],['pl_bic','Pliegue bicipital','mm','bajo'],['pl_sub','Pliegue subescapular','mm','bajo'],['pl_sup','Pliegue suprailíaco','mm','bajo']];
+const numv = s => { const m=String(s??'').trim().replace(',','.').match(/^(-?\d+(?:\.\d+)?)\s*([+-])?/); return m ? +m[1]+(m[2]==='+'?.3:m[2]==='-'?-.3:0) : NaN; };
+const fmt1 = n => String(Math.round(n*10)/10).replace('.',',');
+function lsiOf(d, i, lado){ const a=numv(d), b=numv(i); if(!(a>0&&b>0)) return null; return lado==='D' ? a/b*100 : lado==='I' ? b/a*100 : Math.min(a,b)/Math.max(a,b)*100; }
+function lsiTxt(d, i, lado, ref){ const l=lsiOf(d,i,lado);
+  if(l!=null) return `<span class="b" style="color:${l<90?'var(--red)':'var(--green)'}">LSI ${Math.round(l)} %</span>`;
+  const v=[numv(d),numv(i)].filter(x=>isFinite(x)), r=numv(ref); if(v.length===1 && r>0) return `<span class="muted">${Math.round(v[0]/r*100)} % normal</span>`; return '<span class="muted">—</span>'; }
+const goRow = r => `<div class="trow" data-t="go" data-pd="${esc(r.pd??'')}" data-pi="${esc(r.pi??'')}"><div class="row" style="gap:6px"><input class="inp t-mov" placeholder="Articulación · movimiento" value="${esc(r.mov||'')}"><button class="ibtn red" onclick="this.closest('.trow').remove()">${ic('x','s')}</button></div>
+  <div class="g4t"><input class="inp t-d" inputmode="decimal" placeholder="Der °${r.pd?` · ant ${esc(r.pd)}`:''}" value="${esc(r.d??'')}" oninput="lsiRow(this)"><input class="inp t-i" inputmode="decimal" placeholder="Izq °${r.pi?` · ant ${esc(r.pi)}`:''}" value="${esc(r.i??'')}" oninput="lsiRow(this)"><input class="inp t-ref" inputmode="decimal" placeholder="Normal °" value="${esc(r.ref??'')}" oninput="lsiRow(this)"><div class="inp t-out" style="display:flex;align-items:center;justify-content:center;font-size:12.5px">${lsiTxt(r.d,r.i,S.evDraft?.lado,r.ref)}</div></div></div>`;
+const fuRow = r => `<div class="trow" data-t="fu" data-pd="${esc(r.pd??'')}" data-pi="${esc(r.pi??'')}"><div class="row" style="gap:6px"><input class="inp t-mov" placeholder="Grupo muscular" value="${esc(r.mus||'')}"><button class="ibtn red" onclick="this.closest('.trow').remove()">${ic('x','s')}</button></div>
+  <div class="g4t"><input class="inp t-d" inputmode="decimal" placeholder="Der${r.pd?` · ant ${esc(r.pd)}`:''}" value="${esc(r.d??'')}" oninput="lsiRow(this)"><input class="inp t-i" inputmode="decimal" placeholder="Izq${r.pi?` · ant ${esc(r.pi)}`:''}" value="${esc(r.i??'')}" oninput="lsiRow(this)"><select class="inp t-u">${['Daniels','kg','N','lb'].map(u=>`<option ${(r.u||'Daniels')===u?'selected':''}>${u}</option>`).join('')}</select><div class="inp t-out" style="display:flex;align-items:center;justify-content:center;font-size:12.5px">${lsiTxt(r.d,r.i,S.evDraft?.lado)}</div></div></div>`;
+window.lsiRow = el => { const r=el.closest('.trow'), g=c=>r.querySelector(c)?.value; r.querySelector('.t-out').innerHTML=lsiTxt(g('.t-d'),g('.t-i'),val('ev-lado'),g('.t-ref')); };
+window.lsiTodo = () => document.querySelectorAll('#ev-gonio .t-d, #ev-fzm .t-d').forEach(lsiRow);
+window.goAdd = k => $('#ev-gonio').insertAdjacentHTML('beforeend', k==='' ? goRow({}) : GONIO[k].map(([m,ref])=>goRow({mov:`${k} · ${m}`, ref})).join(''));
+window.fuAdd = k => $('#ev-fzm').insertAdjacentHTML('beforeend', k==='' ? fuRow({}) : FZM[k].map(m=>fuRow({mus:`${k} · ${m}`})).join(''));
+function rfHTML(d){ const r=d.rf||{}; return RED_FLAGS.map((t,i)=>`<div class="rfrow"><span>${esc(t)}</span><span class="yn"><label class="si"><input type="radio" name="rf-${i}" value="Sí" ${r[i]==='Sí'?'checked':''} onchange="rfCheck()">Sí</label><label><input type="radio" name="rf-${i}" value="No" ${r[i]==='No'?'checked':''} onchange="rfCheck()">No</label></span></div>`).join(''); }
+const rfNote = (n,t) => n ? `${ic('alert','s')}<span><b style="color:var(--red)">${n} bandera${n>1?'s':''} roja${n>1?'s':''} positiva${n>1?'s':''}.</b> Evalúa derivación médica antes de continuar.</span>` : t ? `${ic('check','s')}<span>${t}/${RED_FLAGS.length} respondidas · sin banderas rojas.</span>` : `${ic('info','s')}<span>Marca Sí o No en cada pregunta.</span>`;
+window.rfCheck = () => { const b=$('#ev-rf'); if(b) b.innerHTML=rfNote(document.querySelectorAll('#evform .rfrow input[value="Sí"]:checked').length, document.querySelectorAll('#evform .rfrow input:checked').length); };
+window.rfTodoNo = () => { document.querySelectorAll('#evform .rfrow input[value="No"]').forEach(i=>{ if(!i.closest('.rfrow').querySelector('input[value="Sí"]').checked) i.checked=true; }); rfCheck(); };
+function neuroHTML(d){ const n=d.neuro||{};
+  return NEURO.map((g,gi)=>`<details class="nd" ${g.it.some((_,ii)=>n[gi+'.'+ii])?'open':''}><summary class="row between"><span class="b sm">${g.g}</span><span class="row" style="gap:6px"><button type="button" class="btn ghost sm" style="height:28px" onclick="event.preventDefault();neuroNormal(${gi})">Todo normal</button>${ic('chevr','s')}</span></summary>
+    <div class="stack" style="gap:6px;margin-top:8px">${g.it.map((it,ii)=>{ const v=n[gi+'.'+ii]||{}; const sel=s=>`<select class="inp" data-nv="${gi}.${ii}" data-s="${s}"><option value="">${s==='d'?'Der':'Izq'} —</option>${g.o.map(o=>`<option ${v[s]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+      return `<div class="nrow"><span class="sm">${esc(it)}</span>${sel('d')}${sel('i')}</div>`; }).join('')}</div></details>`).join(''); }
+window.neuroNormal = gi => { const d=document.querySelectorAll(`#evform [data-nv^="${gi}."]`); d.forEach(s=>s.value=NEURO[gi].o[0]); d[0]?.closest('details')?.setAttribute('open',''); };
+/* mapa corporal: las zonas forman la silueta; frente (der. de la persona a la izquierda) y espalda */
+const BODY = {
+  f:{c:[['cabeza','Cabeza / cara','e',60,18,13,16],['cuello','Cuello (anterior)','r',53,33,14,9],['torax','Tórax','r',42,43,36,35],['abdomen','Abdomen','r',43,80,34,26]],
+     s:[['hombro','Hombro','c',35,50,9],['brazo','Brazo','r',23,59,12,29],['codo','Codo','c',28,93,6],['antebrazo','Antebrazo','r',19,100,11,26],['mano','Muñeca / mano','e',23,134,7,9],['ingle','Cadera / ingle','r',43,108,16,16],['muslo','Muslo anterior','r',42,126,16,42],['rodilla','Rodilla','c',50,176,8],['pierna','Pierna (tibial)','r',44,186,13,38],['pie','Tobillo / pie','e',50,234,9,7]]},
+  p:{c:[['nuca','Cabeza (posterior)','e',60,18,13,16],['cervical','Cervical','r',53,33,14,9],['dorsal','Dorsal / escápulas','r',42,43,36,35],['lumbar','Lumbar','r',43,80,34,22],['sacro','Sacro','r',53,104,14,10]],
+     s:[['hombro-p','Hombro posterior','c',35,50,9],['brazo-p','Brazo posterior','r',23,59,12,29],['codo-p','Codo posterior','c',28,93,6],['antebrazo-p','Antebrazo posterior','r',19,100,11,26],['mano-p','Mano (dorso)','e',23,134,7,9],['gluteo','Glúteo','r',40,104,13,22],['muslo-p','Muslo posterior','r',42,128,16,40],['popliteo','Hueco poplíteo','c',50,176,8],['pantorrilla','Pantorrilla','r',44,186,13,38],['talon','Tobillo / talón','e',50,234,9,7]]}};
+function bodyZones(v){ const B=BODY[v], [l,r]=v==='f'?['D','I']:['I','D'], Z=B.c.map(([id,lb,t,...c])=>({id,lb,t,c}));
+  B.s.forEach(([b,lb,t,...c])=>{ Z.push({id:`${b}-${l}`, lb:`${lb} ${l==='D'?'der.':'izq.'}`, t, c}); Z.push({id:`${b}-${r}`, lb:`${lb} ${r==='D'?'der.':'izq.'}`, t, c: t==='r'?[120-c[0]-c[2],...c.slice(1)]:[120-c[0],...c.slice(1)]}); });
+  return Z; }
+const BODY_LBL = Object.fromEntries([...bodyZones('f'),...bodyZones('p')].map(z=>[z.id,z.lb]));
+function bodySVG(v, sel=[]){ const zs=bodyZones(v).map(({id,lb,t,c})=>{ const a=`class="z${sel.includes(id)?' on':''}" data-z="${id}" onclick="bodyTog(this)"><title>${lb}</title></`;
+    return t==='c'?`<circle cx="${c[0]}" cy="${c[1]}" r="${c[2]}" ${a}circle>`: t==='e'?`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${c[2]}" ry="${c[3]}" ${a}ellipse>`:`<rect x="${c[0]}" y="${c[1]}" width="${c[2]}" height="${c[3]}" rx="5" ${a}rect>`; }).join('');
+  const [l,r]=v==='f'?['D','I']:['I','D'];
+  return `<figure><svg viewBox="0 0 120 252" role="img" aria-label="${v==='f'?'Vista anterior':'Vista posterior'}">${zs}<text x="6" y="12">${l}</text><text x="108" y="12">${r}</text></svg><figcaption>${v==='f'?'Frente':'Espalda'}</figcaption></figure>`; }
+window.bodyTog = el => { el.classList.toggle('on'); const z=[...document.querySelectorAll('#ev-body .z.on')].map(x=>BODY_LBL[x.dataset.z]); const b=$('#ev-zonas'); if(b) b.textContent = z.length ? z.join(' · ') : 'Toca las zonas donde la persona refiere dolor.'; };
+function perimHTML(d, prev={}){ const F=([k,l,u])=>`<label class="field"><span class="lbl">${l}${u?` (${u})`:''}</span><input class="inp" id="ev-${k}" data-k="${k}" inputmode="decimal" placeholder="${prev[k]?`ant. ${esc(prev[k])}`:''}" value="${esc(d[k]??'')}"></label>`;
+  return `<div class="sec-sub">Perímetros</div><div class="grid2">${PERIM.slice(0,8).map(F).join('')}</div><div class="sec-sub">Composición corporal</div><div class="grid2">${PERIM.slice(8,11).map(F).join('')}</div><div class="sec-sub">Pliegues cutáneos</div><div class="grid2">${PERIM.slice(11).map(F).join('')}</div><div id="ev-per" class="note hidden"></div>`; }
+function perimCalc(d){ const n=k=>numv(d[k]), out=[];
+  if(n('per_cin')>0&&n('per_cad')>0) out.push(`ICC ${fmt1(n('per_cin')/n('per_cad'))}`);
+  if(n('per_cin')>0&&n('talla')>0){ const x=n('per_cin')/n('talla'); out.push(`ICT ${fmt1(x)}${x>=.5?' (riesgo cardiometabólico)':''}`); }
+  const pl=['pl_tri','pl_bic','pl_sub','pl_sup'].map(n).filter(x=>x>0); if(pl.length===4) out.push(`Σ4 pliegues ${fmt1(pl.reduce((a,b)=>a+b,0))} mm`);
+  [['per_brD','per_brI','brazo'],['per_muD','per_muI','muslo'],['per_paD','per_paI','pantorrilla']].forEach(([a,b,l])=>{ if(n(a)>0&&n(b)>0&&n(a)!==n(b)) out.push(`Diferencia ${l} ${fmt1(Math.abs(n(a)-n(b)))} cm (${n(a)<n(b)?'der.':'izq.'} menor)`); });
+  return out; }
+function zonasTxt(d){ return (d.zonas||[]).map(z=>BODY_LBL[z]).filter(Boolean).join(', '); }
+function neuroTxt(d){ const n=d.neuro||{}, alt=[], k=Object.keys(n); if(!k.length) return '';
+  k.forEach(key=>{ const [gi,ii]=key.split('.').map(Number), g=NEURO[gi]; if(!g) return; const v=n[key]; ['d','i'].forEach(s=>{ if(v[s] && v[s]!==g.o[0]) alt.push(`${g.it[ii].split(' · ')[0]} ${s==='d'?'der.':'izq.'} ${v[s].toLowerCase()}`); }); });
+  return alt.length ? alt.join('; ') : 'sin alteraciones en lo evaluado'; }
+function hqTxt(d){ const f=d.fzm||[], q_=f.find(r=>/cuádriceps|Rodilla · Extensores/i.test(r.mus)), h=f.find(r=>/isquio|Rodilla · Flexores/i.test(r.mus)); if(!q_||!h||(q_.u||'Daniels')==='Daniels'||(h.u||'Daniels')==='Daniels') return '';
+  const s=k=>{ const a=numv(h[k]), b=numv(q_[k]); return a>0&&b>0?fmt1(a/b):'—'; }; return `D ${s('d')} · I ${s('i')}`; }
+function evalMetrics(d){ const M=[], add=(l,v,u,m)=>{ const n=numv(v); if(isFinite(n)) M.push({l,n,u,m}); };
+  add('Dolor EVA',d.eva,'/10','bajo'); add('Peso',d.peso,'kg',null); if(numv(d.peso)>0&&numv(d.talla)>0) add('IMC',(numv(d.peso)/Math.pow(numv(d.talla)/100,2)).toFixed(1),'',null);
+  add('FC reposo',d.fcr,'lpm','bajo'); add('Handgrip der.',d.hgd,'kg','alto'); add('Handgrip izq.',d.hgi,'kg','alto');
+  PERIM.forEach(([k,l,u,m])=>add(l,d[k],u,m));
+  if(d.poblacion && d.bat) (BAT[d.poblacion]||[]).forEach(([k,l])=>add(l,d.bat[k],'',/agi|tug|vel/.test(k)?'bajo':'alto'));
+  (d.fuerza||[]).forEach(r=>{ const c=rmCalc(+r.kg,+r.reps); if(c) add('1RM '+r.name,c.avg.toFixed(1),'kg','alto'); });
+  (d.gonio||[]).forEach(r=>{ add(r.mov+' der.',r.d,'°','alto'); add(r.mov+' izq.',r.i,'°','alto'); const l=lsiOf(r.d,r.i,d.lado); if(l!=null) add(r.mov+' LSI',l.toFixed(0),'%','alto'); });
+  (d.fzm||[]).forEach(r=>{ const u=(r.u||'Daniels')==='Daniels'?'/5':' '+r.u; add('Fuerza '+r.mus+' der.',r.d,u,'alto'); add('Fuerza '+r.mus+' izq.',r.i,u,'alto'); const l=lsiOf(r.d,r.i,d.lado); if(l!=null) add('Fuerza '+r.mus+' LSI',l.toFixed(0),'%','alto'); });
+  return M; }
+window.compararEval = id => { const p=prof(S.proArg), evs=evalsOf(keyOf(p)).filter(e=>e.evalData), i=evs.findIndex(e=>e.id===id), e=evs[i], pr=evs[i-1]; if(!e||!pr) return toast('No hay una evaluación anterior para comparar','err');
+  const A=evalMetrics(pr.evalData), B=evalMetrics(e.evalData), rows=B.map(b=>({b, a:A.find(x=>x.l===b.l)})).filter(x=>x.a);
+  const sc=Object.entries(escGrupos(p)).map(([k,a])=>{ const def=ESC[k], s=escScore(a[a.length-1]), f=escScore(a[0]); return a.length>1&&s&&f?`<tr><td>${esc(ESC_CORTO[k])}</td><td>${esc(f.v)}</td><td>${esc(s.v)}</td><td>${escDelta(def,s,f)}</td></tr>`:''; }).join('');
+  sheet(`<h2 class="disp h2">Comparar evaluaciones</h2><p class="sm muted" style="margin-top:6px">${fmtDate(pr.fecha)} → ${fmtDate(e.fecha)}</p>
+  ${rows.length?`<div class="card" style="margin-top:14px;overflow-x:auto"><table class="cmp"><tr><th>Medida</th><th>Anterior</th><th>Actual</th><th>Cambio</th></tr>${rows.map(({a,b})=>{ const dd=Math.round((b.n-a.n)*10)/10, ok=b.m==='alto'?dd>0:b.m==='bajo'?dd<0:null;
+    return `<tr><td>${esc(b.l)}</td><td>${fmt1(a.n)}${esc(b.u.startsWith('/')?'':' '+b.u)}</td><td>${fmt1(b.n)}${esc(b.u.startsWith('/')?'':' '+b.u)}</td><td class="b ${dd&&ok!=null?(ok?'up':'dn'):'muted'}">${dd?`${dd>0?'▲':'▼'} ${fmt1(Math.abs(dd))}`:'='}</td></tr>`; }).join('')}</table></div>`:`<div class="card empty" style="margin-top:14px">No hay medidas numéricas en común entre ambas evaluaciones.</div>`}
+  ${sc?`<div class="sec-t"><h2>Escalas (primera → última)</h2></div><div class="card" style="overflow-x:auto"><table class="cmp"><tr><th>Escala</th><th>Inicial</th><th>Actual</th><th>Cambio</th></tr>${sc}</table></div>`:''}
+  <button class="btn sec block" style="margin-top:14px" onclick="closeSheet()">Cerrar</button>`); };
+
+function escResumenEval(p){ const by=escGrupos(p), pe=escPend(p);
+  const items=Object.entries(by).map(([k,a])=>{ const s=escScore(a[a.length-1]); return `<button class="li" onclick="verEscala(${q(k)})"><div class="grow"><div class="b sm">${esc(ESC[k].n)}</div><div class="xs muted">${fmtDate(a[a.length-1].fecha)}${s?` · ${esc(s.txt)}`:''}</div></div><b class="sm">${s?esc(s.v):'—'}</b></button>`; }).join('');
+  return `${items?`<div class="list">${items}</div>`:'<div class="xs muted">Aún no hay escalas aplicadas.</div>'}${pe.length?`<div class="xs muted">Pendiente${pe.length>1?'s':''} de respuesta: ${pe.map(e=>esc(ESC_CORTO[e.esc])).join(', ')}</div>`:''}
+  <div class="grid2"><button class="btn sec sm" onclick="sheetEscalas(0)">${ic('send','s')} Enviar a la persona</button><button class="btn sec sm" onclick="sheetEscalas(1)">${ic('edit','s')} Aplicar ahora</button></div>`; }
+function perimLines(d){ const L=[], n=k=>d[k]!=null&&String(d[k]).trim()!=='';
+  const per=PERIM.slice(0,8).filter(([k])=>n(k)).map(([k,l,u])=>`${l.toLowerCase()} ${esc(d[k])} ${u}`); if(per.length) L.push(`<strong>Perímetros:</strong> ${per.join(' · ')}`);
+  const comp=PERIM.slice(8).filter(([k])=>n(k)).map(([k,l,u])=>`${l.toLowerCase()} ${esc(d[k])}${u?' '+u:''}`); if(comp.length) L.push(`<strong>Composición corporal:</strong> ${comp.join(' · ')}`);
+  const c=perimCalc(d); if(c.length) L.push(`<strong>Índices:</strong> ${esc(c.join(' · '))}`); return L; }
+const evLimpio = d => ({...d, gonio:(d.gonio||[]).filter(r=>r.d||r.i).map(({pd,pi,...r})=>r), fzm:(d.fzm||[]).filter(r=>r.d||r.i).map(({pd,pi,...r})=>r)});
+
 /* ================= EVALUACIONES (crear y editar) ================= */
 const PRESETS = {
   deportiva: {
@@ -2364,7 +2744,9 @@ const POB = {deportiva:'Adulto / deportiva', nna:'Niños y adolescentes (NNA)', 
 const presetRows = pob => ({ mov:PRESETS[pob].mov.map(([mov,dos,obs])=>({mov,dos,dolor:'No',obs})), fuerza:PRESETS[pob].fuerza.map(([name,tipo,obs])=>({name,tipo,kg:'',reps:'',res:'',obs})), tests:PRESETS[pob].tests.map(([test,res,obs])=>({test,res,obs})) });
 
 function newDraft(p, tipo){ const e=+p.edad||0, pob = e>=65?'mayor': (e && e<18)?'nna':'deportiva';
-  return {tipo, fecha:todayISO(), klgo:evaluadores(p.org)[0], edad:p.edad||'', deporte:p.deporte||'', poblacion:pob, sesiones:p.sesionesPlan||'', bat:{}, ...presetRows(pob)}; }
+  const pv=[...evalsOf(keyOf(p))].reverse().find(e=>e.evalData)?.evalData||{};
+  return {tipo, fecha:todayISO(), klgo:evaluadores(p.org)[0], edad:p.edad||'', deporte:p.deporte||'', poblacion:pob, sesiones:p.sesionesPlan||'', bat:{}, lado:pv.lado||'',
+    gonio:(pv.gonio||[]).map(r=>({mov:r.mov, ref:r.ref, pd:r.d, pi:r.i})), fzm:(pv.fzm||[]).map(r=>({mus:r.mus, u:r.u, pd:r.d, pi:r.i})), ...presetRows(pob)}; }
 function vEvaluar(){
   const p=prof(S.proArg); if(!p) return `<div class="card empty">Persona no encontrada</div>`;
   const editing = S.editEval ? S.all.find(x=>x.id===S.editEval && x.org===p.org) : null;
@@ -2373,6 +2755,8 @@ function vEvaluar(){
   const f=(k,l,ph='',t='text',cls='')=>`<label class="field ${cls}"><span class="lbl">${l}</span><input class="inp" id="ev-${k}" data-k="${k}" ${t==='num'?'inputmode="decimal"':''} placeholder="${ph}" value="${esc(d[k]??'')}"></label>`;
   const a=(k,l,ph='',rows=3)=>`<label class="field"><span class="lbl">${l}</span><textarea class="inp" id="ev-${k}" data-k="${k}" rows="${rows}" placeholder="${ph}">${esc(d[k]??'')}</textarea></label>`;
   const back = `openPersona(${q(keyOf(p))},'clinico')`;
+  const prevD=[...evalsOf(keyOf(p))].reverse().find(e=>e.evalData && (!editing || e.id<editing.id))?.evalData||{};
+  const rfv=Object.values(d.rf||{});
   return `<header class="top"><button class="back" onclick="S.evDraft=null;${back}">${ic('chevl','s')} ${esc(first(p.nombre))}</button><h1 class="disp h1" style="margin-top:4px">${editing?'Editar evaluación':'Evaluación'}</h1><div class="row" style="gap:6px;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.nombre)}</span></div></header>
   <div class="stack" style="max-width:760px" id="evform">
   ${editing?'':`<div class="seg"><button class="${m==='kinesica'?'on':''}" onclick="evSwitch('kinesica')">Ficha kinésica</button><button class="${m==='funcional'?'on':''}" onclick="evSwitch('funcional')">Evaluación funcional</button></div>`}
@@ -2382,9 +2766,27 @@ function vEvaluar(){
   ${m==='kinesica' ? `<section class="card stack"><div class="eyebrow" style="color:var(--blue)">Examen clínico</div>
     ${f('motivo','Motivo de consulta','Ej: dolor lateral de rodilla al correr')}
     ${a('anamnesis','Anamnesis (historia, mecanismo, evolución)','Refiere dolor desde…')}
-    <div class="grid2">${f('eva','Dolor EVA (0–10)','','num')}${f('sesiones','Sesiones planificadas','10','num')}</div>
-    ${a('rom','Examen físico: ROM / goniometría / fuerza','Flexión de rodilla 110°, Daniels 4/5…',3)}
-    ${a('pruebas','Pruebas especiales y palpación','Lachman (+), McMurray (−)…',3)}
+    <div class="grid2">${f('eva','Dolor EVA (0–10)','','num')}${f('sesiones','Sesiones planificadas','10','num')}</div></section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Mapa corporal del dolor</div>
+    <div class="body-map" id="ev-body">${bodySVG('f',d.zonas||[])}${bodySVG('p',d.zonas||[])}</div>
+    <div class="xs muted" id="ev-zonas">${esc(zonasTxt(d).split(', ').join(' · '))||'Toca las zonas donde la persona refiere dolor.'}</div>
+    <span class="lbl">Tipo de dolor</span><div class="row" style="gap:6px;flex-wrap:wrap">${DOLOR_TIPO.map(t=>`<label class="pill pchk"><input type="checkbox" data-dt value="${t}" ${(d.dolorTipo||[]).includes(t)?'checked':''}>${t}</label>`).join('')}</div>
+    <div class="grid2">${f('agrava','Lo agrava','Escaleras, sentado más de 30 min…')}${f('alivia','Lo alivia','Reposo, calor, movimiento…')}</div></section>
+  <section class="card stack"><div class="row between"><div class="eyebrow" style="color:var(--red)">Banderas rojas</div><button class="btn ghost sm" onclick="rfTodoNo()">Resto en No</button></div>
+    <div>${rfHTML(d)}</div><div id="ev-rf" class="note">${rfNote(rfv.filter(x=>x==='Sí').length, rfv.length)}</div></section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Examen físico</div>
+    <label class="field"><span class="lbl">Lado afectado (para el índice de simetría LSI)</span><select class="inp" id="ev-lado" data-k="lado" onchange="lsiTodo()"><option value="">Sin lado afectado / bilateral</option><option value="D" ${d.lado==='D'?'selected':''}>Derecho</option><option value="I" ${d.lado==='I'?'selected':''}>Izquierdo</option></select></label>
+    <div class="sec-sub">Goniometría (°)</div><div class="row" style="gap:6px;flex-wrap:wrap">${Object.keys(GONIO).map(k=>`<button class="pill" onclick="goAdd('${k}')">+ ${k}</button>`).join('')}<button class="pill" onclick="goAdd('')">+ Otro</button></div>
+    <div class="g4h"><span>Derecho</span><span>Izquierdo</span><span>Normal</span><span>Simetría</span></div><div class="tbl" id="ev-gonio">${(d.gonio||[]).map(goRow).join('')}</div>
+    <div class="sec-sub">Fuerza muscular (Daniels 0–5 o dinamometría)</div><div class="row" style="gap:6px;flex-wrap:wrap">${Object.keys(FZM).map(k=>`<button class="pill" onclick="fuAdd('${k}')">+ ${k}</button>`).join('')}<button class="pill" onclick="fuAdd('')">+ Otro</button></div>
+    <div class="g4h"><span>Derecho</span><span>Izquierdo</span><span>Unidad</span><span>Simetría</span></div><div class="tbl" id="ev-fzm">${(d.fzm||[]).map(fuRow).join('')}</div>
+    <div class="xs muted">LSI = lado afectado ÷ lado sano × 100. Sin lado afectado se compara el menor con el mayor. Bajo 90 % se marca en rojo.</div>
+    ${a('rom','Observaciones del examen físico','Observación, palpación, tono, end-feel…',2)}
+    ${a('pruebas','Pruebas especiales y palpación','Lachman (+), McMurray (−)…',3)}</section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Screening neurológico</div><div class="xs muted">Deja en blanco lo que no evaluaste. "Todo normal" completa un grupo de una vez.</div>${neuroHTML(d)}</section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Perímetros y composición corporal</div>${perimHTML(d, prevD)}</section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Escalas y cuestionarios</div>${escResumenEval(p)}</section>
+  <section class="card stack"><div class="eyebrow" style="color:var(--blue)">Diagnóstico y plan</div>
     ${a('dx','Diagnóstico kinésico','Diagnóstico funcional')}
     ${a('plan','Objetivos y plan de tratamiento','Objetivos, técnicas, frecuencia…')}</section>`
   : `<section class="card stack"><div class="row between"><div class="eyebrow">Perfil evaluativo</div></div>
@@ -2393,6 +2795,7 @@ function vEvaluar(){
   <section class="card stack"><div class="eyebrow">1 · Antropometría y signos vitales</div>
     <div class="grid2">${f('peso','Peso (kg)','74','num')}${f('talla','Talla (cm)','170','num')}</div><div id="ev-imc" class="note hidden"></div>
     <div class="grid2">${f('pa','Presión arterial','120/80')}${f('fcr','FC reposo (lpm)','65','num')}</div><div class="grid2">${f('spo2','SpO2 (%)','98','num')}${f('pasos','Pasos promedio','8000','num')}</div></section>
+  <section class="card stack"><div class="eyebrow">1b · Perímetros y composición corporal</div>${perimHTML(d, prevD)}</section>
   <section class="card stack"><div class="eyebrow">2 · Bienestar y dinamometría</div>
     <div class="grid2">${f('w_hrs','Horas de sueño','7.5','num')}${f('w_desc','Sensación de descanso (1–7)','5','num')}</div>
     <div class="grid2">${f('w_agua','Agua (litros)','2','num')}${f('w_ene','Energía / motivación (1–7)','6','num')}</div>
@@ -2417,8 +2820,16 @@ window.fzCalc = el => { const r=el.closest('.trow'), c=rmCalc(+r.querySelector('
 window.evAdd = t => { const box=$('#ev-'+t); box.insertAdjacentHTML('beforeend', t==='mov'?movRow({}):t==='fuerza'?fzRow({tipo:'calc'}):tsRow({})); };
 function evCollect(){
   const d={...S.evDraft}; document.querySelectorAll('#evform [data-k]').forEach(i=>d[i.dataset.k]=i.value.trim());
+  const g=(r,c)=>{ const x=r.querySelector(c); return x?x.value.trim():''; };
+  if(d.tipo==='kinesica' && $('#ev-body')){
+    d.zonas=[...document.querySelectorAll('#ev-body .z.on')].map(z=>z.dataset.z);
+    d.dolorTipo=[...document.querySelectorAll('#evform [data-dt]:checked')].map(i=>i.value);
+    d.rf={}; RED_FLAGS.forEach((_,i)=>{ const x=document.querySelector(`#evform input[name="rf-${i}"]:checked`); if(x) d.rf[i]=x.value; });
+    d.neuro={}; document.querySelectorAll('#evform [data-nv]').forEach(s=>{ if(s.value) (d.neuro[s.dataset.nv]=d.neuro[s.dataset.nv]||{})[s.dataset.s]=s.value; });
+    d.gonio=[...document.querySelectorAll('#ev-gonio .trow')].map(r=>({mov:g(r,'.t-mov'), d:g(r,'.t-d'), i:g(r,'.t-i'), ref:g(r,'.t-ref'), pd:r.dataset.pd, pi:r.dataset.pi})).filter(x=>x.mov);
+    d.fzm=[...document.querySelectorAll('#ev-fzm .trow')].map(r=>({mus:g(r,'.t-mov'), d:g(r,'.t-d'), i:g(r,'.t-i'), u:g(r,'.t-u'), pd:r.dataset.pd, pi:r.dataset.pi})).filter(x=>x.mus);
+  }
   if(d.tipo==='funcional'){
-    const g=(r,c)=>{ const x=r.querySelector(c); return x?x.value.trim():''; };
     d.bat={}; document.querySelectorAll('#evform [data-b]').forEach(i=>{ if(i.value.trim()) d.bat[i.dataset.b]=i.value.trim(); });
     d.mov=[...document.querySelectorAll('#ev-mov .trow')].map(r=>({mov:g(r,'.t-mov'), dos:g(r,'.t-dos'), dolor:g(r,'.t-dol'), obs:g(r,'.t-obs')})).filter(x=>x.mov);
     d.fuerza=[...document.querySelectorAll('#ev-fuerza .trow')].map(r=>({name:g(r,'.t-name'), tipo:r.dataset.tipo, kg:g(r,'.t-kg'), reps:g(r,'.t-reps'), res:g(r,'.t-res'), obs:g(r,'.t-obs')})).filter(x=>x.name);
@@ -2432,6 +2843,7 @@ window.evPob = pob => { const d=evCollect(); d.poblacion=pob;
   S.evDraft=d; keepScroll(render); };
 document.addEventListener('input', e => {
   const id=e.target.id||'';
+  if(/^ev-(per_|pl_|comp_|talla)/.test(id)){ const b=$('#ev-per'); if(b){ const dd={}; document.querySelectorAll('#evform [data-k]').forEach(i=>dd[i.dataset.k]=i.value); const c=perimCalc(dd); b.classList.toggle('hidden',!c.length); b.innerHTML=`${ic('info','s')}<span>${esc(c.join(' · '))}</span>`; } }
   if(['ev-peso','ev-talla','ev-edad'].includes(id)){ const pe=+val('ev-peso'), ta=+val('ev-talla'), ed=+val('ev-edad'), b=$('#ev-imc'); if(!b) return;
     const parts=[]; if(pe&&ta){ const imc=pe/Math.pow(ta/100,2); parts.push(`IMC <b>${imc.toFixed(1)}</b> · ${imc<18.5?'bajo peso':imc<25?'normopeso':imc<30?'sobrepeso':'obesidad'}`); } if(ed) parts.push(`FC máx. teórica <b>${220-ed}</b> lpm`);
     b.classList.toggle('hidden',!parts.length); b.innerHTML=`${ic('info','s')}<span>${parts.join(' · ')}</span>`; }
@@ -2446,7 +2858,16 @@ function evalLines(d){
     if(has('motivo')) L.push(`<strong>Motivo:</strong> ${V('motivo')}`);
     if(has('anamnesis')) L.push(`<strong>Anamnesis:</strong> ${V('anamnesis')}`);
     if(has('eva')) L.push(`<strong>Dolor EVA:</strong> ${V('eva')}/10`);
+    const zt=zonasTxt(d), dt=d.dolorTipo||[]; if(zt||dt.length) L.push(`<strong>Localización del dolor:</strong> ${esc(zt||'—')}${dt.length?` · ${esc(dt.join(', ').toLowerCase())}`:''}`);
+    if(has('agrava')||has('alivia')) L.push(`<strong>Comportamiento del dolor:</strong> ${[has('agrava')?`agrava ${V('agrava')}`:'', has('alivia')?`alivia ${V('alivia')}`:''].filter(Boolean).join(' · ')}`);
+    const rf=d.rf||{}, rk=Object.keys(rf); if(rk.length){ const pos=rk.filter(i=>rf[i]==='Sí').map(i=>RED_FLAGS[i]); L.push(`<span data-pro="1"><strong>Banderas rojas:</strong> ${pos.length?`<b style="color:var(--red)">${esc(pos.join('; '))}</b>`:`negativas (${rk.length} evaluadas)`}</span>`); }
+    if(d.lado && ((d.gonio||[]).length||(d.fzm||[]).length)) L.push(`<strong>Lado afectado:</strong> ${d.lado==='D'?'derecho':'izquierdo'}`);
+    (d.gonio||[]).filter(r=>r.d||r.i).forEach(r=>{ const l=lsiOf(r.d,r.i,d.lado); L.push(`<strong>ROM ${esc(r.mov)}:</strong> ${[r.d?`D ${esc(r.d)}°`:'', r.i?`I ${esc(r.i)}°`:''].filter(Boolean).join(' · ')}${r.ref!==''&&r.ref!=null?` (normal ${esc(r.ref)}°)`:''}${l!=null?` · LSI ${Math.round(l)} %`:''}`); });
+    (d.fzm||[]).filter(r=>r.d||r.i).forEach(r=>{ const u=(r.u||'Daniels')==='Daniels'?'/5':' '+r.u, l=lsiOf(r.d,r.i,d.lado); L.push(`<strong>Fuerza ${esc(r.mus)}:</strong> ${[r.d?`D ${esc(r.d)}${esc(u)}`:'', r.i?`I ${esc(r.i)}${esc(u)}`:''].filter(Boolean).join(' · ')}${l!=null?` · LSI ${Math.round(l)} %`:''}`); });
+    const hq=hqTxt(d); if(hq) L.push(`<strong>Ratio isquiotibiales/cuádriceps:</strong> ${hq}`);
     if(has('rom')) L.push(`<strong>Examen físico:</strong> ${V('rom')}`);
+    const nt=neuroTxt(d); if(nt) L.push(`<strong>Screening neurológico:</strong> ${esc(nt)}`);
+    L.push(...perimLines(d));
     if(has('pruebas')) L.push(`<strong>Pruebas especiales:</strong> ${V('pruebas')}`);
     if(has('dx')) L.push(`<strong>Diagnóstico kinésico:</strong> ${V('dx')}`);
     if(has('plan')) L.push(`<strong>Objetivos y plan:</strong> ${V('plan')}`);
@@ -2455,6 +2876,7 @@ function evalLines(d){
     if(has('enfoque')) L.push(`<strong>Enfoque:</strong> ${V('enfoque')}`);
     if(has('comorbilidades')||has('lesiones')) L.push(`<strong>Antecedentes:</strong> ${[d.comorbilidades,d.lesiones].filter(Boolean).map(esc).join(' · ')}`);
     const pe=+d.peso, ta=+d.talla; if(pe||ta) L.push(`<strong>Antropometría:</strong> ${V('peso')||'—'} kg · ${V('talla')||'—'} cm${pe&&ta?` · IMC ${(pe/Math.pow(ta/100,2)).toFixed(1)}`:''}`);
+    L.push(...perimLines(d));
     if(has('pa')||has('fcr')||has('spo2')) L.push(`<strong>Signos vitales:</strong> PA ${V('pa')||'—'} · FCR ${V('fcr')||'—'} lpm · SpO2 ${V('spo2')||'—'}%${+d.edad?` · FC máx ${220-+d.edad}`:''}`);
     if(has('w_hrs')||has('w_ene')) L.push(`<strong>Bienestar:</strong> sueño ${V('w_hrs')||'—'} h · descanso ${V('w_desc')||'—'}/7 · agua ${V('w_agua')||'—'} L · energía ${V('w_ene')||'—'}/7 · estrés ${V('w_str')||'—'}/7 · fatiga ${V('w_fat')||'—'}/7`);
     if(has('hgd')||has('hgi')) L.push(`<strong>Handgrip:</strong> D ${V('hgd')||'—'} kg · I ${V('hgi')||'—'} kg`);
@@ -2468,7 +2890,7 @@ function evalLines(d){
   return L;
 }
 window.guardarEvaluacion = async () => {
-  const p=prof(S.proArg), d=evCollect(), L=evalLines(d); if(L.length<2) return toast('Completa al menos un campo','err');
+  const p=prof(S.proArg), d=evLimpio(evCollect()), L=evalLines(d); if(L.length<2) return toast('Completa al menos un campo','err');
   const editing = S.editEval ? S.all.find(x=>x.id===S.editEval && x.org===p.org) : null;
   const target = editing || {...JSON.parse(JSON.stringify(p)), id:Math.max(Date.now(), p.id+1)};
   Object.assign(target, {fecha:d.fecha||todayISO(), klgo:d.klgo, resultados:L, evalData:d, evalTipo:d.tipo, edad:d.edad||p.edad, deporte:d.deporte||p.deporte,
@@ -2968,7 +3390,7 @@ function informeAlta(p){
 ${n?`<p class="c"><b>Fechas de atención (${n} sesiones)</b></p><table class="fx">${[...Array(half).keys()].map(fila).join('')}</table>`:''}
 <p><b>Sintomatología:</b> ${ena?`Dolor ENA ${E(ena.eva)}/10 en la última sesión registrada.`:''} [Describe el estado actual del usuario/a.]</p>
 <p><b>Evaluación de fuerza y rendimiento final:</b> ${res.length?E(res.join('. '))+'.':'[Resultados de la evaluación final: dinamometría, simetría (LSI), pruebas funcionales…]'}</p>
-<p><b>Capacidad funcional y resistencia:</b> [Pruebas funcionales y su interpretación.]</p>
+<p><b>Capacidad funcional y resistencia:</b> ${escalasTexto(p,true)?`Escalas (inicial → final): ${E(escalasTexto(p,true))}. `:''}[Pruebas funcionales y su interpretación.]</p>
 <p>Usuario/a finaliza satisfactoriamente su plan de ${n||rehabPlan(p)||'—'} sesiones con alta kinésica de fase. [Conclusión clínica.]</p>
 <p><b>Sugerencias:</b> [Indicaciones para la continuidad: progresión deportiva, rutina de fuerza, ergonomía, controles.]</p>
 <p class="c"><b>Se extiende el presente informe a solicitud del/la usuario/a para los fines que estime conveniente.</b></p>
@@ -2990,6 +3412,7 @@ function informeDraft(p){
 <p>${ant}</p>
 <p>Ingresa a ${per==='entrenamiento'?'evaluación y entrenamiento':'tratamiento kinesiológico'} el ${firstDate?parseISO(firstDate).toLocaleDateString('es-CL'):'—'}${p.diagnostico?`, con diagnóstico:<br><b>${E(p.diagnostico)}</b>`:'.'}</p>
 ${bullets?`<p><b>Evaluación destaca:</b></p><ul>${bullets}</ul>`:''}
+${escalasTexto(p,false)?`<p><b>Escalas y cuestionarios:</b> ${E(escalasTexto(p,false))}.</p>`:''}
 <p><b>Objetivo general:</b> ${E(ed.plan||'[Describe el objetivo general del tratamiento]')}</p>
 ${rehabPlan(p)?`<p><b>Se proyecta un plan inicial de ${rehabPlan(p)} sesiones.</b></p>`:''}
 <p><b>A la fecha ${fmtLong(new Date())}, ${u} ha completado ${ss.length} sesiones${ss.length?', donde realiza:':'.'}</b> ${E(notas)}</p>

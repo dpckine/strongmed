@@ -101,7 +101,9 @@
       if (tgt) { const s = sp.s ?? (front ? (i === 1 ? 1 : -1) : -1);[a, e] = ik(root, tgt, L.ua * us, L.fa * fs, s); }
       if (a === undefined) { a = DEF.a1; e = DEF.e1; }
       const el = mv(root, a, L.ua * us), wr = mv(el, e, L.fa * fs);
-      const hd = mv(wr, e + (p['w' + i] || 0), L.hand * Math.min(1, fs + 0.3));
+      let hd = mv(wr, e + (p['w' + i] || 0), L.hand * Math.min(1, fs + 0.3));
+      // mano apoyada en el suelo: palma plana y dedos hacia adelante
+      if (!front && tgt && tgt[1] >= 175) hd = [wr[0] + L.hand, Math.min(wr[1], FLOOR - 2)];
       r['a' + i] = a; r['e' + i] = e; r['el' + i] = el; r['wr' + i] = wr; r['hd' + i] = hd; r['tg' + i] = tgt || wr;
     };
     // ---- piernas
@@ -1177,7 +1179,7 @@
   });
   add('pushup', 'Flexión de brazos', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
-    frames: [{}, plank([134, 160], [12, 179], { h: -6 })]
+    frames: [{}, plank([140, 162], [12, 179], { h: -6 })]
   });
   add('pushup_knee', 'Flexión de brazos de rodillas', {
     base: kneePlank([132, 131], [58, 178], { H1: [134, 182], h: -6 }),

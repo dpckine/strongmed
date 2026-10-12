@@ -777,12 +777,20 @@ function fromLegacyKAH(x){
     diarios:[], rutinasAsignadas:[], checkins:[], citas:[], avisos:[] };
 }
 const getQ = (src, q) => src==='cache' && S.fb.getDocsFromCache ? S.fb.getDocsFromCache(q) : S.fb.getDocs(q);
+const syncKey = org => `sm_sync_${org}_${S.role||''}`;
+const syncGet = org => { try{ return JSON.parse(localStorage.getItem(syncKey(org)))||{}; }catch(e){ return {}; } };
 async function loadOrg(org, src){
-  const F=S.fb, db=S.dbs[org], out=[];
-  const snap=await getQ(src, F.collection(db,'evaluaciones'));
-  snap.forEach(d=>{ const x=d.data(); if(x && x.rut){ x.org=x.org||org; out.push(x); } });
+  const F=S.fb, db=S.dbs[org], out=[], col=F.collection(db,'evaluaciones'), now=Date.now(), sy=syncGet(org);
+  let snapDocs=null, inc=false;
+  // con datos en el teléfono: se leen de ahí (gratis) y del servidor solo lo modificado desde la última vez; una vez al día se refresca todo
+  if(src!=='cache' && sy.t && now-(sy.full||0) < 24*3600e3 && F.getDocsFromCache && F.where){
+    try{ const [loc, cambios]=await Promise.all([F.getDocsFromCache(col), F.getDocs(F.query(col, F.where('upd','>', sy.t - 3600e3)))]);
+      if(loc.size){ const m=new Map(); loc.forEach(d=>m.set(d.id,d)); cambios.forEach(d=>m.set(d.id,d)); snapDocs=[...m.values()]; inc=true; S._sync=(S._sync||0)+cambios.size; } }catch(e){ console.warn('sync parcial', e); } }
+  if(!snapDocs){ const snap=await getQ(src, col); snapDocs=[]; snap.forEach(d=>snapDocs.push(d)); if(src!=='cache') sy.full=now; }
+  if(src!=='cache'){ sy.t=now; try{ localStorage.setItem(syncKey(org), JSON.stringify(sy)); }catch(e){} }
+  snapDocs.forEach(d=>{ const x=d.data(); if(x && x.rut){ x.org=x.org||org; out.push(x); } });
   if(org==='kah'){
-    try{ const ruts=new Set(out.map(x=>normRut(x.rut))); const ls=await getQ(src, F.collection(db,'patients'));
+    try{ const ruts=new Set(out.map(x=>normRut(x.rut))), pc=F.collection(db,'patients'); let ls=await getQ(inc?'cache':src, pc); if(inc && !ls.size) ls=await getQ(src, pc);
       ls.forEach(d=>{ const x=d.data(); if(x && x.rut && !ruts.has(normRut(x.rut))) out.push(fromLegacyKAH(x)); }); }
     catch(e){ console.warn('Sin colección antigua patients', e); }
   }
@@ -804,7 +812,7 @@ let offToast=0;
 async function fsWrite(p){ const TO=Symbol(); const r=await Promise.race([p, new Promise(res=>setTimeout(()=>res(TO), navigator.onLine?8000:1200))]);
   if(r===TO){ if(Date.now()-offToast>6000){ offToast=Date.now(); toast('Guardado en el teléfono · se sincroniza al volver internet'); } p.catch(e=>console.error(e)); } return true; }
 async function save(item){
-  item.org = item.org || 'sm'; item.rutN = normRut(item.rut); delete item.legacyKAH;
+  item.org = item.org || 'sm'; item.rutN = normRut(item.rut); delete item.legacyKAH; item.upd = Date.now();
   const data=JSON.parse(JSON.stringify(item)); if(item._oralSep){ delete data.oral; delete data._oralSep; }
   const i=S.all.findIndex(x=>x.id===item.id && x.org===item.org); if(i>-1) S.all[i]=item; else S.all.push(item);
   if(!S.fb){ toast('Sin conexión: no se guardó','err'); return false; }
@@ -919,6 +927,26 @@ function celebrar(){ if(matchMedia('(prefers-reduced-motion: reduce)').matches) 
   for(let i=0;i<22;i++){ const b=document.createElement('i'), a=Math.random()*Math.PI*2, d=90+Math.random()*130; b.style.setProperty('--x',`${Math.cos(a)*d}px`); b.style.setProperty('--y',`${Math.sin(a)*d-60}px`); b.style.animationDelay=`${Math.random()*80}ms`; if(i%3===0) b.className='w'; box.appendChild(b); }
   document.body.appendChild(box); try{ navigator.vibrate&&navigator.vibrate([20,40,20]); }catch(e){} setTimeout(()=>box.remove(), 1300); }
 window.celebrar = celebrar;
+/* ---- reportar un problema: llega al administrador con datos del dispositivo y últimos errores ---- */
+S.errLog=[]; const logErr=m=>{ S.errLog.push(`${new Date().toLocaleTimeString('es-CL')} ${String(m).slice(0,300)}`); if(S.errLog.length>12) S.errLog.shift(); };
+window.addEventListener('error', e=>logErr(e.message+(e.filename?` @${String(e.filename).split('/').pop()}:${e.lineno}`:''))); window.addEventListener('unhandledrejection', e=>logErr('Promesa: '+((e.reason&&e.reason.message)||e.reason)));
+window.sheetReporte = () => sheet(`<h2 class="disp h2">Reportar un problema</h2><p class="muted sm" style="margin-top:6px">Cuéntanos qué pasó. Junto con tu mensaje se envía la pantalla en que estabas y el tipo de teléfono, para encontrar el error más rápido.</p>
+  <div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">¿Qué pasó?</span><textarea class="inp" id="rp-x" rows="5" placeholder="Ej: al guardar el entrenamiento se quedó cargando y no aparece en mi progreso"></textarea></label>
+  <div class="pills" style="flex-wrap:wrap" id="rp-t">${['Error o falla','Algo no se ve bien','Sugerencia'].map((t,i)=>`<button class="pill ${i===0?'on':''}" onclick="document.querySelectorAll('#rp-t .pill').forEach(b=>b.classList.toggle('on',b===this))">${t}</button>`).join('')}</div>
+  <button class="btn pri block" onclick="enviarReporte()">${ic('send','s')} Enviar</button></div>`);
+window.enviarReporte = async () => { const x=String($('#rp-x')?.value||'').trim(); if(!x) return toast('Describe el problema','err');
+  const u=S.role==='pro'?{rol:'profesional', nombre:S.pro.nombre, usuario:S.pro.usuario}:{rol:'paciente', nombre:me()?.nombre||'', rut:me()?.rut||''};
+  const r={id:String(uid()), fecha:new Date().toISOString(), tipo:($('#rp-t .pill.on')||{}).textContent||'Error o falla', texto:x, ...u, pantalla:S.role==='pro'?S.proTab:S.patTab, app:(document.querySelector('meta[name=sm-version]')||{}).content||'', ua:navigator.userAgent, pant:`${innerWidth}×${innerHeight}`, instalada:!!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches), online:navigator.onLine, errores:S.errLog.slice(-8), estado:'nuevo'};
+  if(await fsSet('reportes', r.id, r)){ closeSheet(); toast('¡Gracias! Recibimos tu reporte'); } };
+async function loadReportes(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'reportes')); const a=[]; sn.forEach(d=>a.push(d.data())); S.reportes=a.sort((x,y)=>String(y.fecha).localeCompare(String(x.fecha))); }catch(e){ console.warn(e); S.reportes=[]; } }
+function vReportes(){ if(!isAdmin()) return `<div class="card empty">Solo la cuenta principal ve los reportes.</div>`;
+  if(!S.reportes){ S.after.push(async()=>{ await loadReportes(); if(S.proTab==='reportes') keepScroll(render); }); }
+  const rs=S.reportes||[], nuevos=rs.filter(r=>r.estado!=='resuelto');
+  return `${proHead('Beta y soporte','Reportes')}<div class="stack" style="max-width:760px">${!S.reportes?'<div class="card empty">Cargando…</div>':rs.length?`<div class="xs muted">${nuevos.length} sin resolver · ${rs.length} en total</div>`+rs.map(r=>`<section class="card stack ${r.estado==='resuelto'?'':'objc'}"><div class="row between"><span class="badge ${r.estado==='resuelto'?'':'acc'}">${esc(r.tipo)}</span><span class="xs muted">${new Date(r.fecha).toLocaleString('es-CL')}</span></div>
+    <p class="sm" style="white-space:pre-line">${esc(r.texto)}</p><div class="xs muted">${esc(r.nombre||'')} (${esc(r.rol)}) · pantalla: ${esc(r.pantalla||'')} · ${esc(r.pant||'')} · ${r.instalada?'app instalada':'navegador'}${r.online===false?' · sin internet':''}</div>
+    <details><summary class="xs b acc-t">Detalles técnicos</summary><div class="xs muted" style="margin-top:6px;word-break:break-word">${esc(r.ua)}${(r.errores||[]).length?`<br><br><b>Errores:</b><br>${r.errores.map(esc).join('<br>')}`:''}</div></details>
+    <div class="row" style="justify-content:flex-end">${r.estado==='resuelto'?'<span class="xs b acc-t">Resuelto ✓</span>':`<button class="btn sec sm" onclick="resolverReporte(${q(r.id)})">${ic('check','s')} Marcar resuelto</button>`}</div></section>`).join(''):'<div class="card empty">Sin reportes por ahora 🎉</div>'}</div>`; }
+window.resolverReporte = async id => { const r=(S.reportes||[]).find(x=>x.id===id); if(!r) return; r.estado='resuelto'; if(await fsSet('reportes', r.id, r)) keepScroll(render); };
 const temaOscuro = () => (localStorage.getItem('sm_theme')||'dark')!=='light';
 const themeBtn = () => `<button class="hbtn tbtn" onclick="sheetApariencia()" aria-label="${temaOscuro()?'Cambiar a modo claro':'Cambiar a modo oscuro'}" title="${temaOscuro()?'Modo claro':'Modo oscuro'}">${ic(temaOscuro()?'sun':'moon')}</button>`;
 window.sheetApariencia = () => { const t=temaOscuro()?'dark':'light', c=localStorage.getItem('sm_color')||'#ccff33';
@@ -1651,6 +1679,7 @@ function vPerfil(p){
   ${'Notification' in window ? `<div class="list"><button class="li" onclick="pedirNotis()"><span class="ico">${ic('bell','s')}</span><span class="grow">Notificaciones en este teléfono</span><span class="xs b ${Notification.permission==='granted'?'acc-t':'muted'}">${Notification.permission==='granted'?'Activadas':'Activar'}</span></button></div>`:''}
   ${appearanceHTML()}
   ${installBtn()}
+  <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`;
 }
 window.subirAvatar = e => { const f=e.target.files[0]; if(!f) return; const img=new Image(), rd=new FileReader();
@@ -1910,7 +1939,7 @@ async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.b
 
 function shellPro(){
   const t=S.proTab, act=(t==='persona'||t==='evaluar'||t==='informe')?'personas':t;
-  const views={inicio:vProInicio, personas:vPersonas, nueva:vNueva, persona:vPersona, evaluar:vEvaluar, agenda:vAgendaPro, mensajes:vMensajes, mas:vMas, faq:vKinIA, biblioteca:vLib, profesionales:vProfesionales, ajustes:vAjustes, herramientas:vTools, informe:vInforme, uso:vUso};
+  const views={reportes:vReportes, inicio:vProInicio, personas:vPersonas, nueva:vNueva, persona:vPersona, evaluar:vEvaluar, agenda:vAgendaPro, mensajes:vMensajes, mas:vMas, faq:vKinIA, biblioteca:vLib, profesionales:vProfesionales, ajustes:vAjustes, herramientas:vTools, informe:vInforme, uso:vUso};
   const od=isOdonto(); if(od){ Object.assign(views,{inicio:vOralInicio, nueva:vNuevaOral}); if(['herramientas','faq','biblioteca','evaluar','informe','profesionales'].includes(t)) S.proTab='inicio'; }
   const body=(views[S.proTab]||vProInicio)();
   const nav=[['inicio','home','Inicio'],['personas','users',od?'Pacientes':'Personas'],['nueva','plus','Nueva'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']];
@@ -1949,6 +1978,7 @@ function vProInicio(){
   <div class="grid4"><button class="stat acc" onclick="S.filt='todos';pgo('personas')"><b>${act.length}</b><span>Personas activas</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
   ${pend.length?`<div class="sec-t"><h2>Cuentas nuevas por habilitar</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.map(personRow).join('')}</div>`:''}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes de hora</h2><span class="badge acc">${sol.length}</span></div><div class="list">${sol.slice(0,6).map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre), right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>`:''}
+  ${recordatoriosHTML()}${respaldoCard()}
   <div class="cols2"><div class="stack"><div class="sec-t"><h2>Hoy en agenda</h2><button class="xs b acc-t" onclick="pgo('agenda')">Ver agenda</button></div>
     ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))},'agenda')">${citaHTML(c,{who:first(p.nombre)})}</button>`).join('')}</div>`:`<div class="card empty">Sin sesiones confirmadas para hoy.</div>`}
     <div class="sec-t"><h2>Requieren atención</h2><span class="badge ${al.length?'red':''}">${al.length}</span></div>
@@ -2219,7 +2249,8 @@ window.stopChat = stopChat;
 
 /* ---- Más / Profesionales / Ajustes ---- */
 function vMas(){ return `<header class="top"><h1 class="disp h1">Más</h1></header><div class="stack"><div class="list">
-  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['herramientas','target','Herramientas y calculadoras'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="pgo('${k}')"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
+  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['herramientas','target','Herramientas y calculadoras'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="pgo('${k}')"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
+  <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }
 function vProfesionales(){
   if(!isAdmin()) return `<div class="card empty">Solo la cuenta principal puede administrar profesionales.</div>`;
@@ -2280,13 +2311,31 @@ function vAjustes(){ const ag=myAgenda();
     ${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(ag.id)})">Guardar</button></section>
   <div class="sec-t"><h2>Seguridad</h2></div>${seguridadCard()}<button class="btn sec block" onclick="sheetClave()">${ic('lock','s')} Cambiar mi contraseña</button>
   <div class="sec-t"><h2>Apariencia</h2></div>${appearanceHTML()}
-  <div class="sec-t"><h2>Datos</h2></div><div class="list"><button class="li" onclick="exportDB()"><span class="ico">${ic('download','s')}</span><span class="grow">Descargar respaldo (.json)</span></button>
+  <div class="sec-t"><h2>Datos</h2></div>${isAdmin()?respaldoAjustesHTML():''}<div class="list"><button class="li" onclick="exportDB()"><span class="ico">${ic('download','s')}</span><span class="grow">Descargar respaldo (.json)</span></button>
     <label class="li" style="cursor:pointer"><span class="ico">${ic('upload','s')}</span><span class="grow">Restaurar desde respaldo</span><input type="file" accept=".json" class="hidden" onchange="importDB(event)"></label></div>
   <div class="note">${ic('lock','s')}<span>Las fichas son datos de salud. Antes de cargar pacientes reales, configura las reglas de seguridad de ambos Firebase (ver LEEME).</span></div>
   ${installBtn()}
+  <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }
-window.exportDB = () => { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(S.all,null,2)],{type:'application/json'})); a.download=`StrongMed_respaldo_${todayISO()}.json`; a.click(); };
-window.importDB = e => { const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=async ev=>{ try{ const d=JSON.parse(ev.target.result); if(!Array.isArray(d)) throw 0; if(!confirm(`¿Importar ${d.length} registros? Los que tengan el mismo ID se sobrescriben.`)) return; for(const it of d){ if(!it.org) it.org = S.pro.org==='kah'?'kah':'sm'; await save(it); } await loadDB(); toast('Respaldo importado'); render(); }catch(x){ toast('Archivo no válido','err'); } }; r.readAsText(f); };
+/* respaldo completo: fichas, odontología, agendas, horas, ingresos y KIN IA */
+function respaldoDatos(){ return { app:'StrongMed', version:1, fecha:new Date().toISOString(), por:S.pro&&S.pro.nombre, fichas:S.all, odontologia:S.oralDocs||{}, agendas:S.agendas||[], jornadas:S.jornadas||[], ingresos:S.ingresos||[], faq:S.faq||[] }; }
+const respaldoNombre = () => `StrongMed_respaldo_${todayISO()}.json`;
+const respaldoUlt = () => { try{ return +localStorage.getItem('sm_backup_ts')||0; }catch(e){ return 0; } };
+function idbDir(op, val){ return new Promise(ok=>{ try{ const r=indexedDB.open('sm-respaldo',1); r.onupgradeneeded=()=>r.result.createObjectStore('k'); r.onsuccess=()=>{ const tx=r.result.transaction('k', op==='get'?'readonly':'readwrite'), st=tx.objectStore('k'); const q2=op==='get'?st.get('dir'):st.put(val,'dir'); q2.onsuccess=()=>ok(q2.result); q2.onerror=()=>ok(null); }; r.onerror=()=>ok(null); }catch(e){ ok(null); } }); }
+window.elegirCarpetaRespaldo = async () => { if(!window.showDirectoryPicker) return toast('Tu navegador no permite elegir carpeta: usa Chrome o Edge en el computador. Igual puedes descargar el respaldo.','err');
+  try{ const d=await showDirectoryPicker({id:'strongmed-respaldo', mode:'readwrite'}); await idbDir('put', d); toast(`Carpeta elegida: ${d.name}`); keepScroll(render); }catch(e){} };
+window.exportDB = async () => { const txt=JSON.stringify(respaldoDatos(),null,1), dir=await idbDir('get');
+  if(dir){ try{ if((await dir.queryPermission({mode:'readwrite'}))!=='granted' && (await dir.requestPermission({mode:'readwrite'}))!=='granted') throw 0;
+      const fh=await dir.getFileHandle(respaldoNombre(),{create:true}), w=await fh.createWritable(); await w.write(txt); await w.close();
+      try{ localStorage.setItem('sm_backup_ts', Date.now()); }catch(e){} toast(`Respaldo guardado en la carpeta ${dir.name}`); keepScroll(render); return; }catch(e){ console.warn(e); } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=respaldoNombre(); a.click(); try{ localStorage.setItem('sm_backup_ts', Date.now()); }catch(e){} toast('Respaldo descargado'); keepScroll(render); };
+function respaldoCard(){ if(!isAdmin()) return ''; const d=respaldoUlt(), dias=d?Math.floor((Date.now()-d)/864e5):null; if(d && dias<7) return '';
+  return `<section class="aviso acc"><span class="ico">${ic('download')}</span><div class="grow"><div class="b">Respaldo semanal</div><div class="xs muted">${d?`Tu último respaldo fue hace ${dias} días.`:'Aún no descargas un respaldo.'} Guarda una copia de todas las fichas en tu computador.</div></div><button class="btn pri sm" onclick="exportDB()">Respaldar</button></section>`; }
+function respaldoAjustesHTML(){ const d=respaldoUlt();
+  return `<section class="card stack"><div class="b">Respaldo semanal</div><div class="xs muted">${d?`Último respaldo: ${new Date(d).toLocaleDateString('es-CL')}.`:'Aún no hay respaldos.'} Cada 7 días te recordamos en Inicio.</div>
+    ${window.showDirectoryPicker?`<button class="btn sec block" onclick="elegirCarpetaRespaldo()">${ic('upload','s')} Elegir carpeta del computador</button><div class="xs muted">En el computador (Chrome o Edge) el respaldo se guarda directo en esa carpeta. En el celular se descarga a Descargas.</div>`:''}
+    <button class="btn pri block" onclick="exportDB()">${ic('download','s')} Respaldar ahora</button></section>`; }
+window.importDB = e => { const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=async ev=>{ try{ let d=JSON.parse(ev.target.result); if(d && Array.isArray(d.fichas)) d=d.fichas; if(!Array.isArray(d)) throw 0; if(!confirm(`¿Importar ${d.length} registros? Los que tengan el mismo ID se sobrescriben.`)) return; for(const it of d){ if(!it.org) it.org = S.pro.org==='kah'?'kah':'sm'; await save(it); } await loadDB(); toast('Respaldo importado'); render(); }catch(x){ toast('Archivo no válido','err'); } }; r.readAsText(f); };
 
 /* ================= EVALUACIONES (crear y editar) ================= */
 const PRESETS = {
@@ -3268,6 +3317,7 @@ function vOralInicio(){
   const enTrat=ps.filter(p=>oralPlan(p) && oralRest(p)>0);
   return `${proHead(fmtLong(new Date()), `Hola, <span class="acc-t">${esc(first(S.pro.nombre.replace(/^Dra?\.\s*/,'')))}</span>`)}<div class="stack">
   <div class="grid4"><button class="stat acc" onclick="pgo('personas')"><b>${ps.length}</b><span>Pacientes</span></button><button class="stat" onclick="pgo('personas')"><b>${enTrat.length}</b><span>En tratamiento</span></button><button class="stat" onclick="S.agSeg='solicitudes';pgo('agenda')"><b>${sol.length}</b><span>Solicitudes</span></button><button class="stat" onclick="S.agSeg='dia';S.agDate=todayISO();pgo('agenda')"><b>${hoy.length}</b><span>Citas hoy</span></button></div>
+  ${recordatoriosHTML()}
   <div class="sec-t"><h2>Pacientes de hoy</h2><button class="xs b acc-t" onclick="S.agSeg='dia';S.agDate=todayISO();pgo('agenda')">Agenda</button></div>
   ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))})"><div class="tbig">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${pagoPend(c)?' · pago pendiente':''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora hoy.</div>`}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes por confirmar</h2></div><div class="list">${sol.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})">${citaHTML(c,{who:p.nombre})}</button>`).join('')}</div>`:''}
@@ -3713,10 +3763,20 @@ function politicaCita(c){ return `Cambios de hora, cancelaciones y reembolsos se
 function waNum(tel){ let d=String(tel||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('56')) return d; if(d.length===9 && d[0]==='9') return '56'+d; if(d.length===8) return '569'+d; return d; }
 const waLink = (tel, txt) => { const n=waNum(tel); return n ? `https://wa.me/${n}?text=${encodeURIComponent(txt)}` : ''; };
 function waTexto(p, c, tipo){ const n=first(p.nombre), pro=(S.pro&&S.pro.nombre)||c?.pro||'', lug=c?`${lugarLabel(c)}${c.direccion?` (${c.direccion})`:''}`:'', cuando=c?`${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''}`:'';
-  if(tipo==='recordatorio') return `Hola ${n}, te recuerdo tu sesión de ${c.tipo||'atención'} el ${cuando} en ${lug}. Si necesitas cambiarla, avísame con al menos ${plazoCambio(c)} de anticipación. ${pro}`;
+  if(tipo==='recordatorio'){ const h=new Date().getHours(), sal=h<12?'buen día':h<20?'buenas tardes':'buenas noches', yo=String(pro).replace(/^(Klg[oa]\.|Dra?\.)\s*/i,'');
+    return `Hola ${n}, ${sal}. Soy ${yo}, te envío este mensaje para recordar tu cita del día ${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''}${lug?` en ${lug}`:''}. ¡Nos vemos! 💪\n\nSi necesitas cambiarla, avísame con al menos ${plazoCambio(c)} de anticipación.`; }
   if(tipo==='confirmar') return `Hola ${n}, recibimos tu solicitud de ${c.tipo||'atención'} para el ${cuando}${c.bloque&&!c.hora?` (${c.bloque==='AM'?'mañana':'tarde'})`:''} en ${lug}. ¿Te acomoda? Puedes revisarla en la app StrongMed. ${pro}`;
   if(tipo==='pago') return `Hola ${n}, para confirmar tu hora del ${cuando} falta registrar el pago previo${c?.pago?.link?`: ${c.pago.link}`:''}. Cuando pagues avísame por aquí o en la app. ${pro}`;
   return `Hola ${n}, te escribo desde StrongMed. ${pro}`; }
+/* recordar cita: abre WhatsApp con el mensaje y deja también el recordatorio dentro de la app */
+window.recordarCita = async (k, id) => { const p=prof(k), c=(p&&p.citas||[]).find(x=>String(x.id)===String(id)); if(!p||!c) return; const l=waLink(p.contacto, waTexto(p,c,'recordatorio'));
+  if(l) window.open(l,'_blank','noopener'); else toast('Esta persona no tiene teléfono registrado: el recordatorio queda solo en la app');
+  addAviso(p,'cita',`Recordatorio: tu cita es el ${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''} en ${lugarLabel(c)}. ¡Nos vemos!`); c.recordado=todayISO();
+  if(await save(p)){ toast('Recordatorio enviado'); keepScroll(render); } };
+function recordatoriosHTML(){ const td=todayISO(), m=new Date(); m.setDate(m.getDate()+1); const mn=iso(m);
+  const cs=allCitas().filter(x=>x.c.estado==='confirmada' && [td,mn].includes(toISO(x.c.fecha))).sort((a,b)=>String(toISO(a.c.fecha)+a.c.hora).localeCompare(String(toISO(b.c.fecha)+b.c.hora)));
+  if(!cs.length) return ''; const pend=cs.filter(x=>!x.c.recordado).length;
+  return `<div class="sec-t"><h2>Recordar citas (hoy y mañana)</h2><span class="badge ${pend?'acc':''}">${pend} por recordar</span></div><div class="list">${cs.map(({c,p})=>`<div class="li"><div class="tbig" style="min-width:52px">${esc(c.hora||'—')}</div><div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${toISO(c.fecha)===td?'Hoy':'Mañana'} · ${esc(c.tipo||'')} · ${esc(lugarLabel(c))}${c.recordado?` · <span class="acc-t b">recordada ✓</span>`:''}</div></div><button class="btn ${c.recordado?'sec':'pri'} sm" onclick="recordarCita(${q(keyOf(p))},${q(c.id)})">${ic('phone','s')} ${c.recordado?'Otra vez':'Recordar'}</button></div>`).join('')}</div>`; }
 function waBtn(p, c, tipo, cls='btn sec sm', label='WhatsApp'){ const l=waLink(p.contacto, waTexto(p,c,tipo)); return l ? `<a class="${cls}" href="${l}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('phone','s')} ${label}</a>` : ''; }
 
 /* ================= SESIÓN Y ARRANQUE ================= */

@@ -588,6 +588,12 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 </head>
 <body>
 <div id="app"></div>
+<div id="mudanza" class="hidden" style="position:fixed;left:12px;right:12px;bottom:calc(var(--tabh,70px) + 18px + env(safe-area-inset-bottom));z-index:9999;max-width:520px;margin:0 auto;background:var(--acc);color:var(--acc-ink,#111);border-radius:18px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:14px;line-height:1.4">
+  <b style="display:block;font-size:15px">StrongMed se cambió de dirección</b>
+  Ahora estamos en <b>strongmed.vercel.app</b>. Abre la nueva dirección e instálala de nuevo; entras con el mismo RUT y clave. Esta dirección dejará de funcionar pronto.
+  <div style="display:flex;gap:8px;margin-top:10px"><a href="https://strongmed.vercel.app/" style="flex:1;text-align:center;background:#111;color:#fff;border-radius:12px;padding:10px;font-weight:700;text-decoration:none">Abrir la nueva app</a><button onclick="this.closest('#mudanza').classList.add('hidden');try{sessionStorage.setItem('sm_mud','1')}catch(e){}" style="background:transparent;border:1.5px solid currentColor;border-radius:12px;padding:10px 14px;font-weight:700;color:inherit">Después</button></div>
+</div>
+<script>try{ if(/github\.io$/.test(location.hostname) && !sessionStorage.getItem('sm_mud')) document.getElementById('mudanza').classList.remove('hidden'); }catch(e){}</script>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
 <script src="js/sm-anim.js?v=24"></script>
 <script type="module">

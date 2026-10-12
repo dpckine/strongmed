@@ -2,7 +2,7 @@
 
 App de kinesiología, entrenamiento y odontología general.
 
-Publicada en: https://dpckine.github.io/strongmed/
+Publicada en: https://strongmed.vercel.app/
 
 
 ---

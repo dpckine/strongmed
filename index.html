@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   StrongMed × Kin At Home
-  © 2026 David Ponce Caro. Todos los derechos reservados.
+  © 2026 StrongMed × Kin At Home by Klgo. David Ponce. Todos los derechos reservados.
   Software protegido por la Ley N° 17.336 de Propiedad Intelectual (Chile).
   Se prohíbe copiar, modificar, distribuir o reutilizar este código, total o parcialmente, sin autorización escrita del autor.
 -->
@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="author" content="David Ponce Caro">
-<meta name="copyright" content="© 2026 David Ponce Caro. Todos los derechos reservados.">
+<meta name="copyright" content="© 2026 StrongMed × Kin At Home by Klgo. David Ponce. Todos los derechos reservados.">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060607">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1154,7 +1154,7 @@ function vLogin(){
         <button class="btn pri block" id="l-btn">Entrar al panel ${ic('chevr')}</button></form>`}
     ${installBtn()}
     <p class="xs muted center" style="margin-top:6px">StrongMed × Kin At Home · Concepción, Chile</p>
-    <p class="xs muted center" style="opacity:.7">© ${new Date().getFullYear()} David Ponce Caro · Todos los derechos reservados</p>
+    <p class="xs muted center" style="opacity:.7">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   </div></div>`;
 }
 function vSignup(){
@@ -1746,7 +1746,7 @@ function vPerfil(p){
   ${appearanceHTML()}
   ${installBtn()}
   <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
-  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} David Ponce Caro · Todos los derechos reservados</p>
+  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`;
 }
 window.subirAvatar = e => { const f=e.target.files[0]; if(!f) return; const img=new Image(), rd=new FileReader();
@@ -2336,7 +2336,7 @@ window.stopChat = stopChat;
 function vMas(){ return `<header class="top"><h1 class="disp h1">Más</h1></header><div class="stack"><div class="list">
   ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['herramientas','target','Herramientas y calculadoras'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="pgo('${k}')"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
   <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
-  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} David Ponce Caro · Todos los derechos reservados</p>
+  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }
 function vProfesionales(){
   if(!isAdmin()) return `<div class="card empty">Solo la cuenta principal puede administrar profesionales.</div>`;
@@ -2402,7 +2402,7 @@ function vAjustes(){ const ag=myAgenda();
   <div class="note">${ic('lock','s')}<span>Las fichas son datos de salud. Antes de cargar pacientes reales, configura las reglas de seguridad de ambos Firebase (ver LEEME).</span></div>
   ${installBtn()}
   <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
-  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} David Ponce Caro · Todos los derechos reservados</p>
+  <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }
 /* respaldo completo: fichas, odontología, agendas, horas, ingresos y KIN IA */
 function respaldoDatos(){ return { app:'StrongMed', version:1, fecha:new Date().toISOString(), por:S.pro&&S.pro.nombre, fichas:S.all, odontologia:S.oralDocs||{}, agendas:S.agendas||[], jornadas:S.jornadas||[], ingresos:S.ingresos||[], faq:S.faq||[] }; }

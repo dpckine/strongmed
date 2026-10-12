@@ -482,6 +482,32 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 .ll-b{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;color:#fff}.ll-b .icon{width:30px;height:30px}
 .ll-b.no{background:#ff4d4f}.ll-b.si{background:#22c55e;animation:llb 1s infinite alternate}
 @keyframes llb{to{transform:scale(1.08)}}
+
+/* ficha de ejercicio */
+.ejstage{position:relative;aspect-ratio:1;max-height:min(58vh,420px);margin:0 auto;width:100%;border-radius:22px;overflow:hidden;cursor:pointer;
+  background:radial-gradient(120% 90% at 50% 40%,#ffffff 55%,#eef0ea 100%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.ejstage .ejimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4%;opacity:0;transition:opacity .45s ease}
+.ejstage .ejimg.on{opacity:1}
+.ejstage.noanim{display:grid;place-items:center;cursor:default}.ejstage.noanim .ejimg{position:static;opacity:1}
+.ejlbl{position:absolute;left:12px;bottom:12px;background:rgba(10,10,11,.82);color:#fff;font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;letter-spacing:.01em}
+.ejpp{position:absolute;right:12px;bottom:12px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;opacity:0;transform:scale(.8);transition:.2s}
+.ejstage.paused .ejpp{opacity:1;transform:none}
+.ejth{display:flex;gap:8px;overflow-x:auto}
+.ejt{width:58px;flex:none;border-radius:12px;background:#fff;border:2px solid transparent;padding:0;overflow:hidden;position:relative}
+.ejt img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
+.ejt span{position:absolute;left:0;right:0;bottom:0;font-size:9.5px;font-weight:800;background:rgba(10,10,11,.75);color:#fff;text-transform:uppercase;letter-spacing:.04em;padding:2px 0}
+.ejt.on{border-color:var(--acc)}
+.ejchips{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-top:14px}
+.ejchip{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:9px 11px;min-width:0}
+.ejchip small{display:block;font-size:10.5px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.ejchip b{display:block;font-size:13.5px;margin-top:2px;overflow-wrap:anywhere;line-height:1.25}
+.ejchip.main{background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+.ejchip.main b{color:var(--acc-tx)}
+.ejsteps{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:0}
+.ejsteps li{display:flex;gap:12px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+.ejsteps .n{width:26px;height:26px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font-weight:800;font-size:12.5px;display:grid;place-items:center;flex:none}
+.ejsteps p{font-size:14.5px;line-height:1.5;margin:0;color:var(--tx)}
+.libc .im img{object-fit:contain;padding:6%}
 </style>
 </head>
 <body>
@@ -1172,7 +1198,7 @@ function faqPreview(){ if(!S.faq.length) return '';
   return `<div class="sec-t"><h2>Preguntas frecuentes</h2><button class="xs b acc-t" onclick="go('faq')">Ver todas</button></div><div class="list">${S.faq.slice(0,3).map(f=>`<details class="faq"><summary>${ic('help','s')}<span class="grow sm">${esc(f.pregunta)}</span>${ic('chevr','s')}</summary><div class="ans">${esc(f.respuesta)}</div></details>`).join('')}</div>`; }
 
 /* ---- Plan ---- */
-function exThumb(e){ const x=libFind(e.ejercicio, e.exId); return x ? `<button class="thumb" style="background-image:url('${media(x.img)}')" onclick="event.stopPropagation();verEj(${q(x.i)})" aria-label="Ver técnica"></button>` : ''; }
+function exThumb(e){ const x=libFind(e.ejercicio, e.exId); return x ? `<button class="thumb" style="background-image:url('${ejThumb(x)}')" onclick="event.stopPropagation();verEj(${q(x.i)})" aria-label="Ver técnica"></button>` : ''; }
 function routineCard(r){
   const ex=r.ejercicios||[];
   return `<article class="card rt ${r.completada?'done':''}"><div class="row between"><span class="badge ${r.creador==='user'?'':'acc'}">${r.creador==='user'?'Mi rutina':'De tu kine'}</span><span class="xs muted">${fmtDate(r.fecha)}${r.tiempo?` · ${esc(r.tiempo)} min`:''}</span></div>
@@ -1305,7 +1331,7 @@ function vEntrenar(p){
     <div class="bar" style="margin-top:12px"><i id="wo-bar" style="width:${tot?dn/tot*100:0}%"></i></div>
     <div class="row" style="margin-top:12px;gap:8px"><span class="xs muted b grow" id="wo-stats">${dn} de ${tot} series</span><button class="btn sec sm" onclick="cancelWorkout()">Descartar</button><button class="btn pri sm" onclick="finishSheet()">${ic('check','s')} Terminar</button></div></header>
   <div class="stack" style="margin-top:12px">
-  ${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<section class="card"><div class="row" style="align-items:flex-start">${x?`<button class="thumb" style="background-image:url('${media(x.img)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="h3">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${pv?`Anterior: ${esc(pv)}`:'Primera vez'} · descanso ${fmtClock(e.rest)}</div></div>${safeUrl(e.video)?`<a class="vid" href="${safeUrl(e.video)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''}<button class="ibtn" onclick="woRemoveEx(${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
+  ${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<section class="card"><div class="row" style="align-items:flex-start">${x?`<button class="thumb" style="background-image:url('${ejThumb(x)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="h3">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${pv?`Anterior: ${esc(pv)}`:'Primera vez'} · descanso ${fmtClock(e.rest)}</div></div>${safeUrl(e.video)?`<a class="vid" href="${safeUrl(e.video)}" target="_blank" rel="noopener">${ic('video','s')}</a>`:''}<button class="ibtn" onclick="woRemoveEx(${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
     <div class="setrow head"><span>#</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span></div>
     ${e.sets.map((s,j)=>`<div class="setrow ${s.done?'done':''}" id="sr-${i}-${j}"><span class="sn">${j+1}</span><input inputmode="decimal" value="${esc(s.kg)}" placeholder="—" oninput="woSet(${i},${j},'kg',this.value)"><input inputmode="numeric" value="${esc(s.reps)}" placeholder="—" oninput="woSet(${i},${j},'reps',this.value)"><input inputmode="numeric" value="${esc(s.rir)}" placeholder="—" oninput="woSet(${i},${j},'rir',this.value)"><button class="chk" onclick="woToggle(${i},${j})" aria-label="Serie hecha">${ic('check')}</button></div>`).join('')}
     <div class="row" style="margin-top:8px;gap:6px"><button class="btn ghost sm" onclick="woAddSet(${i})">${ic('plus','s')} Serie</button>${e.sets.length>1?`<button class="btn ghost sm" style="color:var(--mu)" onclick="woDelSet(${i})">Quitar última</button>`:''}</div></section>`; }).join('')}
@@ -1534,16 +1560,39 @@ function vLib(){
 }
 const fold = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function libGrid(){ const t=fold(S.libQ); const r=S.lib.filter(x=>(!S.libC||x.c===S.libC) && (!t || fold(x.n+' '+x.en+' '+x.m+' '+x.q).includes(t)));
-  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.img?`<img src="${media(x.img)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
+  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.img||x.b?`<img src="${ejThumb(x)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
 window.libGrid = libGrid;
-window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); if(!x) return;
-  sheet(`<div class="gifbox">${x.gif?`<img src="${media(x.gif)}" alt="${esc(x.n)}">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>
-  <h2 class="h3" style="font-size:20px;margin-top:14px">${esc(x.n)}</h2><div class="xs muted" style="margin-top:2px">${esc(x.en)}</div>
-  <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px"><span class="badge acc">${esc(x.c)}</span><span class="badge">${ic('target','s')}${esc(x.m)}</span><span class="badge">${esc(x.q)}</span></div>
-  ${x.s&&x.s.length?`<div class="xs muted" style="margin-top:10px">Secundarios: ${esc(x.s.join(', '))}</div>`:''}
-  ${x.p&&x.p.length?`<div class="sec-t"><h2>Cómo hacerlo</h2></div><ol class="steps" style="margin-top:8px">${x.p.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
-  ${x.gif?'<p class="xs muted center" style="margin-top:16px">Animación © Gym Visual</p>':'<p class="xs muted center" style="margin-top:16px">Ejercicio agregado por StrongMed (sin animación)</p>'}`); };
-
+/* ---- ficha de ejercicio: posiciones nítidas (extraídas de la animación) que se alternan suave ---- */
+const ejPos = (x, j) => x && x.b ? `ej/${x.b}-${j}.webp` : '';
+const ejThumb = x => x && x.b ? ejPos(x,0) : media(x && x.img);
+const POS_LBL = (n, j) => n===2 ? (j===0?'Posición inicial':'Posición final') : `Posición ${j+1} de ${n}`;
+let ejTimer=null;
+function ejStop(){ if(ejTimer){ clearInterval(ejTimer); ejTimer=null; } }
+function ejShow(j){ const st=$('#ejst'); if(!st) return ejStop(); const n=+st.dataset.n; j=((j%n)+n)%n; st.dataset.j=j;
+  st.querySelectorAll('.ejimg').forEach((im,i)=>im.classList.toggle('on', i===j));
+  document.querySelectorAll('#ejth .ejt').forEach((t,i)=>t.classList.toggle('on', i===j));
+  const l=$('#ejlbl'); if(l) l.textContent=POS_LBL(n,j); }
+function ejPlay(){ ejStop(); const st=$('#ejst'); if(!st) return; st.classList.remove('paused'); const sp=+(st.dataset.sp||1);
+  ejTimer=setInterval(()=>{ if(!$('#ejst')) return ejStop(); ejShow(+$('#ejst').dataset.j+1); }, 1400/sp); }
+window.ejTap = () => { const st=$('#ejst'); if(!st) return; if(ejTimer){ ejStop(); st.classList.add('paused'); } else ejPlay(); };
+window.ejGo = j => { ejStop(); $('#ejst')?.classList.add('paused'); ejShow(j); };
+window.ejSpeed = () => { const st=$('#ejst'); if(!st) return; const sp=st.dataset.sp==='0.5'?1:0.5; st.dataset.sp=sp; const b=$('#ejsp'); if(b) b.textContent=sp===0.5?'Ver normal':'Ver lento'; if(ejTimer) ejPlay(); };
+window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); if(!x) return; ejStop();
+  const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
+  const stage = n ? `<div class="ejstage" id="ejst" data-n="${n}" data-j="0" data-sp="1" onclick="ejTap()">
+      ${pos.map(j=>`<img class="ejimg ${j===0?'on':''}" src="${ejPos(x,j)}" alt="${esc(x.n)} · ${POS_LBL(n,j)}" ${j?'loading="lazy"':''}>`).join('')}
+      <span class="ejlbl" id="ejlbl">${POS_LBL(n,0)}</span><span class="ejpp">${ic('play','s')}</span></div>
+    <div class="row between" style="margin-top:10px;gap:8px"><div class="ejth" id="ejth">${pos.map(j=>`<button type="button" class="ejt ${j===0?'on':''}" onclick="ejGo(${j})"><img src="${ejPos(x,j)}" alt="" loading="lazy"><span>${n===2?(j?'Final':'Inicio'):j+1}</span></button>`).join('')}</div>
+      <button type="button" class="pill" id="ejsp" onclick="ejSpeed()">Ver lento</button></div>`
+    : `<div class="ejstage noanim">${x.img?`<img class="ejimg on" src="${media(x.img)}" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>`;
+  sheet(`${stage}
+  <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
+  <div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Zona</small><b>${esc(x.c)}</b></div></div>
+  ${x.s&&x.s.length?`<div class="lbl" style="margin-top:14px">También trabaja</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${x.s.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>`:''}
+  ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} pasos</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
+  <div class="note" style="margin-top:16px">${ic('info','s')}<span>Haz el movimiento controlado y sin dolor. Si algo molesta, detente y avísale a tu kine.</span></div>
+  <p class="xs muted center" style="margin-top:14px">${x.gif?'Ilustraciones © Gym Visual · toca la imagen para pausar':'Ejercicio agregado por StrongMed'}</p>`);
+  if(n>1) setTimeout(ejPlay, 300); };
 
 /* ================= ARMAR RUTINA POR MÚSCULOS (recomendador) =================
    Prioriza ejercicios de gimnasio con carga (barra, mancuernas, polea, máquinas), primero los multiarticulares,

@@ -434,6 +434,7 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .kav{width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink)}
 .kdots{display:flex;gap:4px;padding:14px 16px!important}.kdots i{width:7px;height:7px;border-radius:50%;background:var(--mu);animation:kd 1s infinite}.kdots i:nth-child(2){animation-delay:.15s}.kdots i:nth-child(3){animation-delay:.3s}
 @keyframes kd{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+.stkprev{background:repeating-conic-gradient(#2a2d33 0 25%,#1c1e22 0 50%) 0 0/22px 22px}
 .kin{display:flex;gap:8px}.kin .inp{flex:1}.kin .btn{flex:none;width:48px;padding:0}
 .ejuso{margin-top:12px;background:var(--acc-soft);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:14px;padding:10px 12px}.ejuso small{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:var(--acc-tx)}.ejuso p{margin:3px 0 0;font-size:14px;line-height:1.5}
 .kfull{display:flex;flex-direction:column;min-height:calc(100dvh - 200px - var(--tabh))}
@@ -2927,40 +2928,70 @@ window.verRuta = async id => { const d=(me().diarios||[]).find(x=>String(x.id)==
   if(await loadLeaflet()){ const el=$('#rt-map'); if(!el) return; el.innerHTML=''; const m=L.map(el,{zoomControl:false}); baseLayer(m); const pl=L.polyline(d.ruta,{color:'#ccff33',weight:5}).addTo(m); m.fitBounds(pl.getBounds(),{padding:[20,20]}); } };
 
 /* ================= COMPARTIR EN HISTORIAS (imagen 1080×1920) ================= */
-async function storyBlob(p, d){
+/* modos: 'card' (fondo oscuro), 'sticker' (PNG sin fondo para pegar sobre una foto en la historia) y 'foto' (sobre una foto de la persona) */
+function storyLogos(x, F, I, ACC, y0, sc0=1){
+  const s1=84*sc0, sc=s1/368; x.save(); x.translate(80-72*sc, y0-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore();
+  const by=y0+58*sc0, lx=80+s1+18; x.fillStyle='#fff'; x.font=F(64*sc0); x.fillText('STRONG',lx,by); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,by); const smw=sw+x.measureText('MED').width+(lx-80);
+  x.fillStyle='#b4b4bc'; x.font=F(48*sc0,700); x.fillText('×',80+smw+24*sc0,by-4*sc0); const kx=80+smw+76*sc0, ky=y0-4*sc0, ks=72*sc0;
+  x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16*sc0) : x.rect(kx,ky,ks,ks); x.fill();
+  x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
+  x.fillStyle='#fff'; x.font=F(40*sc0,800); x.fillText('KIN AT HOME',kx+ks+18*sc0,ky+34*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología a domicilio',kx+ks+18*sc0,ky+64*sc0); }
+async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
-  x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H);
-  // logos: StrongMed × Kin At Home
-  { const sc=84/368; x.save(); x.translate(80-72*sc, 92-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore(); }
-  const lx=80+84+18; x.fillStyle='#fff'; x.font=F(64); x.fillText('STRONG',lx,150); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,150); const smw=sw+x.measureText('MED').width+(lx-80);
-  x.fillStyle='#6b6b73'; x.font=F(48,700); x.fillText('×',80+smw+24,146); const kx=80+smw+76, ky=88, ks=72;
-  x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16) : x.rect(kx,ky,ks,ks); x.fill();
-  x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
-  x.fillStyle='#fff'; x.font=F(40,800); x.fillText('KIN AT HOME',kx+ks+18,ky+34); x.fillStyle='#9a9aa3'; x.font=I(22,600); x.fillText('Kinesiología a domicilio',kx+ks+18,ky+64);
-  x.fillStyle='#9a9aa3'; x.font=I(34,600); x.fillText(`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`,80,H-80);
-  x.fillStyle=ACC; const ttl=String(d.nombreSesion||'Entrenamiento').toUpperCase().slice(0,28); let fs=150; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl, 80, 420);
-  const stat=(lbl,v,u,cx,cy)=>{ x.fillStyle='#9a9aa3'; x.font=I(32,600); x.fillText(lbl.toUpperCase(),cx,cy); x.fillStyle='#fff'; x.font=F(120); x.fillText(v,cx,cy+120); if(u){ const vw=x.measureText(v).width; x.fillStyle='#9a9aa3'; x.font=F(52,700); x.fillText(u,cx+vw+12,cy+120); } };
-  if(d.ruta && d.ruta.length>1){
-    const box=[80,500,W-160,820], pp=routePath(d.ruta,box[2],box[3],30).map(([a,b])=>[a+box[0],b+box[1]]);
-    x.lineJoin='round'; x.lineCap='round'; x.shadowColor=ACC; x.shadowBlur=30; x.strokeStyle=ACC; x.lineWidth=16; x.beginPath(); pp.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1])); x.stroke(); x.shadowBlur=0;
-    x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill();
-    stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400);
-    stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600);
-  } else {
-    const ej=(d.ejercicios||[]).slice(0,6); let y=560; x.font=I(40,700);
-    const num=v=>{ const n=parseFloat(String(v).replace(',','.')); return isFinite(n)&&n>0?n:null; };
-    ej.forEach(e=>{ const kg=num(e.kilos??e.kg); x.fillStyle='#fff'; x.font=I(44,700); x.fillText(String(e.ejercicio).slice(0,30),80,y); x.fillStyle=ACC; x.font=F(54); x.fillText(`${e.series||''} × ${e.reps||''}${kg?` · ${kg} kg`:''}`,80,y+64); y+=150; });
-    const vol=(d.ejercicios||[]).reduce((s,e)=>s+(e.sets||[]).reduce((a,t)=>a+(+t.kg||0)*(+t.reps||0),0),0), series=(d.ejercicios||[]).reduce((s,e)=>s+(+e.series||0),0);
-    stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat('Series', String(series||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600);
+  const MUTED = mode==='card' ? '#9a9aa3' : '#e4e4ea';
+  if(mode==='card'){ x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); }
+  if(mode==='foto' && foto){ const r=Math.max(W/foto.width, H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
+    let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
+    g=x.createLinearGradient(0,880,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(.45,'rgba(0,0,0,.62)'); g.addColorStop(1,'rgba(0,0,0,.88)'); x.fillStyle=g; x.fillRect(0,880,W,H-880); }
+  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=22; x.shadowOffsetY=3; }
+  const num=v=>{ const n=parseFloat(String(v).replace(',','.')); return isFinite(n)&&n>0?n:null; };
+  const ej=(d.ejercicios||[]), vol=ej.reduce((s,e)=>s+(e.sets||[]).reduce((a,t)=>a+(+t.kg||0)*(+t.reps||0),0),0), series=ej.reduce((s,e)=>s+(+e.series||0),0);
+  const ruta=d.ruta && d.ruta.length>1;
+  const stat=(lbl,v,u,cx,cy,big=120)=>{ x.fillStyle=MUTED; x.font=I(30,700); x.fillText(lbl.toUpperCase(),cx,cy); x.fillStyle='#fff'; x.font=F(big); x.fillText(v,cx,cy+big*.98); if(u){ const vw=x.measureText(v).width; x.fillStyle=MUTED; x.font=F(big*.44,700); x.fillText(u,cx+vw+12,cy+big*.98); } };
+  const title=(y,max=150)=>{ x.fillStyle=ACC; const ttl=String(d.nombreSesion||d.tipoActividad||'Entrenamiento').toUpperCase().slice(0,28); let fs=max; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl,80,y); };
+  const lista=(y, n, gap=150, f1=44, f2=54)=>{ ej.slice(0,n).forEach(e=>{ const kg=num(e.kilos??e.kg); x.fillStyle='#fff'; x.font=I(f1,700); x.fillText(String(e.ejercicio).slice(0,30),80,y); x.fillStyle=ACC; x.font=F(f2); x.fillText(`${e.series||''} × ${e.reps||''}${kg?` · ${kg} kg`:''}`,80,y+f2*1.15); y+=gap; }); if(ej.length>n){ x.fillStyle=MUTED; x.font=I(34,600); x.fillText(`+ ${ej.length-n} ejercicio${ej.length-n>1?'s':''} más`,80,y-gap*.35); } return y; };
+  const rutaDraw=(box)=>{ const pp=routePath(d.ruta,box[2],box[3],30).map(([a,b])=>[a+box[0],b+box[1]]); const sh=x.shadowBlur; x.lineJoin='round'; x.lineCap='round'; x.shadowColor=ACC; x.shadowBlur=30; x.strokeStyle=ACC; x.lineWidth=16; x.beginPath(); pp.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1])); x.stroke(); x.shadowBlur=sh; x.shadowColor='rgba(0,0,0,.55)';
+    x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill(); };
+  const quien=`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`;
+  if(mode==='card'){
+    storyLogos(x,F,I,ACC,92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-80); title(420);
+    if(ruta){ rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
+    else { lista(560,6); stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat('Series', String(series||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600); }
+    return new Promise(r=>cv.toBlob(r,'image/png'));
   }
-  return new Promise(r=>cv.toBlob(r,'image/png'));
+  if(mode==='foto'){
+    storyLogos(x,F,I,ACC,90,.9);
+    if(ruta){ rutaDraw([80,980,W-160,380]); title(1450,120); stat('Distancia', String(d.distancia), 'km', 80, 1520, 100); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, 1520, 100); }
+    else { const n=Math.min(4, ej.length); title(1840-(n*112)-300,120); lista(1840-(n*112)-220, n, 112, 38, 46); x.fillStyle='rgba(0,0,0,0)';
+      stat('Duración', String(d.duracion||'—'), 'min', 80, 1640, 96); stat('Series', String(series||'—'), '', 420, 1640, 96); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, 1640, 96); }
+    x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-60);
+    return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
+  }
+  // sticker sin fondo: bloque compacto que luego se recorta a su alto
+  storyLogos(x,F,I,ACC,60,.9); title(300,130); let y;
+  if(ruta){ rutaDraw([80,340,W-160,520]); y=900; stat('Distancia', String(d.distancia), 'km', 80, y, 104); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, y, 104); y+=150; }
+  else { y=lista(390, Math.min(5, ej.length), 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat('Series', String(series||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
+  x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10); const h=Math.min(H, Math.ceil(y+50));
+  const out=document.createElement('canvas'); out.width=W; out.height=h; out.getContext('2d').drawImage(cv,0,0,W,h,0,0,W,h);
+  return new Promise(r=>out.toBlob(r,'image/png'));
 }
-window.compartir = async id => { const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; const blob=await storyBlob(p,d); const url=URL.createObjectURL(blob); S.shareBlob=blob;
-  sheet(`<h2 class="disp h2">Compartir</h2><p class="muted sm" style="margin-top:6px">Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.</p><img src="${url}" alt="Vista previa" style="width:100%;max-width:300px;display:block;margin:14px auto;border-radius:16px;border:1px solid var(--line2)">
-  <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button>${(d.ejercicios||[]).length&&!d.guardadaComoRutina?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}<a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_${toISO(d.fecha)}.png">${ic('download','s')} Descargar imagen</a>`); };
-window.shareNow = async () => { const f=new File([S.shareBlob],'strongmed.png',{type:'image/png'});
+const SHARE_MODOS=[['sticker','Sticker sin fondo'],['foto','Con mi foto'],['card','Tarjeta']];
+window.compartir = async (id, mode) => { const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareId=id;
+  if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
+  const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
+  const ayuda = mode==='sticker' ? 'Imagen <b>sin fondo</b>: en tu historia de Instagram toca el ícono de stickers → <b>Foto</b>, elige esta imagen y ubícala sobre tu foto.'
+    : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
+  sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
+  <p class="muted sm" style="margin-top:8px">${ayuda}</p>
+  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
+  ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
+  <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button>${(d.ejercicios||[]).length&&!d.guardadaComoRutina?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}<a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}">${ic('download','s')} Descargar imagen</a>`); };
+window.elegirFotoHistoria = () => { const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; compartir(S.shareId,'foto'); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
+  inp.click(); };
+window.shareNow = async () => { const jpg=S.shareBlob&&S.shareBlob.type==='image/jpeg'; const f=new File([S.shareBlob], jpg?'strongmed.jpg':'strongmed.png', {type:jpg?'image/jpeg':'image/png'});
   if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title:'StrongMed', text:'Mi entrenamiento con StrongMed 💪'}); }catch(e){} }
   else toast('Tu navegador no permite compartir directo: descarga la imagen y súbela a tu historia','err'); };
 

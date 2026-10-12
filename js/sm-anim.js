@@ -170,6 +170,25 @@
       else if (Array.isArray(a) && Array.isArray(b)) out[k] = a.map((v, i) => lerp(v, b[i], u));
       else out[k] = u < 0.5 ? a : b;
     }
+    // vista lateral: cada articulación se interpola en su rango anatómico (no por el camino más corto),
+    // así el brazo sube por delante y la pierna no "da la vuelta"
+    if (A.view !== 'front' && B.view !== 'front' && typeof A.t === 'number' && typeof B.t === 'number') {
+      const nrm = (x, lo) => ((x - lo) % 360 + 360) % 360 + lo;
+      const T = out.t;
+      for (const i of [1, 2]) {
+        const a = 'a' + i, e = 'e' + i, l = 'l' + i, kk = 'k' + i;
+        if ([A[a], B[a], A[e], B[e]].every(v => typeof v === 'number')) {
+          const ra = lerp(nrm(A[a] - A.t + 180, -110), nrm(B[a] - B.t + 180, -110), u);
+          const re = lerp(nrm(A[e] - A[a], -70), nrm(B[e] - B[a], -70), u);
+          out[a] = ra + T - 180; out[e] = out[a] + re;
+        }
+        if ([A[l], B[l], A[kk], B[kk]].every(v => typeof v === 'number')) {
+          const rl = lerp(nrm(A[l] - A.t + 180, -130), nrm(B[l] - B.t + 180, -130), u);
+          const rk = lerp(nrm(A[kk] - A[l], -200), nrm(B[kk] - B[l], -200), u);
+          out[l] = rl + T - 180; out[kk] = out[l] + rk;
+        }
+      }
+    }
     for (const k in LIMB) {           // objetivo presente solo en una pose -> usar ángulos
       for (const f of LIMB[k].tgt) if (!(f in A) || !(f in B)) delete out[f];
     }
@@ -185,8 +204,15 @@
   };
 
   // Prepara una plantilla: hereda campos y precalcula specs resueltos
+  // ritmo uniforme para ejercicios de fuerza de 2 posiciones: pausa · movimiento · pausa · movimiento
+  const TEMPO = { hold: 0.35, move: 1.45 };
   function compile(tpl) {
     if (tpl._c) return tpl._c;
+    if (tpl.frames && tpl.frames.length === 2 && !tpl.pulse && !tpl.free && (tpl.dur === undefined || tpl.dur >= 1.8)) {
+      tpl._raw = tpl.frames.slice();
+      const [f0, f1] = tpl.frames;
+      tpl = Object.assign(tpl, { frames: [Object.assign({}, f0, { d: TEMPO.hold }), Object.assign({}, f0, { d: TEMPO.move }), Object.assign({}, f1, { d: TEMPO.hold }), Object.assign({}, f1, { d: TEMPO.move })], dur: 2 * (TEMPO.hold + TEMPO.move), ease: 'sine' });
+    }
     const base = Object.assign({}, DEF, tpl.base || {});
     let prev = base;
     const frames = tpl.frames.map(f => { prev = inherit(prev, f); return prev; });
@@ -216,72 +242,128 @@
   const poly = (pts, w, c, extra = '') => `<polyline points="${pts.map(pt).join(' ')}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
   const circ = (p, r, fill, stroke = 'none', sw = 0, extra = '') => `<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${f1(r)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
 
-  function figure(J, hl, layer) {
-    // layer: 'far' | 'body' | 'near'
-    const H = hl || {};
-    const c = (part, far) => H[part] ? (far ? COL.hlFar : COL.hl) : (far ? COL.far : COL.near);
-    const glow = part => H[part] ? ' filter="url(#glow)"' : '';
+  // ---------------------------------------------------------------- figura tipo maniquí
+  // Músculos que se pueden iluminar (en verde): quads, hams, glutes, adductors, hipflex, calves, tib,
+  // chest, abs, lats, upperback, lowback, delts, biceps, triceps, forearm, neck.
+  // Claves antiguas (th, sh, ft, ua, fa, torso, head) se traducen a grupos de músculos.
+  const OLDHL = { th: ['quads', 'hams'], sh: ['calves', 'tib'], ft: ['calves'], ua: ['biceps', 'triceps', 'delts'], fa: ['forearm'], torso: ['chest', 'abs'], head: ['neck'] };
+  const SKIN = { near: '#e9edf2', nearSh: '#b8c0cb', far: '#7d8796', farSh: '#5e6875', line: '#0c0d0e' };
+  function muscleSet(hl) {
+    const M = {};
+    for (const k in hl || {}) { const v = hl[k]; if (!v) continue; (OLDHL[k] || [k]).forEach(m => { M[m] = Math.max(M[m] || 0, v === 2 ? 0.45 : 1); }); }
+    return M;
+  }
+  const P = (p) => f1(p[0]) + ' ' + f1(p[1]);
+  const add = (p, v, k) => [p[0] + v[0] * k, p[1] + v[1] * k];
+  // segmento con volumen: A→B con anchos wa (inicio), wm (vientre, en fracción fm) y wb (fin).
+  // "ant" = lado anterior (+1 / -1 según la normal). Devuelve caminos completo / mitad anterior / mitad posterior.
+  function limb(A, B, wa, wm, wb, fm, antBulge, postBulge) {
+    const d = [B[0] - A[0], B[1] - A[1]], L = Math.hypot(d[0], d[1]) || 1, u = [d[0] / L, d[1] / L];
+    const n = [u[1], -u[0]];          // normal: lado "anterior" (rotar 90° a la izquierda en pantalla)
+    const M = add(A, u, L * fm);
+    const a1 = add(A, n, wa / 2), a2 = add(A, n, -wa / 2), b1 = add(B, n, wb / 2), b2 = add(B, n, -wb / 2);
+    const m1 = add(M, n, wm / 2 * (1 + antBulge)), m2 = add(M, n, -wm / 2 * (1 + postBulge));
+    const c1a = add(m1, u, -L * 0.18), c1b = add(m1, u, L * 0.18), c2a = add(m2, u, -L * 0.18), c2b = add(m2, u, L * 0.18);
+    const front = `M${P(A)} L${P(a1)} C${P(c1a)} ${P(c1a)} ${P(m1)} C${P(c1b)} ${P(c1b)} ${P(b1)} L${P(B)} Z`;
+    const back = `M${P(A)} L${P(a2)} C${P(c2a)} ${P(c2a)} ${P(m2)} C${P(c2b)} ${P(c2b)} ${P(b2)} L${P(B)} Z`;
+    const full = `M${P(a1)} C${P(c1a)} ${P(c1a)} ${P(m1)} C${P(c1b)} ${P(c1b)} ${P(b1)} A${f1(wb / 2)} ${f1(wb / 2)} 0 0 1 ${P(b2)} C${P(c2b)} ${P(c2b)} ${P(m2)} C${P(c2a)} ${P(c2a)} ${P(a2)} A${f1(wa / 2)} ${f1(wa / 2)} 0 0 1 ${P(a1)} Z`;
+    return { full, front, back, n };
+  }
+  // pinta un segmento: base + sombra posterior + músculos iluminados (anterior/posterior)
+  function paint(seg, far, Ms, antKey, postKey, frontView) {
+    const base = far ? SKIN.far : SKIN.near, shade = far ? SKIN.farSh : SKIN.nearSh;
+    let s = `<path d="${seg.full}" fill="${base}"/>`;
+    s += `<path d="${seg.back}" fill="${shade}" opacity=".55"/>`;
+    const lit = (key, path) => { const v = key && Ms[key]; if (!v) return ''; return `<path d="${path}" fill="${far ? COL.hlFar : COL.hl}" opacity="${v < 1 ? 0.55 : 1}"${v >= 1 && !far ? ' filter="url(#glow)"' : ''}/>`; };
+    if (frontView) { const k = [].concat(antKey || [], postKey || []).find(x => Ms[x]); if (k) s += lit(k, seg.full); }
+    else { [].concat(antKey || []).forEach(k => { s += lit(k, seg.front); }); [].concat(postKey || []).forEach(k => { s += lit(k, seg.back); }); }
+    return s;
+  }
+  function drawLeg(J, i, far, Ms) {
+    const H = J['H' + i] || J.hip, K = J['kn' + i], A = J['an' + i];
+    const th = limb(H, K, 15, 15.5, 10.5, 0.4, 0.12, 0.08);
+    const sh = limb(K, A, 10, 10.5, 6.5, 0.3, 0.02, 0.28);
+    let s = paint(th, far, Ms, ['quads', 'hipflex'], ['hams', 'adductors'], J.front);
+    s += paint(sh, far, Ms, ['tib'], ['calves'], J.front);
+    if (!J.front && i === 1) {   // glúteo: volumen posterior de la cadera
+      const g = add(add(J.hip, J.n, -6.5), J.u, -1.5), gl = Ms.glutes;
+      s += `<ellipse cx="${f1(g[0])}" cy="${f1(g[1])}" rx="8.2" ry="9" transform="rotate(${f1(-(J.t - 180))} ${f1(g[0])} ${f1(g[1])})" fill="${gl ? COL.hl : SKIN.near}" opacity="${gl && gl < 1 ? .7 : 1}"${gl >= 1 ? ' filter="url(#glow)"' : ''}/>`;
+    }
+    // pie (zapatilla)
+    const he = J['he' + i], to = J['to' + i];
+    s += `<path d="${limb(he, to, 6.5, 6, 5, 0.5, 0, 0).full}" fill="${far ? '#4a525e' : '#c9d0da'}"/>`;
+    s += circ(K, 5.2, far ? SKIN.far : SKIN.near);
+    return s;
+  }
+  function drawArm(J, i, far, Ms) {
+    const S = J['S' + i], E = J['el' + i], W = J['wr' + i], Hd = J['hd' + i];
+    const ua = limb(S, E, 11.5, 10.5, 7.5, 0.35, 0.18, 0.14);
+    const fa = limb(E, W, 7.5, 8, 5.5, 0.28, 0.1, 0.06);
+    let s = paint(ua, far, Ms, ['biceps'], ['triceps'], J.front);
+    s += paint(fa, far, Ms, ['forearm'], ['forearm'], J.front);
+    s += circ(E, 3.9, far ? SKIN.far : SKIN.near);
+    // mano: puño redondeado orientado según la muñeca
+    s += `<path d="${limb(W, Hd, 6, 6.5, 5.5, 0.5, 0, 0).full}" fill="${far ? SKIN.far : '#dfe4ea'}"/>`;
+    // deltoides (cúpula del hombro)
+    const dl = Ms.delts;
+    s += `<circle cx="${f1(S[0])}" cy="${f1(S[1])}" r="6.6" fill="${dl ? (far ? COL.hlFar : COL.hl) : (far ? SKIN.far : SKIN.near)}"${dl && !far ? ' filter="url(#glow)"' : ''} opacity="${dl && dl < 1 ? 0.6 : 1}"/>`;
+    return s;
+  }
+  function drawTorso(J, Ms) {
+    const u = J.u, n = J.n, hip = J.hip;
+    const at = (f, off) => { const c = mv(hip, J.t, L.torso * f); return [c[0] + n[0] * off, c[1] + n[1] * off]; };
     let s = '';
-    if (layer === 'far' || (layer === 'near' && J.front)) {
-      // en vista frontal ambos lados se pintan igual de claros
-      const far = !J.front;
-      const i = J.front && layer === 'near' ? 1 : 2;
-      if (!(J.front && layer === 'far' && i === 1)) {
-        // pierna
-        s += line(J['H' + i] || J.H2, J['kn' + i], 11, c('th', far), glow('th'));
-        s += line(J['kn' + i], J['an' + i], 9, c('sh', far), glow('sh'));
-        s += line(J['he' + i], J['to' + i], 6, c('ft', far), glow('ft'));
-        // brazo
-        s += line(J['S' + i], J['el' + i], 9, c('ua', far), glow('ua'));
-        s += line(J['el' + i], J['wr' + i], 8, c('fa', far), glow('fa'));
-        s += line(J['wr' + i], J['hd' + i], 6.5, c('fa', far));
-      }
-      if (J.front && layer === 'near') {
-        // en frontal, el lado "lejano" (izquierdo) se dibuja aquí también
-        s += line(J.H2, J.kn2, 11, c('th'), glow('th')) + line(J.kn2, J.an2, 9, c('sh'), glow('sh')) + line(J.he2, J.to2, 6, c('ft'));
-        s += line(J.S2, J.el2, 9, c('ua'), glow('ua')) + line(J.el2, J.wr2, 8, c('fa'), glow('fa')) + line(J.wr2, J.hd2, 6.5, c('fa'));
-      }
+    if (J.front) {
+      const nW = [J.S1[0] - J.S2[0], J.S1[1] - J.S2[1]], lw = Math.hypot(...nW) || 1, side = [nW[0] / lw, nW[1] / lw];
+      const C = f => mv(hip, J.t, L.torso * f), w = (f, k) => add(C(f), side, k);
+      const pts = [w(1.0, 16), w(0.82, 16.5), w(0.5, 11.5), w(0.12, 10), w(-0.08, 11), w(-0.08, -11), w(0.12, -10), w(0.5, -11.5), w(0.82, -16.5), w(1.0, -16)];
+      s += `<path d="M${pts.map(P).join(' L')} Z" fill="${SKIN.near}" stroke="${SKIN.near}" stroke-width="3" stroke-linejoin="round"/>`;
+      const reg = (key, a, b, k1, k2) => { const v = Ms[key]; if (!v) return ''; const q = [w(a, k1), w(b, k2), w(b, -k2), w(a, -k1)]; return `<path d="M${q.map(P).join(' L')} Z" fill="${COL.hl}" opacity="${v < 1 ? .55 : 1}" stroke="${COL.hl}" stroke-width="2" stroke-linejoin="round"${v >= 1 ? ' filter="url(#glow)"' : ''}/>`; };
+      s += reg('chest', 0.62, 0.92, 13, 15) + reg('abs', 0.12, 0.58, 8.5, 10) + reg('lats', 0.45, 0.8, 11.5, 15.5) + reg('upperback', 0.85, 1.0, 15, 15) + reg('lowback', 0.05, 0.35, 9.5, 9.5);
+      s += `<line x1="${f1(C(0.62)[0])}" y1="${f1(C(0.62)[1])}" x2="${f1(C(0.12)[0])}" y2="${f1(C(0.12)[1])}" stroke="#0c0d0e" stroke-opacity=".18" stroke-width="1"/>`;
       return s;
     }
-    if (layer === 'body') {
-      if (J.front) {
-        const sw = 30, hw = 17;
-        const n = J.n;
-        const p1 = [J.S1[0] + n[0] * 3, J.S1[1] + n[1] * 3], p2 = [J.S2[0] - n[0] * 3, J.S2[1] - n[1] * 3];
-        const q1 = [J.hip[0] + n[0] * hw / 2, J.hip[1] + n[1] * hw / 2], q2 = [J.hip[0] - n[0] * hw / 2, J.hip[1] - n[1] * hw / 2];
-        s += `<path d="M${pt(p1)} L${pt(p2)} Q${pt([(p2[0] + q2[0]) / 2 - n[0] * 2, (p2[1] + q2[1]) / 2 - n[1] * 2])} ${pt(q2)} L${pt(q1)} Q${pt([(p1[0] + q1[0]) / 2 + n[0] * 2, (p1[1] + q1[1]) / 2 + n[1] * 2])} ${pt(p1)} Z" fill="${c('torso')}" stroke="${c('torso')}" stroke-width="5" stroke-linejoin="round"${glow('torso')}/>`;
-        s += line(J.shc, J.neck, 7, COL.near);
-        s += circ(J.head, L.head, c('head'));
-        return s + (sw ? '' : '');
-      }
-      // tronco lateral con algo de forma (pecho más ancho que cintura)
-      const u = J.u, n = J.n;
-      const chest = mv(J.hip, J.t, L.torso * 0.62);
-      const a = [J.hip[0] + n[0] * 5.5, J.hip[1] + n[1] * 5.5], b = [J.hip[0] - n[0] * 6, J.hip[1] - n[1] * 6];
-      const cF = [chest[0] + n[0] * 8, chest[1] + n[1] * 8], cB = [chest[0] - n[0] * 7, chest[1] - n[1] * 7];
-      const sF = [J.shc[0] + n[0] * 5 - u[0] * 1, J.shc[1] + n[1] * 5 - u[1] * 1], sB = [J.shc[0] - n[0] * 5.5, J.shc[1] - n[1] * 5.5];
-      s += `<path d="M${pt(a)} Q${pt(cF)} ${pt(sF)} L${pt(sB)} Q${pt(cB)} ${pt(b)} Z" fill="${c('torso')}" stroke="${c('torso')}" stroke-width="4" stroke-linejoin="round"${glow('torso')}/>`;
-      s += line(J.shc, J.neck, 7, COL.near);
-      s += circ(J.head, L.head, c('head'));
-      // ojo para indicar hacia dónde mira
-      const fwd = dir(J.t + (J.p.h || 0) - 90), eye = [J.head[0] + fwd[0] * 4.2 + J.u[0] * 0, J.head[1] + fwd[1] * 4.2];
-      s += circ(eye, 1.3, '#0c0d0e');
-      return s;
-    }
-    if (layer === 'near' && !J.front) {
-      s += line(J.H1, J.kn1, 11, c('th'), glow('th'));
-      s += line(J.kn1, J.an1, 9, c('sh'), glow('sh'));
-      s += line(J.he1, J.to1, 6, c('ft'), glow('ft'));
-      return s;
-    }
-    if (layer === 'arm') {
-      if (J.front) return '';
-      s += line(J.S1, J.el1, 9, c('ua'), glow('ua'));
-      s += line(J.el1, J.wr1, 8, c('fa'), glow('fa'));
-      s += line(J.wr1, J.hd1, 6.5, c('fa'));
-      return s;
+    // vista lateral: pecho y abdomen adelante, dorsal/espalda y glúteo atrás
+    const F = [[1.0, 5], [0.88, 7.5], [0.7, 8.6], [0.52, 6.6], [0.3, 6.2], [0.08, 6.8], [-0.1, 5.5]];
+    const Bk = [[-0.1, -7], [0.05, -10.5], [0.22, -7.5], [0.45, -6.4], [0.7, -7.6], [0.9, -7], [1.0, -5.5]];
+    const pts = [...F.map(([f, o]) => at(f, o)), ...Bk.map(([f, o]) => at(f, o))];
+    const smooth = ps => { let d = `M${P(ps[0])}`; for (let i = 1; i < ps.length; i++) { const p0 = ps[i - 1], p1 = ps[i]; d += ` Q${P(p0)} ${P([(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2])}`; } return d + ` L${P(ps[ps.length - 1])} Z`; };
+    s += `<path d="${smooth(pts)}" fill="${SKIN.near}" stroke="${SKIN.near}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    // sombra posterior
+    s += `<path d="${smooth([at(1.0, 0), ...Bk.slice().reverse().map(([f, o]) => at(f, o)), at(-0.1, 0)])}" fill="${SKIN.nearSh}" opacity=".45"/>`;
+    const region = (key, list) => { const v = Ms[key]; if (!v) return ''; return `<path d="${smooth(list.map(([f, o]) => at(f, o)))}" fill="${COL.hl}" opacity="${v < 1 ? .55 : 1}"${v >= 1 ? ' filter="url(#glow)"' : ''}/>`; };
+    s += region('chest', [[0.95, 0.5], [0.9, 7], [0.72, 8.8], [0.56, 6.8], [0.56, 0.5]]);
+    s += region('abs', [[0.54, 0.5], [0.54, 6.4], [0.3, 6.3], [0.1, 6.8], [0.06, 0.5]]);
+    s += region('lats', [[0.85, -0.5], [0.85, -7.1], [0.66, -7.6], [0.42, -6.3], [0.36, -0.5]]);
+    s += region('upperback', [[1.0, -0.5], [1.0, -5.6], [0.9, -7.1], [0.76, -7.3], [0.76, -0.5]]);
+    s += region('lowback', [[0.4, -0.5], [0.4, -6.4], [0.24, -7.4], [0.12, -8.2], [0.12, -0.5]]);
+    s += region('glutes', [[0.12, -0.5], [0.1, -9], [0.0, -10.6], [-0.1, -7.2], [-0.1, -0.5]]);
+    return s;
+  }
+  function drawHead(J, Ms) {
+    let s = '';
+    const nk = Ms.neck;
+    s += line(J.shc, J.neck, 7.5, nk ? COL.hl : SKIN.near, nk ? 'filter="url(#glow)"' : '');
+    s += `<ellipse cx="${f1(J.head[0])}" cy="${f1(J.head[1])}" rx="8" ry="9" transform="rotate(${f1(-(J.t + (J.p.h || 0) - 180))} ${f1(J.head[0])} ${f1(J.head[1])})" fill="${SKIN.near}"/>`;
+    if (!J.front) {
+      const fwd = dir(J.t + (J.p.h || 0) - 90);
+      s += `<ellipse cx="${f1(J.head[0] - fwd[0] * 1.5)}" cy="${f1(J.head[1] - fwd[1] * 1.5 - 0.5)}" rx="1.8" ry="2.4" fill="${SKIN.nearSh}"/>`;   // oreja
     }
     return s;
+  }
+  function figure(J, hl, layer) {
+    const Ms = J._ms || (J._ms = muscleSet(hl));
+    if (J.front) {
+      if (layer === 'far') return drawLeg(J, 2, false, Ms) + drawLeg(J, 1, false, Ms);
+      if (layer === 'body') return drawTorso(J, Ms) + drawHead(J, Ms);
+      if (layer === 'near') return drawArm(J, 2, false, Ms) + drawArm(J, 1, false, Ms);
+      return '';
+    }
+    if (layer === 'far') return drawLeg(J, 2, true, Ms) + drawArm(J, 2, true, Ms);
+    if (layer === 'body') return drawTorso(J, Ms) + drawHead(J, Ms);
+    if (layer === 'near') return drawLeg(J, 1, false, Ms);
+    if (layer === 'arm') return drawArm(J, 1, false, Ms);
+    return '';
   }
 
   // ---------------------------------------------------------------- implementos
@@ -304,6 +386,7 @@
     box: (J, o) => `<rect x="${o.x}" y="${o.y}" width="${o.w}" height="${FLOOR - o.y}" rx="3" fill="${COL.pad}" stroke="${COL.padDark}" stroke-width="1.5"/>`,
     wall: (J, o) => `<rect x="${o.x}" y="0" width="${o.w || 8}" height="${FLOOR}" fill="${COL.padDark}"/>`,
     table: (J, o) => line([o.x, o.y], [o.x + o.w, o.y], 5, COL.pad) + line([o.x + 4, o.y], [o.x + 4, FLOOR], 3, COL.padDark) + line([o.x + o.w - 4, o.y], [o.x + o.w - 4, FLOOR], 3, COL.padDark),
+    rails: (J, o) => { const p = at(J, o.at || 'wr1'); return line([p[0] - 2, -12], [p[0] - 2, FLOOR], 3, COL.padDark) + line([p[0] + 3, -12], [p[0] + 3, FLOOR], 2, COL.pad, 'opacity=".6"'); },
     hbar: (J, o) => line([o.x1, o.y], [o.x2, o.y], 4, COL.metal) + line([o.x1, 0 - 12], [o.x1, o.y], 3, COL.padDark) + line([o.x2, -12], [o.x2, o.y], 3, COL.padDark),
     pullbar: (J, o) => line([o.x - 8, -12], [o.x - 8, o.y], 3, COL.padDark) + line([o.x - 8, o.y], [o.x, o.y], 3, COL.padDark) + circ([o.x, o.y], 4, COL.metal, '#64748b', 1.5),
     tower: (J, o) => {
@@ -401,7 +484,7 @@
     return s;
   }
   function defaultLayer(type) {
-    return ({ bench: 'back', box: 'back', wall: 'back', table: 'back', pullbar: 'back', hbar: 'back', tower: 'back', bike: 'back', stairs: 'back', rower: 'back', hurdle: 'back', foam: 'back', bosu: 'back', slant: 'back', sled: 'back', text: 'back', yoke: 'back', cable: 'mid', band: 'mid', rope: 'hand', barbell: 'hand', db: 'hand', kb: 'hand', ball: 'hand', stick: 'hand', landmine: 'hand', handle: 'hand', plate: 'hand', platform: 'back', pad: 'back', roller: 'back', crutch: 'hand', chain: 'hand' })[type] || 'hand';
+    return ({ bench: 'back', box: 'back', wall: 'back', table: 'back', pullbar: 'back', hbar: 'back', rails: 'back', tower: 'back', bike: 'back', stairs: 'back', rower: 'back', hurdle: 'back', foam: 'back', bosu: 'back', slant: 'back', sled: 'back', text: 'back', yoke: 'back', cable: 'mid', band: 'mid', rope: 'hand', barbell: 'hand', db: 'hand', kb: 'hand', ball: 'hand', stick: 'hand', landmine: 'hand', handle: 'hand', plate: 'hand', platform: 'back', pad: 'back', roller: 'back', crutch: 'hand', chain: 'hand' })[type] || 'hand';
   }
 
   const DEFS0 = `<defs>
@@ -431,15 +514,26 @@
     const tpl = tplOf(tplName);
     return render(tpl, phase, hl, T ?? phase * (tpl.dur || 2.6));
   }
+  // etiqueta (agarre / variante) en la esquina superior izquierda
+  function badgeSVG(lines, y0) {
+    lines = (lines || []).filter(Boolean); if (!lines.length) return '';
+    let y = y0 ?? -1, out = '';
+    for (const t of lines) {
+      const txt = String(t).toUpperCase().replace(/[&<>]/g, ''), w = 6 + txt.length * 4.15;
+      out += `<rect x="-2" y="${y}" width="${f1(w)}" height="10.5" rx="5.2" fill="#0c0d0e" fill-opacity=".82" stroke="${COL.hl}" stroke-opacity=".55" stroke-width=".6"/><text x="${f1(-2 + w / 2)}" y="${f1(y + 7.4)}" fill="${COL.hl}" font-size="6.4" font-weight="800" letter-spacing=".25" text-anchor="middle" font-family="Inter,Arial,sans-serif">${txt}</text>`;
+      y += 13;
+    }
+    return `<g>${out}</g>`;
+  }
   function fullSVG(tplName, phase, hl, T, mark) {
     const tpl = tplOf(tplName);
-    const wm = mark ? `<g font-family="Inter,Arial,sans-serif" font-weight="800" font-size="7.5"><text x="-1" y="-3" fill="#ffffff" opacity=".9">STRONG<tspan fill="#bbf426">MED</tspan><tspan fill="#64748b"> × </tspan>Kin <tspan fill="#bbf426">At Home</tspan></text>${mark.title ? `<text x="-1" y="196" fill="#cbd5e1" font-size="7" font-weight="700">${mark.title.replace(/[&<>]/g, '')}</text>` : ''}</g>` : '';
+    const wm = mark ? `${badgeSVG(mark.badge && [].concat(mark.badge), 4)}<g font-family="Inter,Arial,sans-serif" font-weight="800" font-size="7.5"><text x="-1" y="-3" fill="#ffffff" opacity=".9">STRONG<tspan fill="#bbf426">MED</tspan><tspan fill="#64748b"> × </tspan>Kin <tspan fill="#bbf426">At Home</tspan></text>${mark.title ? `<text x="-1" y="196" fill="#cbd5e1" font-size="7" font-weight="700">${mark.title.replace(/[&<>]/g, '')}</text>` : ''}</g>` : '';
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB}" width="420" height="420">${DEFS}${bgFor(tpl)}<g>${frameSVG(tplName, phase, hl, T)}</g>${wm}</svg>`;
   }
 
   function mount(el, tplName, hl, opts = {}) {
     const tpl = tplOf(tplName);
-    el.innerHTML = `<svg viewBox="${VB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animación del ejercicio">${DEFS}${bgFor(tpl)}<g class="fig"></g></svg>`;
+    el.innerHTML = `<svg viewBox="${VB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animación del ejercicio">${DEFS}${bgFor(tpl)}<g class="fig"></g>${badgeSVG(opts.badge && [].concat(opts.badge))}</svg>`;
     const g = el.querySelector('.fig');
     const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false };
     g.innerHTML = render(tpl, reduce ? 0.35 : P.off, hl, 0);
@@ -471,7 +565,7 @@
     }
   }
 
-  G.SMAnim = { tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
+  G.SMAnim = { badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
 })(window);
 /* Primeros planos animados: mano, pie y cara (rehabilitación fina) */
 (function (G) {
@@ -1082,38 +1176,38 @@
     frames: [{}, { us1: 0.28 }]
   });
   add('pushup', 'Flexión de brazos', {
-    base: plank([132, 131], [12, 179], { H1: [134, 182], e1s: 1, h: -6 }),
+    base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
     frames: [{}, plank([134, 160], [12, 179], { h: -6 })]
   });
   add('pushup_knee', 'Flexión de brazos de rodillas', {
-    base: kneePlank([132, 131], [58, 178], { H1: [134, 182], e1s: 1, h: -6 }),
+    base: kneePlank([132, 131], [58, 178], { H1: [134, 182], h: -6 }),
     frames: [{}, kneePlank([136, 158], [58, 178], { h: -6 })]
   });
   add('pushup_incline', 'Flexión inclinada (manos elevadas)', {
-    base: plank([132, 100], [26, 179], { H1: [138, 142], e1s: 1, h: -6 }),
+    base: plank([132, 100], [26, 179], { H1: [138, 142], h: -6 }),
     props: [{ type: 'box', x: 120, y: 144, w: 40 }],
     frames: [{}, plank([134, 124], [26, 179], { h: -6 })]
   });
   add('pushup_decline', 'Flexión declinada (pies elevados)', {
-    base: plank([132, 132], [28, 138], { H1: [134, 182], e1s: 1, h: -6, pf: false }),
+    base: plank([132, 132], [28, 138], { H1: [134, 182], h: -6, pf: false }),
     props: [{ type: 'box', x: 8, y: 144, w: 34 }],
     frames: [{}, plank([134, 160], [28, 138], { h: -6, pf: false })]
   });
   add('pushup_scap', 'Flexiones escapulares', {
-    base: plank([132, 131], [12, 179], { H1: [134, 182], e1s: 1, h: -6 }),
+    base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
     frames: [{ y: 0 }, plank([132, 125], [12, 179], { h: -6 })].map((f, i) => i ? f : {}), pulse: true, dur: 1.8
   });
   add('planche', 'Planche lean / progresiones', {
-    base: plank([132, 131], [12, 179], { H1: [134, 182], e1s: 1, h: -6 }),
+    base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
     frames: [{}, plank([148, 136], [26, 179], { h: -6 })]
   });
   add('dips', 'Fondos en paralelas', {
-    base: { x: 100, y: 102, t: 176, H1: [106, 104], pf: false, l1: 20, k1: -50 },
+    base: { x: 100, y: 102, t: 176, H1: [106, 104], e1s: -1, pf: false, l1: 20, k1: -50 },
     props: [{ type: 'pad', a: [94, 106], b: [126, 106], w: 4 }, { type: 'pad', a: [122, 106], b: [122, 184], w: 3 }],
     frames: [{}, { x: 94, y: 130, t: 162 }]
   });
   add('dips_bench', 'Fondos en banco', {
-    base: { x: 68, y: 124, t: 178, H1: [62, 134], e1s: 1, F1: [140, AY], F2: [136, AY], pf: true, f1: 50 },
+    base: { x: 68, y: 124, t: 178, H1: [62, 134], e1s: -1, F1: [140, AY], F2: [136, AY], pf: true, f1: 50 },
     props: [{ type: 'bench', a: [20, 140], b: [70, 140], legs: [26, 64] }],
     frames: [{}, { x: 72, y: 150 }]
   });
@@ -1295,7 +1389,7 @@
     frames: [{}, { H1: [104, 120] }]
   });
   add('row_inverted', 'Remo invertido', {
-    base: plank([66, 166], [192, 179], { H1: [68, 118], e1s: 1, h: 8 }),
+    base: plank([66, 166], [192, 179], { H1: [68, 118], e1s: -1, h: 8 }),
     props: [{ type: 'hbar', x1: 60, x2: 76, y: 118 }, { type: 'pad', a: [68, 118], b: [68, 184], w: 3 }],
     frames: [{}, plank([72, 132], [192, 179], { h: 8 })]
   });
@@ -1320,14 +1414,14 @@
     frames: [{}, { y: 66, t: 188 }]
   });
   add('muscleup', 'Muscle-up', {
-    base: { x: 98, y: 152, t: 182, pf: false, l1: 90, k1: -10, H1: [104, 56] },
-    props: [{ type: 'pullbar', x: 104, y: 54 }],
-    frames: [{ d: 1 }, { y: 114, t: 196, d: .8 }, { x: 104, y: 80, t: 170, e1s: 1, l1: 40, k1: -20, d: .6 }, { x: 102, y: 54, t: 176, l1: 10, k1: -10, d: 1 }], dur: 3.2
+    base: { x: 100, y: 156, S: [102, 110], pf: false, l1: 30, k1: -40, H1: [104, 60] },
+    props: [{ type: 'pullbar', x: 104, y: 59 }],
+    frames: [{ d: 0.5 }, { d: 1 }, { x: 98, y: 112, S: [106, 66], e1s: 1, d: 0.6  }, { x: 100, y: 96, S: [112, 52], e1s: -1, d: 0.6 }, { x: 102, y: 56, S: [104, 10], e1s: -1, d: 0.9 }, { x: 102, y: 56, S: [104, 10], d: 0.6 }], free: true, dur: 3.6
   });
   add('front_lever', 'Front lever', {
-    base: { x: 108, y: 70, t: -92, h: 8, pf: false, l1: 92, k1: 92, H1: [56, 22] },
+    base: { x: 106, y: 72, S: [60, 70], h: 8, pf: false, l1: 92, k1: 92, H1: [56, 21] },
     props: [{ type: 'pullbar', x: 56, y: 20 }],
-    frames: [{}, { x: 104, y: 52, t: -96 }], pulse: true
+    frames: [{}, { y: 70, S: [60, 69] }], pulse: true
   });
   add('pullover_cable', 'Pullover en polea alta', {
     base: { x: 82, y: 104, t: 148, F1: [104, AY], F2: [99, AY], a1: 140, e1: 140 },
@@ -1428,6 +1522,52 @@
   add('bicycle_crunch', 'Crunch bicicleta', {
     base: { x: 100, y: 175, t: -112, h: -14, pf: false, l1: 160, k1: 70, l2: 120, k2: 30, h1: [6, -6] },
     frames: [{ t: -116, l1: 172, k1: 82, l2: 118, k2: 118 }, { t: -116, l1: 118, k1: 118, l2: 172, k2: 82 }], dur: 1.8
+  });
+  add('reverse_crunch', 'Crunch inverso', {
+    base: { x: 104, y: 176, t: -90, h: -4, pf: false, l1: 180, k1: 90, a1: 90, e1: 90 },
+    frames: [{}, { y: 166, t: -100, l1: -140, k1: 140 }]
+  });
+  add('v_up', 'V-up / navaja', {
+    base: { x: 100, y: 177, t: -90, h: 0, pf: false, l1: 90, k1: 90, a1: -90, e1: -90 },
+    frames: [{}, { y: 178, t: -138, h: -10, l1: 140, k1: 140, a1: 150, e1: 150 }]
+  });
+  add('toe_touch', 'Crunch con toque de pies', {
+    base: { x: 100, y: 176, t: -90, h: -4, pf: false, l1: 178, k1: 178, a1: 178, e1: 178 },
+    frames: [{}, { t: -122, h: -14, a1: 168, e1: 168 }]
+  });
+  add('flutter', 'Patadas de tijera', {
+    base: { x: 100, y: 176, t: -96, h: -6, pf: false, l1: 112, k1: 112, l2: 100, k2: 100, a1: 92, e1: 92 },
+    frames: [{ l1: 116, k1: 116, l2: 98, k2: 98 }, { l1: 98, k1: 98, l2: 116, k2: 116 }], free: true, dur: 1
+  });
+  add('mountain_climber', 'Escalador (mountain climber)', {
+    base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
+    frames: [{ F1: [104, 172], F2: [14, 179] }, { F1: [12, 179], F2: [100, 172] }], free: true, dur: 0.9
+  });
+  add('burpee', 'Burpee', {
+    base: S({ a1: 4, e1: 8 }),
+    frames: [{ d: 0.5 }, { x: 84, y: 138, t: 120, H1: [126, 182], d: 0.5 }, Object.assign(plank([132, 131], [16, 179], { H1: [134, 182], h: -6 }), { d: 0.6 }), { x: 84, y: 138, t: 120, F1: [104, AY], F2: [99, AY], H1: [126, 182], d: 0.5 },
+             { x: 100, y: 76, t: 180, F1: [104, 156], F2: [99, 156], f1: 30, f2: 30, H1: undefined, a1: 172, e1: 172, d: 0.5 }, { x: 100, y: 100, F1: [104, AY], F2: [99, AY], f1: 78, f2: 78, a1: 4, e1: 8, d: 0.6 }], free: true, dur: 3.2
+  });
+  add('jumping_jack', 'Jumping jack', {
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [110, AY], a1: 8, e1: 8 },
+    frames: [{ d: 1 }, { y: 92, F1: [134, AY - 4], a1: 168, e1: 172, d: 1 }], free: true, dur: 1.1
+  });
+  add('high_knees', 'Skipping / rodillas arriba', {
+    base: S({ t: 176 }),
+    frames: [{ y: 96, l1: 100, k1: 10, F2: [100, AY], a1: -30, e1: 60, a2: 40, e2: 130 }, { y: 96, l2: 100, k2: 10, F1: [104, AY], a1: 40, e1: 130, a2: -30, e2: 60 }], free: true, dur: 0.8
+  });
+  add('pike_pushup', 'Flexión pike (cadera arriba)', {
+    base: { x: 84, y: 104, S: [124, 134], h: 10, F1: [40, AY], F2: [36, AY], H1: [130, 182] },
+    frames: [{}, { S: [122, 156], x: 82, y: 110 }]
+  });
+  add('clap_pushup', 'Flexión con palmada (pliométrica)', {
+    base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
+    frames: [{ d: 0.8 }, Object.assign(plank([134, 160], [12, 179], { h: -6 }), { d: 0.35 }), Object.assign(plank([136, 112], [12, 179], { h: -6, H1: undefined, a1: 30, e1: 40 }), { d: 0.35 }), Object.assign(plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }), { d: 0.6 })], free: true, dur: 2
+  });
+  add('chest_press_machine', 'Press de pecho en máquina', {
+    base: { x: 76, y: 124, t: 182, F1: [118, AY], F2: [114, AY], h1: [-6, 10], e1s: -1 },
+    props: [{ type: 'bench', a: [56, 132], b: [96, 132], legs: [64, 90] }, { type: 'pad', a: [56, 126], b: [52, 70], w: 8 }, { type: 'pad', a: J => [J.hd1[0] + 2, J.hd1[1] - 9], b: J => [J.hd1[0] + 2, J.hd1[1] + 9], w: 4, layer: 'hand' }],
+    frames: [{}, { h1: [-4, 46] }]
   });
   add('situp', 'Abdominal completo (sit-up)', {
     base: { x: 100, y: 175, t: -90, h: -6, F1: [134, AY], F2: [130, AY], pf: true, h1: [8, -6] },
@@ -1567,7 +1707,7 @@
     frames: [{}, { x: 90, y: 68, t: 16, h: 30 }], dur: 3.6
   });
   add('mckenzie', 'Extensión en prono (McKenzie)', {
-    base: { x: 90, y: 176, t: 90, h: -8, pf: false, l1: -90, k1: -90, H1: [130, 182], e1s: 1 },
+    base: { x: 90, y: 176, t: 90, h: -8, pf: false, l1: -90, k1: -90, H1: [130, 182], e1s: -1 },
     frames: [{}, { t: 134, h: 0 }]
   });
   add('cobra_stretch', 'Estiramiento en prono / cobra', {
@@ -1672,8 +1812,8 @@
     frames: runFrames(1.25), ease: 'linear', dur: 1.2
   });
   add('skater', 'Skater jumps', {
-    base: { view: 'front', x: 60, y: 112, t: 174, F1: [64, AY], l2: -30, k2: 40, a1: 60, e1: 40 },
-    frames: [{ d: 1 }, { x: 100, y: 80, t: 180, F1: [110, 160], F2: [90, 160], d: .5 }, { x: 140, y: 112, t: 186, F2: [136, AY], l1: 30, k1: -40, d: 1 }, { x: 100, y: 80, t: 180, F1: [110, 160], F2: [90, 160], d: .5 }], dur: 2.4
+    base: { view: 'front', x: 64, y: 112, t: 172, F1: [70, AY], l2: -40, k2: 30, a1: -20, e1: -10, a2: -50, e2: -40 },
+    frames: [{ d: 0.6 }, { x: 100, y: 84, t: 180, F1: [108, 166], F2: [92, 166], l2: undefined, a1: 10, e1: 10, a2: -10, e2: -10, d: 0.5 }, { x: 136, y: 112, t: 188, F2: [130, AY], F1: undefined, l1: 40, k1: -30, a1: 50, e1: 40, a2: 20, e2: 10, d: 0.6 }, { x: 100, y: 84, t: 180, F1: [108, 166], F2: [92, 166], l1: undefined, a1: 10, e1: 10, a2: -10, e2: -10, d: 0.5 }], free: true, dur: 2.4
   });
   add('landing', 'Aterrizaje (snap down)', {
     base: S({ y: 96, F1: [104, 175], F2: [99, 175], f1: 40, f2: 40, a1: 176, e1: 176 }),
@@ -1876,39 +2016,102 @@
   }
   function runFrames(k, o) {
     o = o || {};
-    const t = o.t ?? 172, y = o.y ?? 100;
-    const arms = (s) => o.push ? { H1: o.H1, H2: [o.H1[0] - 3, o.H1[1] + 2] } : { a1: 40 * s, e1: 40 * s + 80, a2: -40 * s, e2: -40 * s + 80 };
+    const t = o.t ?? 172, y = o.y ?? 100, st = 14 + 10 * k, lift = 6 * k;
+    const armA = (fw) => o.push ? { H1: o.H1, H2: [o.H1[0] - 3, o.H1[1] + 2] } : { a1: fw ? 45 * k + 10 : -35 * k, e1: fw ? 45 * k + 105 : -35 * k + 95, a2: fw ? -35 * k : 45 * k + 10, e2: fw ? -35 * k + 95 : 45 * k + 105 };
+    const armN = () => o.push ? { H1: o.H1, H2: [o.H1[0] - 3, o.H1[1] + 2] } : { a1: 5, e1: 95, a2: 5, e2: 95 };
     return [
-      Object.assign({ t, y: y + 2, F1: [106, AY], F2: [70 - 10 * k, 150], f1: 78, f2: 60 }, arms(1)),
-      Object.assign({ t, y: y - 8 * k, F1: [82 - 8 * k, 168 - 6 * k], F2: [120 + 8 * k, 156], f1: 40, f2: 80 }, arms(0.2)),
-      Object.assign({ t, y: y + 2, F2: [106, AY], F1: [70 - 10 * k, 150], f2: 78, f1: 60 }, arms(-1)),
-      Object.assign({ t, y: y - 8 * k, F2: [82 - 8 * k, 168 - 6 * k], F1: [120 + 8 * k, 156], f2: 40, f1: 80 }, arms(-0.2))
+      Object.assign({ t, y: y + 1, F1: [100 + st, AY], f1: 95, F2: [100 - st - 4, 168 - lift], f2: 40 }, armA(false)),
+      Object.assign({ t, y: y - 3 - lift, F1: [102, AY - 2 * k], f1: 78, F2: [108 + 4 * k, 150 - 8 * k], f2: 70 }, armN()),
+      Object.assign({ t, y: y + 1, F2: [100 + st, AY], f2: 95, F1: [100 - st - 4, 168 - lift], f1: 40 }, armA(true)),
+      Object.assign({ t, y: y - 3 - lift, F2: [102, AY - 2 * k], f2: 78, F1: [108 + 4 * k, 150 - 8 * k], f1: 70 }, armN())
     ];
   }
 
-  // ---- variantes de postura para ejercicios de tren superior: sentado o arrodillado
+  // ---- variantes: "base@mod+mod" · posturas (seated, kneel), implemento (db, bb, kb, band),
+  //      brazos (uni = a una mano, alt = alternado) y piernas (leg1 = a una pierna)
+  const HANDPROPS = new Set(['barbell', 'db', 'kb', 'chain', 'plate']);
+  const IMPL = {
+    db: (front) => front ? [{ type: 'db', at: 'hd1' }, { type: 'db', at: 'hd2' }] : [{ type: 'db', at: 'hd2', layer: 'mid', dim: true }, { type: 'db', at: 'hd1' }],
+    bb: () => [{ type: 'barbell', at: 'wr1' }],
+    kb: (front) => front ? [{ type: 'kb', at: 'hd1' }, { type: 'kb', at: 'hd2' }] : [{ type: 'kb', at: 'hd2', layer: 'mid', dim: true }, { type: 'kb', at: 'hd1' }],
+    band: () => [{ type: 'band', from: 'an1', to: 'hd1' }, { type: 'handle', at: 'hd1' }]
+  };
+  const ARMK = ['a1', 'e1', 'h1', 'H1', 'e1s', 'us1', 'fs1', 'w1'];
+  const ARM2 = ['a2', 'e2', 'h2', 'H2', 'e2s', 'us2', 'fs2', 'w2'];
+  const pickArm = (f, i) => { const o = {}; (i === 1 ? ARMK : ARM2).forEach(k => { if (f[k] !== undefined) o[k] = f[k]; }); return o; };
+  const asArm2 = (f, front, t) => {
+    const o = {};
+    if (f.H1) o.H2 = front ? [200 - f.H1[0], f.H1[1]] : [f.H1[0] - 3.5, f.H1[1] - 1.5];
+    else if (f.h1) o.h2 = front ? [f.h1[0], -f.h1[1]] : f.h1.slice();
+    else if (f.a1 !== undefined) { o.a2 = front ? 2 * t - f.a1 : f.a1; o.e2 = front ? 2 * t - (f.e1 ?? f.a1) : (f.e1 ?? f.a1); }
+    if (f.e1s !== undefined) o.e2s = front ? -f.e1s : f.e1s;
+    ['us1', 'fs1', 'w1'].forEach(k => { if (f[k] !== undefined) o[k.replace('1', '2')] = f[k]; });
+    return o;
+  };
+  const clearArm = (f, i) => (i === 1 ? ARMK : ARM2).forEach(k => delete f[k]);
+
   G.SMVariant = name => {
-    const [b, mod] = name.split('@'), src = T[b];
+    const [b, modstr] = name.split('@'), src = T[b];
     if (!src || src.custom || !src.frames) return null;
+    const mods = (modstr || '').split('+').filter(Boolean);
     const front = (src.base || {}).view === 'front';
-    const t = Object.assign({}, src, { base: Object.assign({}, src.base), frames: src.frames.map(f => Object.assign({}, f)), props: (src.props || []).slice() });
-    delete t._c;
-    const legs = ['F1', 'F2', 'l1', 'k1', 'l2', 'k2', 'ts1', 'ss1', 'f1', 'f2', 'x', 'y'];
-    const oldY = t.base.y ?? 100, x = t.base.x ?? 100;
-    t.frames.forEach(f => legs.forEach(k => delete f[k]));
-    legs.forEach(k => delete t.base[k]);
-    let y;
-    if (mod === 'seated') {
-      if (front) { y = 124; Object.assign(t.base, { x, y, l1: 20, k1: 0, ts1: 0.4, pf: false }); t.props.unshift({ type: 'box', x: x - 26, y: 128, w: 52 }); }
-      else { y = 126; Object.assign(t.base, { x, y, F1: [x + 40, AY], F2: [x + 36, AY], pf: true }); t.props.unshift({ type: 'bench', a: [x - 24, 134], b: [x + 14, 134], legs: [x - 16, x + 6] }); }
-    } else if (mod === 'kneel') {
-      y = 137;
-      if (front) Object.assign(t.base, { x, y, l1: 3, k1: 3, ss1: 0.12, pf: false, f1: 0 });
-      else Object.assign(t.base, { x, y, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, pf: false });
-    } else return null;
-    const dy = y - oldY;
-    [t.base, ...t.frames].forEach(f => ['H1', 'H2'].forEach(k => { if (f[k]) f[k] = [f[k][0], f[k][1] + dy]; }));
-    t.label = src.label + (mod === 'seated' ? ' (sentado)' : ' (arrodillado)');
+    const rawFrames = src._raw || src.frames;           // cuadros originales (antes del ritmo uniforme)
+    const t = Object.assign({}, src, { base: Object.assign({}, src.base), frames: rawFrames.map(f => Object.assign({}, f)), props: (src.props || []).slice() });
+    delete t._c; delete t._raw;
+    const labels = [];
+    for (const mod of mods) {
+      if (mod === 'seated' || mod === 'kneel') {
+        const legs = ['F1', 'F2', 'l1', 'k1', 'l2', 'k2', 'ts1', 'ss1', 'f1', 'f2', 'x', 'y'];
+        const oldY = t.base.y ?? 100, x = t.base.x ?? 100;
+        t.frames.forEach(f => legs.forEach(k => delete f[k]));
+        legs.forEach(k => delete t.base[k]);
+        let y;
+        if (mod === 'seated') {
+          if (front) { y = 124; Object.assign(t.base, { x, y, l1: 20, k1: 0, ts1: 0.4, pf: false }); t.props.unshift({ type: 'box', x: x - 26, y: 128, w: 52 }); }
+          else { y = 126; Object.assign(t.base, { x, y, F1: [x + 40, AY], F2: [x + 36, AY], pf: true }); t.props.unshift({ type: 'bench', a: [x - 24, 134], b: [x + 14, 134], legs: [x - 16, x + 6] }); }
+          labels.push('sentado');
+        } else {
+          y = 137;
+          if (front) Object.assign(t.base, { x, y, l1: 3, k1: 3, ss1: 0.12, pf: false, f1: 0 });
+          else Object.assign(t.base, { x, y, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, pf: false });
+          labels.push('arrodillado');
+        }
+        const dy = y - oldY;
+        [t.base, ...t.frames].forEach(f => ['H1', 'H2'].forEach(k => { if (f[k]) f[k] = [f[k][0], f[k][1] + dy]; }));
+      } else if (IMPL[mod]) {
+        t.props = t.props.filter(p => !HANDPROPS.has(p.type) && !(p.type === 'band' && p.to === 'hd1'));
+        t.props.push(...IMPL[mod](front));
+        labels.push({ db: 'mancuernas', bb: 'barra', kb: 'kettlebell', band: 'banda' }[mod]);
+      } else if (mod === 'smith') {
+        t.props.unshift({ type: 'rails', at: 'wr1' }); labels.push('Smith');
+      } else if (mod === 'uni' || mod === 'alt') {
+        const tt = t.base.t ?? 180;
+        const rest = asArm2(Object.assign({}, t.base, t.frames[0]), front, tt);   // brazo 2 quieto en la pose inicial
+        if (mod === 'uni') {
+          t.frames.forEach(f => { clearArm(f, 2); Object.assign(f, rest); });
+          clearArm(t.base, 2); Object.assign(t.base, rest);
+          t.props = t.props.filter(p => p.at !== 'hd2');
+          labels.push('a una mano');
+        } else if (t.frames.length === 2) {
+          const A0 = Object.assign({}, t.base, t.frames[0]), B0 = Object.assign({}, A0, t.frames[1]);
+          const restA1 = pickArm(A0, 1), moveB2 = asArm2(B0, front, tt);
+          const f0 = Object.assign({}, t.frames[0], rest);
+          const f1 = Object.assign({}, t.frames[1], rest);                                   // se mueve el brazo 1
+          const f2 = Object.assign({}, t.frames[1]); clearArm(f2, 1); Object.assign(f2, restA1, moveB2);   // se mueve el brazo 2
+          const H = 0.35, M = 1.45;
+          t.frames = [[f0, H], [f0, M], [f1, H], [f1, M], [f0, H], [f0, M], [f2, H], [f2, M]].map(([f, d]) => Object.assign({}, f, { d }));
+          t.free = true; t.dur = 4 * (H + M); t.ease = 'sine';
+          labels.push('alterno');
+        }
+      } else if (mod === 'leg1') {
+        const squat = /squat|sissy|legpress|leg_ext/.test(b);
+        const leg = squat ? { l2: 75, k2: 70 } : { l2: 25, k2: -70 };
+        [t.base, ...t.frames].forEach(f => { delete f.F2; delete f.l2; delete f.k2; });
+        Object.assign(t.base, leg, { f2: 60 });
+        labels.push('a una pierna');
+      }
+    }
+    t.label = src.label + (labels.length ? ' (' + labels.join(', ') + ')' : '');
     return t;
   };
   G.SMTemplates = T;

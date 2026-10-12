@@ -1174,9 +1174,10 @@
     frames: [{}, { H1: [106, 60] }]
   });
   add('pecdeck', 'Contractora (pec deck)', {
-    base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 92, e1: 182 },
-    props: [{ type: 'box', x: 74, y: 128, w: 52 }, { type: 'pad', a: J => J.el1, b: J => J.wr1, w: 6, layer: 'hand' }, { type: 'pad', a: J => J.el2, b: J => J.wr2, w: 6, layer: 'hand' }],
-    frames: [{}, { us1: 0.28 }]
+    base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 92, e1: 182, us1: 1 },
+    props: [{ type: 'box', x: 74, y: 128, w: 52 }, { type: 'pad', a: [100, 62], b: [100, 128], w: 6, layer: 'back' }, { type: 'pad', a: J => A.mv(J.el1, 180, 2), b: J => A.mv(J.el1, 180, 22), w: 7, layer: 'hand' }, { type: 'pad', a: J => A.mv(J.el2, 180, 2), b: J => A.mv(J.el2, 180, 22), w: 7, layer: 'hand' }],
+    frames: [{ d: 0.35 }, { d: 0.9 }, { a1: 92, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: -90, us1: 0.06, d: 0.5 }, { a1: -90, us1: 0.55, d: 0.35 },
+             { a1: -90, us1: 0.55, d: 0.5 }, { a1: -90, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: 92, us1: 0.06, d: 0.9 }], free: true, ease: 'linear', dur: 3.6
   });
   add('pushup', 'Flexión de brazos', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),

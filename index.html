@@ -435,6 +435,12 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .kdots{display:flex;gap:4px;padding:14px 16px!important}.kdots i{width:7px;height:7px;border-radius:50%;background:var(--mu);animation:kd 1s infinite}.kdots i:nth-child(2){animation-delay:.15s}.kdots i:nth-child(3){animation-delay:.3s}
 @keyframes kd{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
 .kin{display:flex;gap:8px}.kin .inp{flex:1}.kin .btn{flex:none;width:48px;padding:0}
+.ejuso{margin-top:12px;background:var(--acc-soft);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:14px;padding:10px 12px}.ejuso small{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:var(--acc-tx)}.ejuso p{margin:3px 0 0;font-size:14px;line-height:1.5}
+.kfull{display:flex;flex-direction:column;min-height:calc(100dvh - 200px - var(--tabh))}
+.kfull .kbox{flex:1;max-height:none;overflow:visible;padding:4px 0 12px}
+.kbar{position:sticky;bottom:calc(var(--tabh) + 10px + env(safe-area-inset-bottom));z-index:5;background:var(--bg);padding:10px 0 4px;margin-top:auto}
+.pro .kbar{bottom:12px}
+.kbar .inp{min-height:50px;border-radius:16px}.kbar .btn{width:52px;border-radius:16px}
 .kex{display:flex;align-items:center;gap:8px;width:100%;padding:9px 11px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--tx);text-align:left}
 .kex small{color:var(--mu);font-weight:500}
 .kiacard .ico{background:var(--acc);color:var(--acc-ink)}
@@ -805,12 +811,14 @@ function evaluadores(org){
 /* ---------------- domain helpers ---------------- */
 const isTraining = d => (d.ejercicios && d.ejercicios.length) || d.nombreSesion || d.tipoActividad;
 const sessions = p => (p.diarios||[]).filter(isTraining);
-const trainedSet = p => new Set(sessions(p).map(d=>toISO(d.fecha)).filter(Boolean));
+/* días con la meta de pasos cumplida: cuentan como actividad diaria para la adherencia */
+const stepDays = p => { const m=+p.metaPasos || 8000, by={}; (p.diarios||[]).forEach(d=>{ const f=toISO(d.fecha); if(f && +d.pasos) by[f]=(by[f]||0)+(+d.pasos||0); }); return new Set(Object.keys(by).filter(f=>by[f]>=m)); };
+const trainedSet = p => new Set([...sessions(p).map(d=>toISO(d.fecha)).filter(Boolean), ...stepDays(p)]);
 function weekStart(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
 function weekStreak(p){ const set=trainedSet(p); const has=w=>{ for(let i=0;i<7;i++){ const d=new Date(w); d.setDate(d.getDate()+i); if(set.has(iso(d))) return true; } return false; };
   let ws=weekStart(new Date()), n=0; if(!has(ws)) ws.setDate(ws.getDate()-7); while(has(ws) && n<200){ n++; ws.setDate(ws.getDate()-7); } return n; }
-const sess30 = p => sessions(p).filter(d=>daysAgo(toISO(d.fecha))<30).length;
-const sessWeek = p => { const ws=iso(weekStart(new Date())); return sessions(p).filter(d=>toISO(d.fecha)>=ws).length; };
+const sess30 = p => [...trainedSet(p)].filter(f=>daysAgo(f)<30 && f<=todayISO()).length;
+const sessWeek = p => { const ws=iso(weekStart(new Date())), td=todayISO(); return [...trainedSet(p)].filter(f=>f>=ws && f<=td).length; };
 const meta = p => +p.metaSemanal || 3;
 const adherence = p => Math.min(100, Math.round(sess30(p) / (meta(p)*30/7) * 100));
 const rpeAvg = p => { const r=sessions(p).map(d=>+d.rpe).filter(Boolean); return r.length ? (r.reduce((a,b)=>a+b,0)/r.length).toFixed(1) : '—'; };
@@ -1063,8 +1071,8 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
-window.logout = () => { stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+function afterPatLogin(){ if(pedAuto()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
+window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -1116,12 +1124,12 @@ window.go = tab => { if(tab!=='chat') stopChat(); S.patTab=tab; render(); scroll
 function topBar(p){ const n=unreadAvisos(p).length;
   return `<div class="row between" style="margin-bottom:14px;gap:10px">${brands(p.marca,false,true,p.kids)}<div class="row" style="gap:8px;flex:none"><button class="hbtn" onclick="sheetAvisos()" aria-label="Avisos">${ic('bell')}${n?`<span class="dotn">${n}</span>`:''}</button><button onclick="go('perfil')" aria-label="Mi perfil">${avatar(p,44)}</button></div></div>`; }
 
-function weekStrip(p, rehab=false){ const set=rehab ? new Set([...(p.sesionesRehab||[]).map(s=>toISO(s.fecha)), ...(p.citas||[]).filter(c=>c.estado==='realizada').map(c=>toISO(c.fecha))]) : trainedSet(p);
+function weekStrip(p, rehab=false){ const sd=stepDays(p), tr=new Set(sessions(p).map(d=>toISO(d.fecha))); const set=rehab ? new Set([...(p.sesionesRehab||[]).map(s=>toISO(s.fecha)), ...(p.citas||[]).filter(c=>c.estado==='realizada').map(c=>toISO(c.fecha))]) : trainedSet(p);
   const up=new Set((p.citas||[]).filter(c=>c.estado==='confirmada').map(c=>toISO(c.fecha))), ws=weekStart(new Date()), td=todayISO(); let h='';
   for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(d.getDate()+i); const s=iso(d), done=set.has(s), cita=up.has(s)&&!done;
-    h+=`<div class="day ${done?'done':''} ${s===td?'today':''} ${s>td&&!cita?'future':''}"><span>${DOW[d.getDay()].slice(0,2)}</span><b>${d.getDate()}</b><span class="dot" ${cita?'style="border-color:var(--blue);background:color-mix(in srgb,var(--blue) 25%,transparent)"':''}>${done?ic('check'):cita?`<i style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></i>`:''}</span></div>`; }
+    h+=`<div class="day ${done?'done':''} ${s===td?'today':''} ${s>td&&!cita?'future':''}"><span>${DOW[d.getDay()].slice(0,2)}</span><b>${d.getDate()}</b><span class="dot" ${cita?'style="border-color:var(--blue);background:color-mix(in srgb,var(--blue) 25%,transparent)"':''}>${done?(!rehab&&sd.has(s)&&!tr.has(s)?ic('steps'):ic('check')):cita?`<i style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></i>`:''}</span></div>`; }
   const n=rehab ? [...set].filter(s=>s>=iso(ws)).length : sessWeek(p);
-  return `<section class="card tight"><div class="row between" style="padding:2px 4px 8px"><span class="eyebrow">Esta semana</span><span class="xs muted b">${rehab?`${n} sesiones · ● próxima hora`:`${n} de ${meta(p)} sesiones`}</span></div><div class="week">${h}</div></section>`; }
+  return `<section class="card tight"><div class="row between" style="padding:2px 4px 8px"><span class="eyebrow">Esta semana</span><span class="xs muted b">${rehab?`${n} sesiones · ● próxima hora`:`${n} de ${meta(p)} días activos`}</span></div><div class="week">${h}</div></section>`; }
 
 const AV_ICON = {rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
 function avisoAction(a){ return ({rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
@@ -1174,7 +1182,7 @@ function vHoy(p){
   if(rh) h+=rehabCard(p);
   h+=animoCard(p);
   const ts=tareas(p).filter(t=>!t.hecha);
-  if(ts.length) h+=`<div class="sec-t"><h2>Tareas en casa</h2><button class="xs b acc-t" onclick="S.planSeg='rehab';go('plan')">Ver todas</button></div><div class="list">${ts.slice(0,3).map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc">${ic('check')}</span><span class="grow sm">${esc(t.texto)}</span></button>`).join('')}</div>`;
+  if(ts.length) h+=`<div class="sec-t"><h2>Tareas en casa</h2><button class="xs b acc-t" onclick="S.planSeg='rehab';go('plan')">Ver todas</button></div><div class="list">${ts.slice(0,3).map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`;
   const ln=(p.sesionesRehab||[]).slice(-1)[0];
   if(ln && ln.nota) h+=`<div class="sec-t"><h2>Nota de tu kine</h2></div><button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row" style="align-items:flex-start">${ic('steth')}<div class="grow"><div class="xs muted b">${fmtDate(ln.fecha)} · ${esc(ln.klgo||p.klgo||'Tu kinesiólogo')}</div><p class="sm" style="margin-top:4px">${esc(ln.nota)}</p></div></div></button>`;
   h+=kiaPreview();
@@ -1241,7 +1249,7 @@ function vPlan(p){
   } else if(seg==='rehab'){
     h+=rehabCard(p);
     const ts=tareas(p);
-    h+=`<div class="sec-t"><h2>Tareas en casa</h2></div>${ts.length?`<div class="list">${ts.map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="${t.hecha?'text-decoration:line-through;opacity:.55':''}">${esc(t.texto)}</span></button>`).join('')}</div>`:`<div class="card empty">Sin tareas asignadas por ahora.</div>`}`;
+    h+=`<div class="sec-t"><h2>Tareas en casa</h2></div>${ts.length?`<div class="list">${ts.map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="${t.hecha?'text-decoration:line-through;opacity:.55':''};white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`:`<div class="card empty">Sin tareas asignadas por ahora.</div>`}`;
     if(per==='rehabilitacion' && pend.length) h+=`<div class="sec-t"><h2>Ejercicios asignados</h2></div>${pend.map(routineCard).join('')}`;
     const ss=(p.sesionesRehab||[]).slice().reverse();
     h+=`<div class="sec-t"><h2>Registro clínico de sesiones</h2></div><div class="card">${ss.length?`<div class="tl">${ss.map((s,i)=>`<div class="tl-i blue"><div class="row between"><span class="b sm">Sesión ${ss.length-i}</span><span class="xs muted">${fmtDate(s.fecha)}${s.eva!==''&&s.eva!=null?` · dolor ${esc(s.eva)}/10`:''}</span></div>${s.klgo?`<div class="xs muted">${esc(s.klgo)}</div>`:''}${s.nota?`<div class="body muted">${esc(s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Tus sesiones aparecerán aquí.</div>'}</div>`;
@@ -1602,6 +1610,19 @@ function ejPlay(){ ejStop(); const st=$('#ejst'); if(!st) return; st.classList.r
 window.ejTap = () => { const st=$('#ejst'); if(!st) return; if(ejTimer){ ejStop(); st.classList.add('paused'); } else ejPlay(); };
 window.ejGo = j => { ejStop(); $('#ejst')?.classList.add('paused'); ejShow(j); };
 window.ejSpeed = () => { const st=$('#ejst'); if(!st) return; const sp=st.dataset.sp==='0.5'?1:0.5; st.dataset.sp=sp; const b=$('#ejsp'); if(b) b.textContent=sp===0.5?'Ver normal':'Ver lento'; if(ejTimer) ejPlay(); };
+/* "Para qué sirve": frase según el tipo de ejercicio (los de rehabilitación usan la lesión y la fase) */
+function ejUso(x){ const m=String(x.m||'').toLowerCase(), n=fold(x.n+' '+(x.en||'')), sec=(x.s||[]).filter(v=>!/^(circulaci|equilibrio)/i.test(v)).slice(0,2).map(v=>v.toLowerCase());
+  if(x.c==='Rehabilitación') return `Ejercicio de rehabilitación para ${x.m.replace(/:\s*/,' — ').toLowerCase()}${x.s&&x.s[0]?`, en la fase de ${x.s[0].toLowerCase()}`:''}. Úsalo solo con indicación de tu kinesiólogo.`;
+  if(/respira|diafragm/.test(n)) return 'Aprender a respirar con el diafragma, relajarte y activar la zona media. Útil para empezar y terminar la sesión.';
+  if(/equilibrio|balance/.test(n) || m==='equilibrio') return 'Mejorar el equilibrio y la estabilidad del tobillo y la cadera, y así prevenir caídas.';
+  if(/caminata|caminar|marcha|walk/.test(n) && (m==='resistencia'||/caminata|walk/.test(n))) return 'Mejorar la resistencia y la salud cardiovascular de forma suave, y sumar pasos diarios.';
+  if(/bombeo de tobillo|ankle pump|puntas y talones/.test(n)) return 'Activar la circulación de las piernas y mantener la movilidad del tobillo, ideal si pasas mucho tiempo sentado o en cama.';
+  if(/estira|stretch|elongaci|movilidad|liberaci|foam|mobility/.test(n)) return `Mejorar la flexibilidad y la movilidad de ${m}, y disminuir la rigidez.`;
+  if(x.c==='Cardiovascular') return 'Mejorar la resistencia cardiovascular y el gasto de energía.';
+  if(x.c==='Potencia y Pliometría') return `Desarrollar potencia, salto y capacidad de reacción de ${m}.`;
+  if(/pararse y sentarse|sit to stand/.test(n)) return 'Fortalecer cuádriceps y glúteos para levantarte de la silla, subir escaleras y moverte con más seguridad en el día a día.';
+  if(/isometr|plancha|plank|sostenid/.test(n)) return `Fortalecer ${m} manteniendo la posición, para ganar estabilidad y control.`;
+  return `Fortalecer ${m}${sec.length?` y, en menor medida, ${sec.join(' y ')}`:''}.`; }
 window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); if(!x) return; ejStop();
   const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
   const stage = x.a && window.SMAnim ? `<div class="ejstage ejanim" id="ejan" onclick="ejAnTap()"><span class="ejpp">${ic('play','s')}</span></div>
@@ -1615,8 +1636,11 @@ window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); i
     : `<div class="ejstage noanim">${x.img?`<img class="ejimg on" src="${media(x.img)}" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>`;
   sheet(`${stage}
   <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
-  <div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Zona</small><b>${esc(x.c)}</b></div></div>
-  ${x.s&&x.s.length?`<div class="lbl" style="margin-top:14px">También trabaja</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${x.s.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>`:''}
+  <div class="ejuso"><small>Para qué sirve</small><p>${esc(ejUso(x))}</p></div>
+  ${x.c==='Rehabilitación'
+    ? `<div class="ejchips"><div class="ejchip main"><small>Lesión / condición</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Fase</small><b>${esc((x.s&&x.s[0])||'—')}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div></div>`
+    : `<div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Zona</small><b>${esc(x.c)}</b></div></div>
+  ${x.s&&x.s.length?`<div class="lbl" style="margin-top:14px">También trabaja</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${x.s.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>`:''}`}
   ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} paso${x.p.length>1?'s':''}</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
   <div class="note" style="margin-top:16px">${ic('info','s')}<span>Haz el movimiento controlado y sin dolor. Si algo molesta, detente y avísale a tu kine.</span></div>
   <p class="xs muted center" style="margin-top:14px">${x.a?'Animación StrongMed × Kin At Home · toca para pausar':'Ejercicio agregado por StrongMed'}</p>`);
@@ -1954,7 +1978,7 @@ function pClinico(p){
     ${sesionForm({}, 'cs')}
     <button class="btn pri block" onclick="guardarSesion()">Guardar sesión</button></section>
   <section class="card stack"><div class="row between"><span class="b">Tareas en casa</span><button class="btn ghost sm" onclick="nuevaTarea()">${ic('plus','s')} Tarea</button></div>
-    ${ts.length?`<div class="stack" style="gap:6px">${ts.map(t=>`<div class="ex"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm">${esc(t.texto)}</span><button class="ibtn red" onclick="borrarTarea(${q(t.id)})" aria-label="Eliminar">${ic('x','s')}</button></div>`).join('')}</div>`:'<div class="xs muted">Sin tareas asignadas.</div>'}</section>
+    ${ts.length?`<div class="stack" style="gap:6px">${ts.map(t=>`<div class="ex"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span><button class="ibtn red" onclick="borrarTarea(${q(t.id)})" aria-label="Eliminar">${ic('x','s')}</button></div>`).join('')}</div>`:'<div class="xs muted">Sin tareas asignadas.</div>'}</section>
   <div class="sec-t"><h2>Informes</h2><button class="btn ghost sm" onclick="pgo('informe',${q(k)})">${ic('plus','s')} Informe</button></div>
   ${(p.informes||[]).length?`<div class="list">${p.informes.slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
@@ -1967,7 +1991,7 @@ function sesionForm(s, pre){ const hasEva = s.eva!==''&&s.eva!=null;
     <div class="grid2"><label class="field"><span class="lbl">Profesional</span><select class="inp" id="${pre}-k">${[...new Set([s.klgo, ...evaluadores(prof(S.proArg)?.org)].filter(Boolean))].map(e=>`<option ${e===s.klgo?'selected':''}>${esc(e)}</option>`).join('')}</select></label>
     <label class="field"><span class="lbl">Tolerancia</span><select class="inp" id="${pre}-tol"><option value="">—</option>${TOLERANCIAS.map(t=>`<option ${s.tolerancia&&String(s.tolerancia).includes(t.split(' ')[0])?'selected':''}>${t}</option>`).join('')}</select></label></div>
     <label class="field"><span class="lbl">Evolución de la sesión</span><textarea class="inp" id="${pre}-n" placeholder="Tratamiento realizado, respuesta, observaciones…">${esc(s.nota||'')}</textarea></label>
-    ${pre==='cs'?`<label class="field"><span class="lbl">Tarea para la casa (opcional)</span><input class="inp" id="cs-t" placeholder="Ej: Movilidad de cadera 3×10 diaria"></label>`:''}`; }
+    ${pre==='cs'?`<label class="field"><span class="lbl">Tarea para la casa (opcional)</span><textarea class="inp" id="cs-t" rows="3" style="resize:vertical" placeholder="Ej: Movilidad de cadera 3×10 diaria"></textarea></label>`:''}`; }
 const readSesion = pre => { const ev=$(`#${pre}-eva`); return {fecha:val(pre+'-f')||todayISO(), eva: ev.dataset.t ? +ev.value : '', klgo:val(pre+'-k'), tolerancia:val(pre+'-tol'), nota:val(pre+'-n')}; };
 window.guardarSesion = async () => { const p=prof(S.proArg), s=readSesion('cs'); if(!s.nota) return toast('Escribe la evolución de la sesión','err');
   p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), ...s});
@@ -1977,7 +2001,14 @@ window.editarSesion = id => { const p=prof(S.proArg), s=(p.sesionesRehab||[]).fi
   sheet(`<h2 class="disp h2">Editar sesión</h2><div class="stack" style="margin-top:16px">${sesionForm(s,'es')}<div class="grid2"><button class="btn danger" onclick="borrarSesion(${id})">${ic('trash','s')} Eliminar</button><button class="btn pri" onclick="guardarEdSesion(${id})">Guardar</button></div></div>`); };
 window.guardarEdSesion = async id => { const p=prof(S.proArg), s=p.sesionesRehab.find(x=>x.id===id); Object.assign(s, readSesion('es')); if(await save(p)){ closeSheet(); toast('Sesión actualizada'); keepScroll(render); } };
 window.borrarSesion = async id => { if(!confirm('¿Eliminar este registro de sesión?')) return; const p=prof(S.proArg); p.sesionesRehab=p.sesionesRehab.filter(x=>x.id!==id); if(await save(p)){ closeSheet(); keepScroll(render); } };
-window.nuevaTarea = async () => { const t=prompt('Tarea para la casa:'); if(!t||!t.trim()) return; const p=prof(S.proArg); p.tareasClinicas=tareas(p); p.tareasClinicas.push({id:'t'+uid(), texto:t.trim(), fecha:todayISO(), hecha:false}); addAviso(p,'tarea',`Nueva tarea para la casa: ${t.trim()}`); await save(p); keepScroll(render); };
+window.nuevaTarea = () => { const p=prof(S.proArg); if(!p) return;
+  sheet(`<h2 class="disp h2">Nueva tarea para la casa</h2><p class="sm muted" style="margin-top:6px">${esc(first(p.nombre))} la verá en su app y recibirá un aviso.</p>
+  <div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Tarea</span><textarea class="inp" id="nt-x" rows="6" style="min-height:150px;resize:vertical" placeholder="Ej: Movilidad de cadera 3×10, todos los días.&#10;Caminar 20 minutos.&#10;Hielo 15 min después de los ejercicios."></textarea></label>
+  <div class="xs muted">Puedes escribir varias líneas: cada salto de línea se respeta.</div>
+  <button class="btn pri block" onclick="guardarNuevaTarea()">${ic('send','s')} Guardar y avisar</button></div>`); setTimeout(()=>$('#nt-x')?.focus(), 250); };
+window.guardarNuevaTarea = async () => { const t=String($('#nt-x')?.value||'').trim(); if(!t) return toast('Escribe la tarea','err'); const p=prof(S.proArg);
+  p.tareasClinicas=tareas(p); p.tareasClinicas.push({id:'t'+uid(), texto:t, fecha:todayISO(), hecha:false}); addAviso(p,'tarea',`Nueva tarea para la casa: ${t.split('\n')[0]}${t.includes('\n')?'…':''}`);
+  if(await save(p)){ closeSheet(); toast('Tarea guardada y avisada'); keepScroll(render); } };
 window.borrarTarea = async id => { const p=prof(S.proArg); p.tareasClinicas=tareas(p).filter(t=>t.id!==id); await save(p); keepScroll(render); };
 
 function pAgenda(p){ const up=proximasCitas(p), past=(p.citas||[]).filter(c=>!up.includes(c)).sort((a,b)=>citaTs(b)-citaTs(a)), k=keyOf(p);
@@ -2762,13 +2793,14 @@ function stepsCard(p){
     <div class="sring"><svg viewBox="0 0 170 170"><circle cx="85" cy="85" r="${r}" class="bg"/><circle cx="85" cy="85" r="${r}" class="fg" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" transform="rotate(-90 85 85)"/></svg><div><b id="st-n">${n.toLocaleString('es-CL')}</b><small>de ${m.toLocaleString('es-CL')}</small></div></div>
     <div class="grow"><div class="eyebrow">Pasos de hoy</div><div class="b" style="margin-top:4px">${n>=m?'¡Meta cumplida! 🎉':`Te faltan ${(m-n).toLocaleString('es-CL')}`}</div><div class="xs muted">${km} km aprox.</div>
     <div class="week7">${week}</div></div></div>
-    ${ped?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Contando pasos…</div><div class="xs muted">Mantén la app abierta y el teléfono contigo. <b id="ped-n">${S.ped.count}</b> pasos</div></div><button class="btn pri sm" onclick="pararPasos()">Listo</button></div>`
-      :`<div class="grid2"><button class="btn sec sm" onclick="contarPasos()">${ic('steps','s')} Contar con el teléfono</button><button class="btn sec sm" onclick="sheetPasos()">${ic('edit','s')} Anotar pasos</button></div>`}
+    ${ped&&S.ped.auto?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conteo automático activo</div><div class="xs muted">Cuenta mientras la app esté abierta y se guarda solo cada minuto.</div></div><button class="btn sec sm" onclick="pedAutoOff()">Desactivar</button></div>`
+     :ped?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Contando pasos…</div><div class="xs muted">Mantén la app abierta y el teléfono contigo. <b id="ped-n">${S.ped.count}</b> pasos</div></div><button class="btn pri sm" onclick="pararPasos()">Listo</button></div>`
+      :`<div class="grid2"><button class="btn sec sm" onclick="contarPasos()">${ic('steps','s')} Contar con el teléfono</button><button class="btn sec sm" onclick="sheetPasos()">${ic('edit','s')} Anotar pasos</button></div><button class="btn ghost sm block" onclick="sheetPedAuto()">${ic('steps','s')} Contar pasos automáticamente</button>`}
     <div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día.</div></section>`;
 }
 window.sheetPasos = () => { const p=me(); sheet(`<h2 class="disp h2">Pasos de hoy</h2><div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Total de pasos de hoy (según tu reloj o app)</span><input class="inp" id="sp-n" inputmode="numeric" value="${pasosDia(p,todayISO())||''}"></label><label class="field"><span class="lbl">Mi meta diaria</span><input class="inp" id="sp-m" inputmode="numeric" value="${metaPasos(p)}"></label><button class="btn pri block" onclick="guardarPasosSheet()">Guardar</button></div>`); };
 window.guardarPasosSheet = async () => { const p=me(), n=parseInt(val('sp-n')), m=parseInt(val('sp-m')); if(m>0) p.metaPasos=m;
-  if(n>=0){ const otros=pasosDia(p,todayISO())-pasosDiaSolo(p); setPasosHoy(p, Math.max(0,n-otros)); } await save(p); closeSheet(); toast('Pasos guardados'); keepScroll(render); };
+  if(n>=0){ const otros=pasosDia(p,todayISO())-pasosDiaSolo(p); setPasosHoy(p, Math.max(0,n-otros)); } await save(p); closeSheet(); toast(pasosDia(p,todayISO())>=metaPasos(p)?'¡Meta de pasos cumplida! Hoy cuenta como día activo 🎉':'Pasos guardados'); keepScroll(render); };
 let wakeLock=null; async function keepAwake(on){ try{ if(on && 'wakeLock' in navigator){ wakeLock=await navigator.wakeLock.request('screen'); } else if(!on && wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){} }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && ((S.ped&&S.ped.on)||(S.gps&&!S.gps.paused))) keepAwake(true); });
 function onMotion(e){ const g=e.accelerationIncludingGravity; if(!g) return; const a=Math.sqrt((g.x||0)**2+(g.y||0)**2+(g.z||0)**2); const P=S.ped; P.avg = P.avg ? P.avg*0.92 + a*0.08 : a; const now=Date.now();
@@ -2777,6 +2809,27 @@ window.contarPasos = async () => { try{ if(typeof DeviceMotionEvent!=='undefined
   if(typeof DeviceMotionEvent==='undefined') return toast('Este dispositivo no tiene sensor de movimiento','err');
   S.ped={on:true, count:0}; window.addEventListener('devicemotion', onMotion); keepAwake(true); keepScroll(render); };
 window.pararPasos = async () => { window.removeEventListener('devicemotion', onMotion); keepAwake(false); const n=S.ped.count; S.ped=null; if(n>0){ const p=me(); sumarPasosHoy(p,n); await save(p); toast(`+${n} pasos`); } keepScroll(render); };
+
+/* ---- conteo automático de pasos (con consentimiento): cuenta mientras la app está abierta y guarda cada minuto ---- */
+const pedAuto = () => { try{ return localStorage.getItem('sm_ped_auto')==='1'; }catch(e){ return false; } };
+window.sheetPedAuto = () => sheet(`<h2 class="disp h2">Contar pasos automáticamente</h2><div class="stack" style="margin-top:12px">
+  <p class="sm">Si aceptas, cada vez que abras StrongMed el teléfono contará tus pasos con su sensor de movimiento y los irá sumando solo a tu registro diario. Cuando llegues a tu meta, ese día cuenta como <b>día activo</b> en tu adherencia.</p>
+  <div class="note">${ic('info','s')}<span>Los celulares no permiten que una app web cuente pasos con la pantalla apagada o cerrada. Para el resto del día, anota el total que marque tu reloj o tu app de salud (Google Fit, Samsung Health, Salud de iPhone) con <b>Anotar pasos</b>.</span></div>
+  <p class="xs muted">Solo se guarda el número de pasos por día. Puedes desactivarlo cuando quieras.</p>
+  <button class="btn pri block" onclick="pedAutoOn()">Acepto, activar</button><button class="btn ghost block" onclick="closeSheet()">Ahora no</button></div>`);
+window.pedAutoOn = async () => { try{ localStorage.setItem('sm_ped_auto','1'); }catch(e){}
+  try{ if(typeof DeviceMotionEvent!=='undefined' && DeviceMotionEvent.requestPermission){ const r=await DeviceMotionEvent.requestPermission(); if(r!=='granted'){ closeSheet(); return toast('Necesitamos permiso de movimiento para contar pasos','err'); } } }catch(e){}
+  closeSheet(); pedAutoStart(true); toast('Conteo automático activado'); keepScroll(render); };
+function pedAutoStart(ok){ if(S.role!=='pat' || (S.ped&&S.ped.on) || typeof DeviceMotionEvent==='undefined') return;
+  const start=()=>{ if(S.ped&&S.ped.on) return; S.ped={on:true, count:0, auto:true}; window.addEventListener('devicemotion', onMotion); clearInterval(S.pedTimer); S.pedTimer=setInterval(pedFlush, 60000); if(S.patTab==='hoy') softRender(); };
+  if(!ok && DeviceMotionEvent.requestPermission){ const go=async()=>{ try{ if(await DeviceMotionEvent.requestPermission()==='granted') start(); }catch(e){} }; document.addEventListener('touchend', go, {once:true}); return; }
+  start(); }
+async function pedFlush(){ const P=S.ped; if(!P || !P.on || !P.auto || !P.count || S.role!=='pat') return; const n=P.count; P.count=0; const p=me(); if(!p) return;
+  const m=metaPasos(p), antes=pasosDia(p,todayISO()); sumarPasosHoy(p,n); await save(p);
+  if(antes<m && pasosDia(p,todayISO())>=m) toast('¡Meta de pasos cumplida! Hoy cuenta como día activo 🎉'); if(S.patTab==='hoy') softRender(); }
+window.pedAutoOff = async () => { await pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; try{ localStorage.removeItem('sm_ped_auto'); }catch(e){} toast('Conteo automático desactivado'); keepScroll(render); };
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') pedFlush(); });
+window.addEventListener('pagehide', ()=>{ pedFlush(); });
 
 /* ================= MIS MEDIDAS (antropometría por la persona) ================= */
 const lastMedida = p => (p.medidas||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).pop();
@@ -3155,20 +3208,21 @@ function kiaMsg(m){ if(m.me) return `<div class="kmsg me"><div>${esc(m.text)}</d
   ${(m.no||m.kine) && S.role==='pat'?`<button class="btn sec sm" style="margin-top:10px" onclick="go('chat')">${ic('chat','s')} Escribir a mi kinesiólogo</button>`:''}</div></div>`; }
 function vKinIA(){
   const pro=S.role==='pro'; S.kia=S.kia||{msgs:[]}; const seg=pro?(S.kiaSeg||'chat'):'chat';
-  S.after.push(async()=>{ if(!S._faqLoaded){ S._faqLoaded=true; await loadFAQ(); keepScroll(render); } const b=$('#kbox'); if(b) b.scrollTop=b.scrollHeight; });
+  S.after.push(async()=>{ if(!S._faqLoaded){ S._faqLoaded=true; await loadFAQ(); keepScroll(render); } if(S.kia && S.kia.msgs.length) requestAnimationFrame(()=>window.scrollTo(0, document.body.scrollHeight)); });
   const head=`<header class="top">${!pro?`<button class="back" onclick="go('hoy')">${ic('chevl','s')} Hoy</button>`:''}<div class="row between"><div><div class="eyebrow">Asistente de entrenamiento</div><h1 class="disp h1" style="margin-top:6px">KIN <span class="acc-t">IA</span></h1></div>${pro?`<div class="seg" style="width:auto"><button class="${seg==='chat'?'on':''}" onclick="S.kiaSeg='chat';render()">Probar</button><button class="${seg==='train'?'on':''}" onclick="S.kiaSeg='train';render()">Entrenar</button></div>`:''}</div></header>`;
   if(seg==='train') return head+kiaTrain();
-  return `${head}<div class="stack"><section class="card kchat"><div class="kbox" id="kbox">
+  return `${head}<div class="kfull"><div class="kbox" id="kbox">
     <div class="kmsg ai"><span class="kav">${ic('spark','s')}</span><div>Hola, soy <b>KIN IA</b>. Respondo dudas de entrenamiento, dosificación y ejercicios con la información de tu equipo de StrongMed y Kin At Home.</div></div>
     ${S.kia.msgs.length?'':`<div class="pills" style="flex-wrap:wrap;padding-left:42px">${KIA_SUG.map(s=>`<button class="pill" onclick="kiaSend(${q(s)})">${esc(s)}</button>`).join('')}</div>`}
     ${S.kia.msgs.map(kiaMsg).join('')}</div>
-    <form class="kin" onsubmit="event.preventDefault();kiaSend()"><input class="inp" id="kia-in" placeholder="Escribe tu pregunta…" autocomplete="off"><button class="btn pri" aria-label="Enviar">${ic('chevr','s')}</button></form></section>
-    <p class="xs muted center">KIN IA responde solo con información cargada por profesionales. No reemplaza la evaluación de tu kinesiólogo.</p></div>`;
+    <p class="xs muted center" style="margin-top:6px">KIN IA responde solo con información cargada por profesionales. No reemplaza la evaluación de tu kinesiólogo.</p></div>
+    <form class="kin kbar" onsubmit="event.preventDefault();kiaSend(document.getElementById('kia-in').value)"><input class="inp" id="kia-in" placeholder="Escribe tu pregunta…" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`;
 }
-window.kiaSend = async txt => { const t=(txt||val('kia-in')).trim(); if(!t) return; S.kia=S.kia||{msgs:[]}; S.kia.msgs.push({me:true, text:t}, {wait:true}); if(S.role==='pat') S.patTab='faq'; else S.proTab='faq'; render();
+window.kiaSend = async txt => { const t=String(txt ?? document.getElementById('kia-in')?.value ?? '').trim(); if(!t) return; S.kia=S.kia||{msgs:[]}; S.kia.msgs.push({me:true, text:t}, {wait:true}); if(S.role==='pat') S.patTab='faq'; else S.proTab='faq'; render();
   const [a]=await Promise.all([kiaAnswer(t), new Promise(r=>setTimeout(r,450))]); S.kia.msgs.pop(); S.kia.msgs.push(a); if(S.kia.msgs.length>40) S.kia.msgs=S.kia.msgs.slice(-40); render(); setTimeout(()=>$('#kia-in')?.focus(),50); };
 function kiaPreview(){ return `<section class="card stack kiacard"><div class="row"><span class="ico">${ic('spark')}</span><div class="grow"><div class="b">Pregúntale a KIN IA</div><div class="xs muted">Series, descansos, cargas, pasos, ejercicios…</div></div></div>
-  <form class="kin" onsubmit="event.preventDefault();kiaSend(val('kia-hoy'))"><input class="inp" id="kia-hoy" placeholder="¿Cuántas series para hipertrofia?" autocomplete="off"><button class="btn pri" aria-label="Preguntar">${ic('chevr','s')}</button></form></section>`; }
+  <form class="kin" onsubmit="event.preventDefault();const v=document.getElementById('kia-hoy').value.trim();v?kiaSend(v):go('faq')"><input class="inp" id="kia-hoy" placeholder="¿Cuántas series para hipertrofia?" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Preguntar">${ic('chevr','s')}</button></form>
+  <button type="button" class="btn sec sm block" onclick="go('faq')">${ic('spark','s')} Abrir KIN IA en pantalla completa</button></section>`; }
 function kiaTrain(){
   const qa=(S.faq||[]).filter(f=>f.tipo!=='texto'), tx=(S.faq||[]).filter(f=>f.tipo==='texto');
   return `<div class="stack"><div class="note">${ic('info','s')}<span>Todo lo que agregues aquí lo usa KIN IA para responder a las personas y profesionales de StrongMed y Kin At Home. Si no encuentra la información, responde: “${esc(KIA_NO)}”.</span></div>

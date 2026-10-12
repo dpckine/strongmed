@@ -458,6 +458,9 @@ header.top.row>div:first-child{flex:1 1 auto;max-width:100%}
 .grid2>.btn,.grid2>label.btn,.grid3>.btn{white-space:normal;min-width:0;height:auto;min-height:48px;padding:10px 12px;line-height:1.2;text-align:center}
 .row{min-width:0}.grow{min-width:0}
 .pills{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.pills::-webkit-scrollbar{display:none}
+@media(min-width:900px){.pills{flex-wrap:wrap;overflow:visible}}
+.dias{display:flex;gap:6px;flex-wrap:wrap}.dias button{min-width:44px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:700;font-size:13px;color:var(--mu)}.dias button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.daytag{display:inline-flex;gap:4px;flex-wrap:wrap}.daytag span{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--acc);color:var(--acc-ink)}
 /* iPhone hace zoom al escribir si la letra es menor a 16px */
 @media (pointer:coarse){ .inp,input,select,textarea{font-size:16px} .setrow input{font-size:16px} }
 @media (max-width:380px){ .wrap{padding-left:12px;padding-right:12px} .card{padding:14px} .tab{font-size:10px} .gpsstats b{font-size:26px} .gpsstats .big b{font-size:34px} }
@@ -816,7 +819,17 @@ const rehabPlan = p => +p.sesionesPlan || 0;
 const tareas = p => (p.tareasClinicas||[]).map((t,i)=> typeof t==='string' ? {id:'s'+i, texto:t, hecha:false} : t);
 const lastCheckin = p => (p.checkins||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))).pop();
 function lastActivity(p){ const ds=[...(p.diarios||[]).map(d=>toISO(d.fecha)), ...(p.sesionesRehab||[]).map(s=>toISO(s.fecha)), ...(p.checkins||[]).map(c=>toISO(c.fecha)), ...(p.animo||[]).map(c=>c.fecha)].filter(Boolean).sort(); return ds.pop()||''; }
-function nextRoutine(p){ const r=(p.rutinasAsignadas||[]).filter(x=>!x.completada).sort((a,b)=>a.id-b.id); const pro=r.filter(x=>x.creador!=='user'); return pro[pro.length-1] || r[r.length-1] || null; }
+/* días de la semana: 1=lunes … 7=domingo */
+const DIAS_C = ['','Lun','Mar','Mié','Jue','Vie','Sáb','Dom'], DIAS_L = ['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const hoyDia = () => { const d=new Date().getDay(); return d===0?7:d; };
+const conDias = r => Array.isArray(r.dias) && r.dias.length>0;
+const hechaHoy = r => r.ultima===todayISO();
+const diasTxt = r => conDias(r) ? r.dias.slice().sort((a,b)=>a-b).map(d=>DIAS_C[d]).join(' · ') : '';
+const diaTag = r => conDias(r) ? `<span class="daytag">${r.dias.slice().sort((a,b)=>a-b).map(d=>`<span>${DIAS_C[d]}</span>`).join('')}</span>` : '';
+function nextRoutine(p){ const r=(p.rutinasAsignadas||[]).filter(x=>!x.completada).sort((a,b)=>a.id-b.id);
+  if(r.some(conDias)){ const hoy=r.filter(x=>conDias(x) && x.dias.includes(hoyDia()) && !hechaHoy(x)); if(hoy.length) return hoy[hoy.length-1];
+    const sueltas=r.filter(x=>!conDias(x)); return sueltas[sueltas.length-1] || null; }
+  const pro=r.filter(x=>x.creador!=='user'); return pro[pro.length-1] || r[r.length-1] || null; }
 function prevPerf(p, name){ const n=String(name).toLowerCase(); const ds=sessions(p).slice().sort((a,b)=>toISO(b.fecha).localeCompare(toISO(a.fecha)));
   for(const d of ds){ const e=(d.ejercicios||[]).find(x=>String(x.ejercicio).toLowerCase()===n); if(e) return `${e.kilos||e.kg||0} kg × ${e.reps||'-'}`; } return ''; }
 const citaTs = c => { const s=toISO(c.fecha); if(!s) return 0; const d=parseISO(s); const [h,m]=String(c.hora||(c.bloque==='PM'?'15:00':'09:00')).split(':').map(Number); d.setHours(h||0,m||0); return d.getTime(); };
@@ -1205,20 +1218,23 @@ function exThumb(e){ const x=libFind(e.ejercicio, e.exId); return x ? `<button c
 function routineCard(r){
   const ex=r.ejercicios||[];
   return `<article class="card rt ${r.completada?'done':''}"><div class="row between"><span class="badge ${r.creador==='user'?'':'acc'}">${r.creador==='user'?'Mi rutina':'De tu kine'}</span><span class="xs muted">${fmtDate(r.fecha)}${r.tiempo?` · ${esc(r.tiempo)} min`:''}</span></div>
-  <h3 class="disp h2" style="font-size:26px;margin-top:10px">${esc(r.titulo||'Rutina')}</h3>
+  <h3 class="disp h2" style="font-size:26px;margin-top:10px">${esc(r.titulo||'Rutina')}</h3>${conDias(r)?`<div class="row" style="gap:8px;margin-top:8px;align-items:center">${diaTag(r)}${hechaHoy(r)?`<span class="xs b acc-t">✓ Hecha hoy</span>`:(r.dias.includes(hoyDia())?`<span class="xs b">Te toca hoy</span>`:'')}</div>`:''}
   <div class="exl">${ex.map((e,i)=>`<div class="ex"><button class="cc ${e.hecho?'on':''}" onclick="toggleEj(${r.id},${i})" aria-label="Marcar">${ic('check')}</button>${exThumb(e)}<div class="grow"><div class="b sm">${esc(e.ejercicio)}</div><div class="xs muted">${[e.kg||e.kilos?`${esc(e.kg||e.kilos)} kg`:'', e.rir?`RIR ${esc(e.rir)}`:'', e.descanso?`desc. ${esc(e.descanso)}`:''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>${safeUrl(e.video)?`<a class="vid" href="${safeUrl(e.video)}" target="_blank" rel="noopener" aria-label="Ver video">${ic('video','s')}</a>`:''}<span class="sr">${esc(e.series||3)}×${esc(e.reps||10)}</span></div>`).join('')}</div>
   ${r.completada?`<div class="donebar">${ic('check','s')} Completada</div>`:''}
   <div class="row" style="gap:8px;margin-top:12px"><button class="btn ${r.completada?'sec':'pri'} grow" onclick="startWorkout(${r.id})">${ic('play','s')} ${r.completada?'Repetir rutina':'Hacer rutina'}</button><button class="ibtn" onclick="shareRutina(${r.id})" aria-label="Compartir">${ic('upload','s')}</button><button class="ibtn red" onclick="borrarRutinaPat(${r.id})" aria-label="Eliminar">${ic('trash','s')}</button></div></article>`;
 }
 function vPlan(p){
   const per=perfilOf(p); let seg=S.planSeg || (per==='rehabilitacion'?'rehab':'rutinas'); if(per==='entrenamiento' && seg==='rehab') seg='rutinas';
-  const rs=(p.rutinasAsignadas||[]).slice().reverse(), pend=rs.filter(r=>!r.completada), done=rs.filter(r=>r.completada);
+  const rs=(p.rutinasAsignadas||[]).slice().reverse(), done=rs.filter(r=>r.completada);
+  const pend=rs.filter(r=>!r.completada).sort((a,b)=>{ const k=r=>conDias(r)?(r.dias.includes(hoyDia())?0:Math.min(...r.dias.map(d=>(d-hoyDia()+7)%7))):99; return k(a)-k(b); });
   S.after.push(loadLib);
   let h=`<header class="top"><div class="eyebrow">${PERFIL[per].label}</div><h1 class="disp h1" style="margin-top:6px">Mi plan</h1></header><div class="stack">`;
   const segs = per==='mixto' ? [['rutinas','Rutinas'],['rehab','Rehabilitación'],['fichas','Fichas']] : per==='rehabilitacion' ? [['rehab','Rehabilitación'],['fichas','Mis fichas']] : [['rutinas','Rutinas'],['fichas','Mis fichas']];
   h+=`<div class="seg">${segs.map(([k,l])=>`<button class="${seg===k?'on':''}" onclick="S.planSeg='${k}';render()">${l}</button>`).join('')}</div>`;
   if(seg==='rutinas'){
     h+=`<div class="grid2"><button class="btn sec" onclick="sheetMiRutina()">${ic('plus','s')} Crear rutina</button><button class="btn sec" onclick="go('biblioteca')">${ic('book','s')} Ejercicios</button></div>`;
+    const sem=[1,2,3,4,5,6,7].map(d=>[d, pend.filter(r=>conDias(r)&&r.dias.includes(d))]);
+    if(sem.some(([,l])=>l.length)) h+=`<section class="card"><div class="eyebrow">Tu semana</div><div class="stack" style="margin-top:10px">${sem.map(([d,l])=>`<div class="row between sm" style="${d===hoyDia()?'font-weight:800':''}"><span>${DIAS_L[d]}${d===hoyDia()?' · hoy':''}</span><span class="${l.length?'':'muted'}">${l.length?l.map(r=>esc(r.titulo)).join(' + '):'Descanso'}</span></div>`).join('')}</div></section>`;
     h+= pend.length ? pend.map(routineCard).join('') : `<div class="card empty">No tienes rutinas pendientes. Tu kine te enviará la próxima, o crea la tuya.</div>`;
     h+=misRutinasHTML(p,true);
     if(done.length) h+=`<details ${S.verHechas?'open':''} ontoggle="S.verHechas=this.open"><summary class="sec-t"><h2>Completadas (${done.length}) · puedes repetirlas</h2>${ic('chevr','s')}</summary><div class="stack" style="margin-top:10px">${done.slice(0,20).map(routineCard).join('')}</div></details>`;
@@ -1379,7 +1395,7 @@ window.saveWorkout = async () => {
     return {ejercicio:e.n, exId:e.exId||'', series:use.length, reps:top.reps||'', kilos:top.kg||0, rir:top.rir||'', sets:use.map(s=>({kg:s.kg,reps:s.reps,rir:s.rir}))}; }).filter(Boolean);
   p.diarios=p.diarios||[]; const nid=uid();
   p.diarios.push({id:nid, fecha:todayISO(), duracion:Math.max(1,Math.round((Date.now()-w.start)/60000)), pasos:val('fw-p')||0, rpe:S.rpe, sueno:val('fw-s'), ejercicios:ej, nombreSesion:w.titulo, comentarios:val('fw-n'), rutinaId:w.rid});
-  if(w.rid){ const r=(p.rutinasAsignadas||[]).find(x=>x.id===w.rid); if(r){ r.completada=true; (r.ejercicios||[]).forEach(e=>e.hecho=true); } const m=(p.misRutinas||[]).find(x=>x.id===w.rid); if(m){ m.veces=(m.veces||0)+1; m.ultima=todayISO(); } }
+  if(w.rid){ const r=(p.rutinasAsignadas||[]).find(x=>x.id===w.rid); if(r){ if(conDias(r)){ r.ultima=todayISO(); r.veces=(r.veces||0)+1; (r.ejercicios||[]).forEach(e=>e.hecho=false); } else { r.completada=true; (r.ejercicios||[]).forEach(e=>e.hecho=true); } } const m=(p.misRutinas||[]).find(x=>x.id===w.rid); if(m){ m.veces=(m.veces||0)+1; m.ultima=todayISO(); } }
   await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); toast('Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); compartir(nid);
 };
 
@@ -1897,20 +1913,34 @@ window.eliminarPersona = async () => { const p=prof(S.proArg); if(!confirm(`¿El
 
 function pRutinas(p){
   const rs=(p.rutinasAsignadas||[]).slice().reverse(); S.after.push(loadLib);
-  return `<section class="card stack"><div class="row"><span class="ico">${ic('dumbbell','s')}</span><div class="grow"><div class="b">Nueva rutina</div><div class="xs muted">${esc(first(p.nombre))} recibe un aviso al instante</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Biblioteca</button></div>
-    <div class="grid2"><input class="inp" id="rb-t" placeholder="Nombre (ej: Tren superior · Fuerza)"><input class="inp" id="rb-m" inputmode="numeric" placeholder="Duración (min)"></div>
-    ${recoPanel('rb-rows',true)}
-    <div id="rb-rows" class="stack">${exRow()}</div>
-    <div class="grid2"><button class="btn sec" onclick="addRow('rb-rows',true)">${ic('plus','s')} Ejercicio</button><button class="btn pri" onclick="asignarRutina()">Enviar rutina</button></div></section>
+  const ed = S.rbEdit ? rs.find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed) S.rbEdit=null;
+  const dsel = ed ? (ed.dias||[]) : [];
+  return `<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?'Editando rutina':'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Biblioteca</button></div>
+    <div class="grid2"><input class="inp" id="rb-t" placeholder="Nombre (ej: Rutina 1 · Tren superior)" value="${esc(ed?ed.titulo:'')}"><input class="inp" id="rb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(ed?ed.tiempo||'':'')}"></div>
+    <div><div class="lbl">Días de la semana <span class="xs muted">(opcional: se repite cada semana)</span></div><div class="dias" id="rb-dias" style="margin-top:6px">${[1,2,3,4,5,6,7].map(d=>`<button type="button" data-d="${d}" class="${dsel.includes(d)?'on':''}" onclick="this.classList.toggle('on')">${DIAS_C[d]}</button>`).join('')}</div></div>
+    ${ed?'':recoPanel('rb-rows',true)}
+    <div id="rb-rows" class="stack">${ed ? (ed.ejercicios||[]).map(e=>exRow(e,true)).join('') : exRow()}</div>
+    <button class="btn sec block" onclick="addRow('rb-rows',true)">${ic('plus','s')} Ejercicio</button>
+    ${ed?`<div class="grid2"><button class="btn sec" onclick="cancelarEdicion()">Cancelar</button><button class="btn pri" onclick="asignarRutina()">Guardar cambios</button></div>`:`<button class="btn pri block" onclick="asignarRutina()">Enviar rutina</button>`}</section>
   <div class="sec-t"><h2>Rutinas enviadas (${rs.length})</h2></div>
-  ${rs.length?`<div class="list">${rs.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico ${r.completada?'':'orange'}">${ic(r.completada?'check':'clock','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${fmtDate(r.fecha)} · ${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Creada por la persona':'Enviada por '+esc(r.pro||'el equipo')} · ${r.completada?'Completada':'Pendiente'}</div></div>${ic('chevr','s chev')}</summary>
+  ${rs.length?`<div class="list">${rs.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico ${r.completada?'':'orange'}">${ic(r.completada?'check':'clock','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${conDias(r)?`<b class="acc-t">${diasTxt(r)}</b> · `:''}${fmtDate(r.fecha)} · ${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Creada por la persona':'Enviada por '+esc(r.pro||'el equipo')} · ${r.completada?'Completada':(conDias(r)?(r.veces?`Hecha ${r.veces} ${r.veces===1?'vez':'veces'}${r.ultima?' · última '+fmtDate(r.ultima):''}`:'Semanal'):'Pendiente')}${r.editada?' · editada '+fmtDate(r.editada):''}</div></div>${ic('chevr','s chev')}</summary>
     <div class="stack" style="padding:10px 0 4px 48px">${(r.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${e.hecho?'✓ ':''}${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg||e.kilos?` · ${esc(e.kg||e.kilos)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}
-    <div class="row" style="gap:8px"><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${r.id})">${ic('clip','s')} Editar</button><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}`;
 }
-window.asignarRutina = async () => { const p=prof(S.proArg), t=val('rb-t'), ej=collectRows('rb-rows'); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
-  p.rutinasAsignadas=p.rutinasAsignadas||[]; p.rutinasAsignadas.push({id:uid(), creador:'pro', pro:S.pro.nombre, titulo:t, fecha:todayISO(), tiempo:val('rb-m'), ejercicios:ej, completada:false});
-  addAviso(p,'rutina',`Nueva rutina cargada: ${t}`);
+const rbDias = () => [...document.querySelectorAll('#rb-dias button.on')].map(b=>+b.dataset.d);
+window.asignarRutina = async () => { const p=prof(S.proArg), t=val('rb-t'), ej=collectRows('rb-rows'), dias=rbDias(); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
+  p.rutinasAsignadas=p.rutinasAsignadas||[];
+  const cuando = dias.length ? ` (${dias.map(d=>DIAS_L[d].toLowerCase()).join(', ')})` : '';
+  if(S.rbEdit){ const r=p.rutinasAsignadas.find(x=>x.id===S.rbEdit);
+    if(r){ Object.assign(r, {titulo:t, tiempo:val('rb-m'), ejercicios:ej, editada:todayISO(), editor:S.pro.nombre}); if(dias.length){ r.dias=dias; r.completada=false; } else delete r.dias;
+      addAviso(p,'rutina',`Tu kine actualizó la rutina: ${t}${cuando}`); S.rbEdit=null;
+      if(await save(p)) toast('Cambios guardados y enviados'); render(); return; } }
+  const nr={id:uid(), creador:'pro', pro:S.pro.nombre, titulo:t, fecha:todayISO(), tiempo:val('rb-m'), ejercicios:ej, completada:false}; if(dias.length) nr.dias=dias;
+  p.rutinasAsignadas.push(nr);
+  addAviso(p,'rutina',`Nueva rutina cargada: ${t}${cuando}`);
   if(await save(p)) toast(`Rutina enviada a ${first(p.nombre)}`); render(); };
+window.editarRutina = id => { S.rbEdit=id; render(); setTimeout(()=>{ const c=$('#rb-card'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'}); }, 60); loadLib(); };
+window.cancelarEdicion = () => { S.rbEdit=null; render(); };
 window.duplicarRutina = async id => { const p=prof(S.proArg), r=p.rutinasAsignadas.find(x=>x.id===id); p.rutinasAsignadas.push({...JSON.parse(JSON.stringify(r)), id:uid(), creador:'pro', pro:S.pro.nombre, fecha:todayISO(), completada:false, ejercicios:r.ejercicios.map(e=>({...e,hecho:false}))}); addAviso(p,'rutina',`Nueva rutina cargada: ${r.titulo}`); await save(p); toast('Copia enviada'); render(); };
 window.borrarRutina = async id => { if(!confirm('¿Eliminar esta rutina?')) return; const p=prof(S.proArg); p.rutinasAsignadas=p.rutinasAsignadas.filter(x=>x.id!==id); await save(p); render(); };
 

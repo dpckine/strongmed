@@ -8,12 +8,11 @@ STRONGMED × KIN AT HOME — Cómo publicar la app
    manifest.webmanifest    ← datos para instalarla en el teléfono
    sw.js                   ← permite abrirla sin internet
    icons/                  ← íconos de la app
-   data/ejercicios.json    ← biblioteca de 1.324 ejercicios en español (incluida)
+   data/ejercicios.json    ← biblioteca de 1.697 ejercicios (entrenamiento + rehabilitación)
+   js/sm-anim.js           ← animaciones 2D de los ejercicios y generador de GIF
 
-   Las imágenes y animaciones se cargan desde tu biblioteca https://dpon8.github.io/kinathome/
-   (carpetas images/ y videos/), así que no hace falta subirlas otra vez.
-   Recomendado: sube también data/ejercicios.json a la carpeta data/ de ese repositorio;
-   así la biblioteca funciona aunque abras la app desde el computador.
+   Las animaciones de los ejercicios se dibujan en la app (js/sm-anim.js), sin imágenes externas.
+   En la ficha de cada ejercicio hay un botón "Descargar GIF" para enviarlo por WhatsApp.
 
    IMPORTANTE: la app debe estar publicada en una dirección https (GitHub Pages,
    Netlify o Firebase Hosting). Abriendo el index.html desde una carpeta del

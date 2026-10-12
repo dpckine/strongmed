@@ -488,6 +488,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
   background:radial-gradient(120% 90% at 50% 40%,#ffffff 55%,#eef0ea 100%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
 .ejstage .ejimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4%;opacity:0;transition:opacity .45s ease}
 .ejstage .ejimg.on{opacity:1}
+.ejstage.ejanim{background:#121417}.libc .im{background:#121417!important}.libc .im img{padding:0!important;object-fit:cover!important}.ejstage.ejanim svg{position:absolute;inset:0;width:100%;height:100%}.ejstage.ejanim .ejpp{z-index:2}
 .ejstage.noanim{display:grid;place-items:center;cursor:default}.ejstage.noanim .ejimg{position:static;opacity:1}
 .ejlbl{position:absolute;left:12px;bottom:12px;background:rgba(10,10,11,.82);color:#fff;font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;letter-spacing:.01em}
 .ejpp{position:absolute;right:12px;bottom:12px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;opacity:0;transform:scale(.8);transition:.2s}
@@ -513,6 +514,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 <body>
 <div id="app"></div>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
+<script src="js/sm-anim.js"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -883,7 +885,8 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 async function loadLib(){
   if(S.lib) return S.lib;
   try{ let r=null; for(const u of ['data/ejercicios.json', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=(await r.json()).concat(EJ_EXTRA);
-    S.libByName=new Map(S.lib.map(x=>[x.n.toLowerCase(),x])); fillLibDatalist(); }
+    S.lib.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
+    S.libByName=new Map(); S.lib.forEach(x=>{ const k=x.n.toLowerCase(); if(!S.libByName.has(k)) S.libByName.set(k,x); }); fillLibDatalist(); }
   catch(e){ S.lib=[]; S.libByName=new Map(); console.warn('Biblioteca de ejercicios no disponible (sube data/ejercicios.json)'); }
   return S.lib;
 }
@@ -1556,15 +1559,19 @@ function vLib(){
   return `<header class="top">${!pro?`<button class="back" onclick="go('entrenar')">${ic('chevl','s')} Entrenar</button>`:''}<div class="eyebrow">${S.lib.length} ejercicios con demostración</div><h1 class="disp h1" style="margin-top:6px">Ejercicios</h1></header><div class="stack">
   <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar: sentadilla, bíceps, banda…" value="${esc(S.libQ)}" oninput="S.libQ=this.value;$('#libg').innerHTML=libGrid()"></div>
   <div class="pills"><button class="pill ${!S.libC?'on':''}" onclick="S.libC='';render()">Todos</button>${cats.map(c=>`<button class="pill ${S.libC===c?'on':''}" onclick="S.libC=${q(c)};render()">${esc(c)}</button>`).join('')}</div>
-  <div id="libg">${libGrid()}</div><p class="xs muted center">Imágenes y animaciones © Gym Visual</p></div>`;
+  <div id="libg">${libGrid()}</div><p class="xs muted center">Animaciones StrongMed × Kin At Home</p></div>`;
 }
 const fold = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function libGrid(){ const t=fold(S.libQ); const r=S.lib.filter(x=>(!S.libC||x.c===S.libC) && (!t || fold(x.n+' '+x.en+' '+x.m+' '+x.q).includes(t)));
-  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.img||x.b?`<img src="${ejThumb(x)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
+  return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.a||x.img||x.b?`<img src="${ejThumb(x)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
 window.libGrid = libGrid;
 /* ---- ficha de ejercicio: posiciones nítidas (extraídas de la animación) que se alternan suave ---- */
 const ejPos = (x, j) => x && x.b ? `ej/${x.b}-${j}.webp` : '';
-const ejThumb = x => x && x.b ? ejPos(x,0) : media(x && x.img);
+/* animaciones 2D propias (js/sm-anim.js): cuadro fijo para miniaturas, animación en la ficha y GIF descargable */
+const EJ_ANIM = {"x01": ["hipthrust", ["th", "torso"]], "x02": ["hipthrust_machine", ["th", "torso"]], "x03": ["face_pull", ["ua"]], "x04": ["pecdeck", ["torso", "ua"]], "x05": ["row_cable", ["torso", "ua"]], "x06": ["row_db", ["torso", "ua"]], "x07": ["legpress", ["th"]], "x08": ["split_squat", ["th"]], "x09": ["kickback_glute", ["th", "torso"]], "x10": ["abduction_machine", ["th"]], "x11": ["adduction_machine", ["th"]], "x12": ["abwheel", ["torso"]], "x13": ["leg_curl_lying", ["th"]], "x14": ["leg_curl_seated", ["th"]], "x15": ["leg_ext", ["th"]], "x16": ["calf_machine", ["sh", "ft"]], "x17": ["calf_seated", ["sh", "ft"]], "x18": ["bench", ["torso", "ua"]], "x19": ["pulldown", ["torso", "ua"]], "x20": ["pushdown", ["ua"]], "x21": ["curl_cable", ["ua", "fa"]], "x22": ["deadlift_trap", ["th", "torso"]], "x23": ["row_bb", ["torso", "ua"]], "x24": ["pullover_cable", ["torso", "ua"]], "x25": ["hyper", ["torso"]], "x26": ["pallof", ["torso"]], "x27": ["squat_goblet", ["th"]], "x29": ["hack", ["th"]], "x28": ["bench_incline_db", ["torso", "ua"]]};
+const ejHL = x => Object.fromEntries((x && x.h || ['th']).map(k=>[k,1]));
+const EJ_THUMBS = new Map();
+const ejThumb = x => { if(!x) return ''; if(x.a && window.SMAnim){ let u=EJ_THUMBS.get(x.i); if(!u){ u='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SMAnim.fullSVG(x.a, .42, ejHL(x), 1)); EJ_THUMBS.set(x.i,u); } return u; } return x.b ? ejPos(x,0) : media(x.img); };
 const POS_LBL = (n, j) => n===2 ? (j===0?'Posición inicial':'Posición final') : `Posición ${j+1} de ${n}`;
 let ejTimer=null;
 function ejStop(){ if(ejTimer){ clearInterval(ejTimer); ejTimer=null; } }
@@ -1579,7 +1586,10 @@ window.ejGo = j => { ejStop(); $('#ejst')?.classList.add('paused'); ejShow(j); }
 window.ejSpeed = () => { const st=$('#ejst'); if(!st) return; const sp=st.dataset.sp==='0.5'?1:0.5; st.dataset.sp=sp; const b=$('#ejsp'); if(b) b.textContent=sp===0.5?'Ver normal':'Ver lento'; if(ejTimer) ejPlay(); };
 window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); if(!x) return; ejStop();
   const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
-  const stage = n ? `<div class="ejstage" id="ejst" data-n="${n}" data-j="0" data-sp="1" onclick="ejTap()">
+  const stage = x.a && window.SMAnim ? `<div class="ejstage ejanim" id="ejan" onclick="ejAnTap()"><span class="ejpp">${ic('play','s')}</span></div>
+    <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px"><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button></div>
+      <button type="button" class="pill on" id="ejgif" onclick="ejGif(${q(x.i)})">Descargar GIF</button></div>`
+  : n ? `<div class="ejstage" id="ejst" data-n="${n}" data-j="0" data-sp="1" onclick="ejTap()">
       ${pos.map(j=>`<img class="ejimg ${j===0?'on':''}" src="${ejPos(x,j)}" alt="${esc(x.n)} · ${POS_LBL(n,j)}" ${j?'loading="lazy"':''}>`).join('')}
       <span class="ejlbl" id="ejlbl">${POS_LBL(n,0)}</span><span class="ejpp">${ic('play','s')}</span></div>
     <div class="row between" style="margin-top:10px;gap:8px"><div class="ejth" id="ejth">${pos.map(j=>`<button type="button" class="ejt ${j===0?'on':''}" onclick="ejGo(${j})"><img src="${ejPos(x,j)}" alt="" loading="lazy"><span>${n===2?(j?'Final':'Inicio'):j+1}</span></button>`).join('')}</div>
@@ -1589,10 +1599,27 @@ window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); i
   <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
   <div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Zona</small><b>${esc(x.c)}</b></div></div>
   ${x.s&&x.s.length?`<div class="lbl" style="margin-top:14px">También trabaja</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${x.s.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>`:''}
-  ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} pasos</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
+  ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} paso${x.p.length>1?'s':''}</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
   <div class="note" style="margin-top:16px">${ic('info','s')}<span>Haz el movimiento controlado y sin dolor. Si algo molesta, detente y avísale a tu kine.</span></div>
-  <p class="xs muted center" style="margin-top:14px">${x.gif?'Ilustraciones © Gym Visual · toca la imagen para pausar':'Ejercicio agregado por StrongMed'}</p>`);
-  if(n>1) setTimeout(ejPlay, 300); };
+  <p class="xs muted center" style="margin-top:14px">${x.a?'Animación StrongMed × Kin At Home · toca para pausar':'Ejercicio agregado por StrongMed'}</p>`);
+  if(x.a && window.SMAnim){ const el=$('#ejan'); if(el){ const pp=el.querySelector('.ejpp'); S.ejP=SMAnim.mount(el, x.a, ejHL(x), {phase:0}); el.appendChild(pp); } }
+  else if(n>1) setTimeout(ejPlay, 300); };
+window.ejAnTap = () => { const P=S.ejP, el=$('#ejan'); if(!P||!el) return; P.paused=!P.paused; el.classList.toggle('paused', P.paused); };
+window.ejAnSpeed = () => { const P=S.ejP; if(!P) return; P.speed = P.speed===1 ? .5 : 1; const b=$('#ejsp'); if(b) b.textContent = P.speed===1 ? 'Ver lento' : 'Ver normal'; };
+window.ejGif = async id => { const x=S.lib.find(e=>e.i===id); if(!x||!x.a) return; const b=$('#ejgif'); if(b){ b.disabled=true; b.textContent='Creando GIF…'; }
+  try{ const tpl=SMTemplates[x.a]||SMTemplates.stand, dur=tpl.dur||2.6, fps=12, nf=Math.max(10,Math.min(72,Math.round(dur*fps))), W=360;
+    const cv=document.createElement('canvas'); cv.width=cv.height=W; const ctx=cv.getContext('2d',{willReadFrequently:true}); const frames=[];
+    const load=src=>new Promise((ok,ko)=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=ko; im.src=src; });
+    for(let i=0;i<nf;i++){ const im=await load('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SMAnim.fullSVG(x.a, i/nf, ejHL(x), i/nf*dur, {title:x.n})));
+      ctx.fillStyle='#121417'; ctx.fillRect(0,0,W,W); ctx.drawImage(im,0,0,W,W); frames.push(ctx.getImageData(0,0,W,W).data);
+      if(b && i%6===0){ b.textContent=`Creando GIF… ${Math.round(i/nf*90)}%`; await new Promise(r=>setTimeout(r)); } }
+    const blob=new Blob([SMGif.encode(frames,W,W,Math.round(1000/fps))],{type:'image/gif'}); const name=fold(x.n).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)+'.gif';
+    const file=new File([blob],name,{type:'image/gif'});
+    if(navigator.canShare && navigator.canShare({files:[file]}) && matchMedia('(pointer: coarse)').matches){ await navigator.share({files:[file], title:x.n}).catch(()=>{}); }
+    else { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+    toast('GIF listo'); }
+  catch(e){ console.error(e); toast('No se pudo crear el GIF'); }
+  finally{ if(b){ b.disabled=false; b.textContent='Descargar GIF'; } } };
 
 /* ================= ARMAR RUTINA POR MÚSCULOS (recomendador) =================
    Prioriza ejercicios de gimnasio con carga (barra, mancuernas, polea, máquinas), primero los multiarticulares,
@@ -1682,7 +1709,7 @@ function recoBody(rowsId, full){ const R=S.reco, a=JSON.stringify(rowsId), chip=
   <div><div class="lbl">Objetivo</div>${chip(Object.keys(RECO_OBJ),'obj',false)}<div class="xs muted" style="margin-top:6px">${esc(RECO_OBJ[R.obj].txt)}</div></div>
   <div><div class="lbl">Ejercicios por músculo</div>${chip([0,1,2,3,4,5],'n',false,v=>v?String(v):`Auto (${recoN()})`)}</div>
   <button type="button" class="btn sec block" onclick='recoGen(${esc(a)},${full})'>${ic('spark','s')} Recomendar ejercicios</button>
-  ${R.picks.length?`<div class="list">${R.picks.map((pk,i)=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return ''; const d=recoDosis(x); return `<div class="li"><button type="button" class="thumb" style="${x.img?`background-image:url('${media(x.img)}')`:''}" onclick="verEj(${q(x.i)})" aria-label="Ver técnica">${x.img?'':ic('dumbbell','s')}</button><div class="grow"><div class="b sm">${esc(x.n)}</div><div class="xs muted">${esc(pk.mus)} · ${esc(x.q)} · ${esMulti(x)?'multiarticular':'aislamiento'}</div><div class="xs b acc-t">${d.s} × ${d.r} · RIR ${d.i} · desc. ${d.d}${d.kg?` · ≈ ${d.kg} kg`:''}</div></div><button type="button" class="ibtn" onclick='recoSwap(${i},${esc(a)},${full})' aria-label="Cambiar">${ic('swap','s')}</button><button type="button" class="ibtn red" onclick='recoDel(${i},${esc(a)},${full})' aria-label="Quitar">${ic('x','s')}</button></div>`; }).join('')}</div>
+  ${R.picks.length?`<div class="list">${R.picks.map((pk,i)=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return ''; const d=recoDosis(x); return `<div class="li"><button type="button" class="thumb" style="${x.a||x.img?`background-image:url('${ejThumb(x)}')`:''}" onclick="verEj(${q(x.i)})" aria-label="Ver técnica">${x.img?'':ic('dumbbell','s')}</button><div class="grow"><div class="b sm">${esc(x.n)}</div><div class="xs muted">${esc(pk.mus)} · ${esc(x.q)} · ${esMulti(x)?'multiarticular':'aislamiento'}</div><div class="xs b acc-t">${d.s} × ${d.r} · RIR ${d.i} · desc. ${d.d}${d.kg?` · ≈ ${d.kg} kg`:''}</div></div><button type="button" class="ibtn" onclick='recoSwap(${i},${esc(a)},${full})' aria-label="Cambiar">${ic('swap','s')}</button><button type="button" class="ibtn red" onclick='recoDel(${i},${esc(a)},${full})' aria-label="Quitar">${ic('x','s')}</button></div>`; }).join('')}</div>
   <div class="row" style="gap:6px;flex-wrap:wrap">${R.mus.map(m=>`<button type="button" class="pill" onclick='recoMas(${JSON.stringify(m)},${esc(a)},${full})'>${ic('plus','s')} ${esc(m)}</button>`).join('')}</div>
   <div class="xs muted">Series por semana en esta sesión: ${Object.entries(vol).map(([m,n])=>`<b>${esc(m)} ${n}</b>`).join(' · ')}. Para hipertrofia apunta a 10-20 series semanales por músculo.</div>
   <button type="button" class="btn pri block" onclick='recoUsar(${esc(a)},${full})'>${ic('plus','s')} Agregar ${R.picks.length} ejercicios a la rutina</button>`:''}`; }

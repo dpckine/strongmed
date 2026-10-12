@@ -458,6 +458,13 @@ body.tabenter main.wrap > .stack > *:nth-child(2){animation-delay:.04s}body.tabe
 @keyframes boom{0%{transform:translate(0,0) scale(.4) rotate(0);opacity:1}70%{opacity:1}100%{transform:translate(var(--x),calc(var(--y) + 120px)) scale(1) rotate(260deg);opacity:0}}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.35s}
 @media (prefers-reduced-motion: reduce){body.tabenter main.wrap *{animation:none!important}.cc.on{animation:none}}
+.swgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:10px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;color:var(--tx);padding:4px 0}
+.sw span{width:42px;height:42px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);transition:transform .15s}
+.sw.on span{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--c);transform:scale(1.04)}.sw small{font-size:11px;color:var(--mu);font-weight:600}
+.objc.ok{border-color:color-mix(in srgb,var(--acc) 45%,transparent);background:linear-gradient(135deg,var(--acc-soft),transparent 70%),var(--card)}
+.objc.ok .ico{background:var(--acc);color:var(--acc-ink)}
+.logro-ico{width:84px;height:84px;margin:0 auto;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;animation:ccpop .5s cubic-bezier(.2,1.6,.4,1)}.logro-ico svg{width:42px;height:42px}
 .kin{display:flex;gap:8px}.kin .inp{flex:1}.kin .btn{flex:none;width:48px;padding:0}
 .ejuso{margin-top:12px;background:var(--acc-soft);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:14px;padding:10px 12px}.ejuso small{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:var(--acc-tx)}.ejuso p{margin:3px 0 0;font-size:14px;line-height:1.5}
 .kfull{display:flex;flex-direction:column;min-height:calc(100dvh - 200px - var(--tabh))}
@@ -913,12 +920,21 @@ function celebrar(){ if(matchMedia('(prefers-reduced-motion: reduce)').matches) 
   document.body.appendChild(box); try{ navigator.vibrate&&navigator.vibrate([20,40,20]); }catch(e){} setTimeout(()=>box.remove(), 1300); }
 window.celebrar = celebrar;
 const temaOscuro = () => (localStorage.getItem('sm_theme')||'dark')!=='light';
-const themeBtn = () => `<button class="hbtn tbtn" onclick="toggleTheme()" aria-label="${temaOscuro()?'Cambiar a modo claro':'Cambiar a modo oscuro'}" title="${temaOscuro()?'Modo claro':'Modo oscuro'}">${ic(temaOscuro()?'sun':'moon')}</button>`;
+const themeBtn = () => `<button class="hbtn tbtn" onclick="sheetApariencia()" aria-label="${temaOscuro()?'Cambiar a modo claro':'Cambiar a modo oscuro'}" title="${temaOscuro()?'Modo claro':'Modo oscuro'}">${ic(temaOscuro()?'sun':'moon')}</button>`;
+window.sheetApariencia = () => { const t=temaOscuro()?'dark':'light', c=localStorage.getItem('sm_color')||'#ccff33';
+  sheet(`<h2 class="disp h2">Apariencia</h2><div class="stack" style="margin-top:14px">
+  <div class="seg"><button class="${t==='dark'?'on':''}" onclick="aparTema('dark')">${ic('moon','s')} Oscuro</button><button class="${t==='light'?'on':''}" onclick="aparTema('light')">${ic('sun','s')} Claro</button></div>
+  <div class="lbl">Color de la app</div><div class="swgrid">${ACCENTS.map(([h,ink])=>`<button class="sw ${c===h?'on':''}" style="--c:${h}" onclick="aparColor('${h}','${ink}')"><span></span><small>${ACC_NOMBRE[h]||''}</small></button>`).join('')}</div>
+  <p class="xs muted">El color solo cambia en este teléfono. Los logos se mantienen.</p></div>`); };
+window.aparTema = t => { if((temaOscuro()?'dark':'light')===t) return; toggleTheme(); setTimeout(sheetApariencia, 380); };
+window.aparColor = (h, ink) => { const go=()=>{ localStorage.setItem('sm_color', h); localStorage.setItem('sm_color_text', ink); applyTheme(); keepScroll(render); };
+  if(document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(go); else go(); setTimeout(sheetApariencia, 380); };
 window.toggleTheme = () => { const t=temaOscuro()?'light':'dark'; try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){}
   const go=()=>{ localStorage.setItem('sm_theme', t); applyTheme(); keepScroll(render); };
   if(document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(go); else go(); };
 window.setAccent = (hex, ink) => { localStorage.setItem('sm_color', hex); localStorage.setItem('sm_color_text', ink); applyTheme(); render(); };
-const ACCENTS = [['#ccff33','#0a0a0a'],['#5aa2ff','#06101f'],['#3ddc84','#04170b'],['#ff9f2e','#1a0d00'],['#ff6fae','#1f0612'],['#b28cff','#120a24'],['#f4f4f6','#0a0a0a']];
+const ACCENTS = [['#ccff33','#0a0a0a'],['#ff4d4d','#1f0404'],['#22d3c5','#032420'],['#5aa2ff','#06101f'],['#3ddc84','#04170b'],['#ff9f2e','#1a0d00'],['#ff6fae','#1f0612'],['#b28cff','#120a24'],['#f4f4f6','#0a0a0a']];
+const ACC_NOMBRE = {'#ccff33':'Lima','#ff4d4d':'Rojo','#22d3c5':'Calipso','#5aa2ff':'Azul','#3ddc84':'Verde','#ff9f2e':'Naranjo','#ff6fae':'Rosado','#b28cff':'Lila','#f4f4f6':'Blanco'};
 function appearanceHTML(){ const t=localStorage.getItem('sm_theme')||'dark', c=localStorage.getItem('sm_color')||'#ccff33';
   return `<div class="card stack"><div class="row between"><span class="b">Apariencia</span><div class="seg" style="width:180px"><button class="${t==='dark'?'on':''}" onclick="setTheme('dark')">Oscuro</button><button class="${t==='light'?'on':''}" onclick="setTheme('light')">Claro</button></div></div>
   <div><div class="lbl">Color de acento</div><div class="row" style="gap:10px;flex-wrap:wrap">${ACCENTS.map(([h,i])=>`<button class="swatch ${c===h?'on':''}" style="background:${h}" onclick="setAccent('${h}','${i}')" aria-label="Color ${h}"></button>`).join('')}</div></div></div>`; }
@@ -1442,7 +1458,7 @@ window.saveWorkout = async () => {
   p.diarios=p.diarios||[]; const nid=uid();
   p.diarios.push({id:nid, fecha:todayISO(), duracion:Math.max(1,Math.round((Date.now()-w.start)/60000)), pasos:val('fw-p')||0, rpe:S.rpe, sueno:val('fw-s'), ejercicios:ej, nombreSesion:w.titulo, comentarios:val('fw-n'), rutinaId:w.rid});
   if(w.rid){ const r=(p.rutinasAsignadas||[]).find(x=>x.id===w.rid); if(r){ if(conDias(r)){ r.ultima=todayISO(); r.veces=(r.veces||0)+1; (r.ejercicios||[]).forEach(e=>e.hecho=false); } else { r.completada=true; (r.ejercicios||[]).forEach(e=>e.hecho=true); } } const m=(p.misRutinas||[]).find(x=>x.id===w.rid); if(m){ m.veces=(m.veces||0)+1; m.ultima=todayISO(); } }
-  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast('Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); compartir(nid);
+  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast('Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); const logros=await revisarObjetivos(p); if(!logros.length) compartir(nid);
 };
 
 /* ---- Progreso ---- */
@@ -1462,6 +1478,7 @@ function vProgreso(p){
   return `<header class="top"><div class="eyebrow">Tu evolución</div><h1 class="disp h1" style="margin-top:6px">Progreso</h1></header><div class="stack">
   <div class="grid4"><div class="stat acc"><b>${ss.length}</b><span>Sesiones totales</span></div><div class="stat"><b>${sessWeek(p)}<small class="muted" style="font-size:18px">/${meta(p)}</small></b><span>Esta semana</span></div><div class="stat"><b>${weekStreak(p)}</b><span>Semanas seguidas</span></div>${rh?`<div class="stat"><b>${rehabDone(p)}${rehabPlan(p)?`<small class="muted" style="font-size:18px">/${rehabPlan(p)}</small>`:''}</b><span>Sesiones kine</span></div>`:`<div class="stat"><b>${rpeAvg(p)}</b><span>RPE medio</span></div>`}</div>
   <section class="card"><div class="row between"><span class="b">Adherencia 30 días</span><span class="b acc-t">${adherence(p)}%</span></div><div class="bar" style="margin:10px 0 6px"><i style="width:${adherence(p)}%"></i></div><div class="xs muted">${sess30(p)} sesiones · meta de ${meta(p)} por semana</div><div style="margin-top:16px">${heatmap(p)}</div></section>
+  ${objetivosCard(p)}
   ${animoCardChart(p,'Cómo te has sentido')}
   ${rmCard(p)}
   ${saltoCard(p)}
@@ -1477,6 +1494,77 @@ window.savePasos = async () => { const n=parseInt(val('pp-steps')); if(!n) retur
 
 /* ---- 1RM por ejercicio (persona y profesional) ---- */
 const RM_PAL=['--acc','--blue','--orange','--pink','--green'];
+/* ================= OBJETIVOS: RM, competencias o lo que la persona quiera ================= */
+const OBJ_TIPOS = [['rm','Levantar un peso (RM)'],['evento','Competencia o evento'],['libre','Otro objetivo']];
+function mejorRM(p, nombre){ const n=fold(nombre); let best=null;
+  const consider=(rm,fecha,kg,reps,fuente)=>{ if(rm>0 && (!best || rm>best.rm)) best={rm:+rm.toFixed(1),fecha,kg,reps,fuente}; };
+  (p.rmLog||[]).forEach(r=>{ if(fold(r.ejercicio)===n) consider(+r.rm, r.fecha, r.kg, r.reps, r.fuente==='evaluacion'?'evaluación':'registro de RM'); });
+  (p.diarios||[]).forEach(d=>(d.ejercicios||[]).forEach(e=>{ if(fold(e.ejercicio)!==n) return; const sets=(e.sets&&e.sets.length)?e.sets:[{kg:e.kilos??e.kg, reps:e.reps}];
+    sets.forEach(t=>{ const kg=parseFloat(String(t.kg).replace(',','.')), r=parseInt(t.reps); if(kg>0 && r>0 && r<=12) consider(r===1?kg:est1RM(kg,r), toISO(d.fecha), kg, r, 'entrenamiento'); }); }));
+  return best; }
+function objProgreso(p,o){ if(o.tipo!=='rm') return null; const b=mejorRM(p,o.ejercicio); return {b, pct:b?Math.min(1,b.rm/(+o.kg||1)):0}; }
+/* revisa si algún objetivo de RM se cumplió con los registros nuevos */
+async function revisarObjetivos(p, guardar=true){ const nuevos=[]; (p.objetivos||[]).forEach(o=>{ if(o.cumplido || o.tipo!=='rm') return; const pr=objProgreso(p,o); if(pr.b && pr.b.rm>=+o.kg){ Object.assign(o,{cumplido:true, cumplidoFecha:todayISO(), logrado:pr.b.rm, detalle:pr.b}); nuevos.push(o); } });
+  if(nuevos.length){ nuevos.forEach(o=>addAviso(p,'evaluacion',`¡Cumpliste tu objetivo: ${objTitulo(o)}! 🎉`)); if(guardar) await save(p); setTimeout(()=>{ celebrar(); logroSheet(nuevos[0].id); }, 600); }
+  return nuevos; }
+const objTitulo = o => o.tipo==='rm' ? `${o.kg} kg en ${o.ejercicio}` : o.texto;
+function objetivosCard(p, own=true){ const os=(p.objetivos||[]).slice().sort((a,b)=>(a.cumplido?1:0)-(b.cumplido?1:0));
+  return `<div class="sec-t"><h2>Mis objetivos</h2>${own?`<button class="xs b acc-t" onclick="sheetObjetivo()">+ Objetivo</button>`:''}</div>
+  ${os.length?`<div class="stack" style="gap:8px">${os.map(o=>{ const pr=objProgreso(p,o);
+    return `<section class="card objc ${o.cumplido?'ok':''}"><div class="row" style="align-items:flex-start;gap:12px"><span class="ico">${ic(o.cumplido?'check':o.tipo==='rm'?'dumbbell':o.tipo==='evento'?'cal':'target','s')}</span>
+      <div class="grow" style="min-width:0"><div class="b">${esc(objTitulo(o))}</div>
+      <div class="xs muted" style="margin-top:2px">${o.cumplido?`Cumplido el ${fmtDate(o.cumplidoFecha)}${o.logrado?` · 1RM ${o.logrado} kg`:''}`:o.fecha?`Meta: ${fmtDate(o.fecha)}`:'Sin fecha límite'}</div>
+      ${pr&&!o.cumplido?`<div class="bar" style="margin:10px 0 4px"><i style="width:${Math.round(pr.pct*100)}%"></i></div><div class="xs muted">${pr.b?`1RM estimado: <b style="color:var(--tx)">${pr.b.rm} kg</b> (${Math.round(pr.pct*100)} %) · ${esc(pr.b.fuente)} ${fmtDate(pr.b.fecha)}${pr.b.reps>1?` · ${pr.b.kg} kg × ${pr.b.reps}`:''}`:'Aún no hay registros de este ejercicio. Se calcula solo con tus entrenamientos.'}</div>`:''}
+      ${o.nota?`<div class="xs muted" style="margin-top:4px;white-space:pre-line">${esc(o.nota)}</div>`:''}</div></div>
+      ${own?`<div class="row" style="gap:8px;margin-top:10px;justify-content:flex-end">${o.cumplido?`<button class="btn pri sm" onclick="compartirLogro(${q(o.id)})">${ic('upload','s')} Compartir logro</button>`:`${o.tipo!=='rm'?`<button class="btn pri sm" onclick="cumplirObjetivo(${q(o.id)})">${ic('check','s')} ¡Lo logré!</button>`:''}`}<button class="ibtn" onclick="borrarObjetivo(${q(o.id)})" aria-label="Eliminar">${ic('trash','s')}</button></div>`:''}</section>`; }).join('')}</div>`
+  : `<div class="card empty">${own?'Ponte una meta: un peso en un ejercicio, una competencia o lo que quieras lograr. Te avisamos cuando la cumplas.':'Sin objetivos registrados.'}</div>`}`; }
+window.sheetObjetivo = () => { S.objT=S.objT||'rm'; loadLib(); const t=S.objT;
+  sheet(`<h2 class="disp h2">Nuevo objetivo</h2><div class="stack" style="margin-top:14px"><div class="pills" style="flex-wrap:wrap">${OBJ_TIPOS.map(([k,l])=>`<button class="pill ${t===k?'on':''}" onclick="S.objT='${k}';sheetObjetivo()">${l}</button>`).join('')}</div>
+  ${t==='rm'?`<label class="field"><span class="lbl">Ejercicio</span><input class="inp" id="ob-e" list="dl-ej" placeholder="Ej: Sentadilla con barra"></label><label class="field"><span class="lbl">Peso objetivo (1RM, kg)</span><input class="inp" id="ob-k" inputmode="decimal" placeholder="Ej: 100"></label>
+    <div class="note">${ic('info','s')}<span>Tu 1RM se estima solo con tus entrenamientos (series de 1 a 12 repeticiones) y los RM registrados. No necesitas probar el máximo.</span></div>`
+  : `<label class="field"><span class="lbl">${t==='evento'?'¿Qué competencia o evento?':'¿Qué quieres lograr?'}</span><input class="inp" id="ob-x" placeholder="${t==='evento'?'Ej: Correr los 10K de Concepción':'Ej: Hacer 10 dominadas seguidas'}"></label>`}
+  <label class="field"><span class="lbl">Fecha meta (opcional)</span><input class="inp" type="date" id="ob-f"></label>
+  <label class="field"><span class="lbl">Nota (opcional)</span><input class="inp" id="ob-n" placeholder="Ej: para la temporada de verano"></label>
+  <button class="btn pri block" onclick="guardarObjetivo()">${ic('target','s')} Guardar objetivo</button></div>`); };
+window.guardarObjetivo = async () => { const p=rmTarget(), t=S.objT||'rm', o={id:String(uid()), tipo:t, creado:todayISO(), fecha:val('ob-f'), nota:val('ob-n'), cumplido:false};
+  if(t==='rm'){ o.ejercicio=val('ob-e'); o.kg=parseFloat(String(val('ob-k')).replace(',','.')); if(!o.ejercicio || !(o.kg>0)) return toast('Indica el ejercicio y el peso','err'); }
+  else { o.texto=val('ob-x'); if(!o.texto) return toast('Escribe tu objetivo','err'); }
+  p.objetivos=p.objetivos||[]; p.objetivos.push(o); closeSheet();
+  const ya = t==='rm' ? (await revisarObjetivos(p,false)).length : 0; if(await save(p)){ if(!ya) toast('Objetivo guardado. ¡Vamos!'); keepScroll(render); } };
+window.cumplirObjetivo = async id => { const p=rmTarget(), o=(p.objetivos||[]).find(x=>x.id===id); if(!o) return; Object.assign(o,{cumplido:true, cumplidoFecha:todayISO()});
+  if(await save(p)){ celebrar(); keepScroll(render); setTimeout(()=>logroSheet(id), 500); } };
+window.borrarObjetivo = async id => { if(!confirm('¿Eliminar este objetivo?')) return; const p=rmTarget(); p.objetivos=(p.objetivos||[]).filter(x=>x.id!==id); await save(p); keepScroll(render); };
+function logroSheet(id){ const p=me(), o=(p&&p.objetivos||[]).find(x=>x.id===id); if(!o || S.role!=='pat') return;
+  sheet(`<div class="center" style="padding:10px 0 4px"><div class="logro-ico">${ic('check')}</div><div class="eyebrow acc-t" style="margin-top:14px">Objetivo cumplido</div><h2 class="disp h1" style="margin-top:6px">${esc(objTitulo(o))}</h2>${o.logrado?`<p class="muted sm" style="margin-top:6px">1RM estimado ${o.logrado} kg</p>`:''}</div>
+  <button class="btn pri block" style="margin-top:16px" onclick="compartirLogro(${q(id)})">${ic('upload','s')} Compartir en mis historias</button><button class="btn ghost block" onclick="closeSheet()">Cerrar</button>`); }
+window.logroSheet = logroSheet;
+/* imagen del logro para historias (mismos tres formatos que el entrenamiento) */
+async function logroBlob(p, o, mode='sticker', foto=null){
+  const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
+  try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
+  const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33', MUTED=mode==='card'?'#9a9aa3':'#e4e4ea';
+  if(mode==='card'){ x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.5,H*.42,50,W*.5,H*.42,950); gr.addColorStop(0,'rgba(204,255,51,.30)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); }
+  if(mode==='foto' && foto){ const r=Math.max(W/foto.width,H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
+    let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
+    g=x.createLinearGradient(0,980,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(.5,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,.9)'); x.fillStyle=g; x.fillRect(0,980,W,H-980); }
+  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=22; x.shadowOffsetY=3; }
+  const big = o.tipo==='rm' ? `${o.kg} KG` : '', sub = o.tipo==='rm' ? String(o.ejercicio||'').toUpperCase() : String(o.texto||'').toUpperCase(), quien=`${first(p.nombre)} · ${fmtLong(parseISO(o.cumplidoFecha||todayISO()))}`;
+  const wrapTxt=(t,font,maxW)=>{ x.font=font; const w=t.split(' '), L=[]; let c=''; w.forEach(v=>{ const tt=(c+' '+v).trim(); if(x.measureText(tt).width>maxW && c){ L.push(c); c=v; } else c=tt; }); L.push(c); return L; };
+  const bloque=(y0)=>{ let y=y0; x.fillStyle=ACC; x.font=I(40,800); x.fillText('🏆  OBJETIVO CUMPLIDO',80,y); y+=40;
+    if(big){ let fs=330; x.font=F(fs); while(x.measureText(big).width>W-160 && fs>120){ fs-=10; x.font=F(fs); } x.fillStyle='#fff'; x.fillText(big,74,y+fs*.86); y+=fs*.92; }
+    const L=wrapTxt(sub, F(big?92:140), W-160).slice(0,4); L.forEach(l=>{ x.fillStyle=big?ACC:'#fff'; x.font=F(big?92:140); x.fillText(l,80,y+(big?84:126)); y+=big?92:138; });
+    if(o.tipo==='rm' && o.logrado){ x.fillStyle=MUTED; x.font=I(34,600); x.fillText(`1RM estimado ${o.logrado} kg${o.detalle&&o.detalle.reps>1?` · ${o.detalle.kg} kg × ${o.detalle.reps}`:''}`,80,y+50); y+=60; }
+    x.fillStyle=MUTED; x.font=I(32,600); x.fillText(quien,80,y+60); return y+90; };
+  if(mode==='card'){ storyLogos(x,F,I,ACC,92); bloque(620); return new Promise(r=>cv.toBlob(r,'image/png')); }
+  if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); bloque(big?1160:1300); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
+  storyLogos(x,F,I,ACC,60,.9); const h=Math.min(H, Math.ceil(bloque(250)+10)); const out=document.createElement('canvas'); out.width=W; out.height=h; out.getContext('2d').drawImage(cv,0,0,W,h,0,0,W,h); return new Promise(r=>out.toBlob(r,'image/png')); }
+window.compartirLogro = async (id, mode) => { const p=me(), o=(p.objetivos||[]).find(x=>x.id===id); if(!o) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareAgain=()=>compartirLogro(id,'foto');
+  if(mode==='foto' && !S.shareFoto) return elegirFotoHistoria();
+  const blob=await logroBlob(p,o,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
+  sheet(`<h2 class="disp h2">Compartir logro</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?`S.shareAgain=()=>compartirLogro(${q(id)},'foto');elegirFotoHistoria()`:`compartirLogro(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
+  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
+  ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
+  <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button><a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_logro.${mode==='foto'?'jpg':'png'}">${ic('download','s')} Descargar imagen</a>`); };
 function rmCard(p){
   const log=(p.rmLog||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
   const names=[...new Set(log.slice().reverse().map(r=>r.ejercicio))];
@@ -1497,7 +1585,7 @@ window.rmLive = () => { const r=rmCalc(+val('rm-k'), +val('rm-r')); const o=$('#
 const rmTarget = () => S.role==='pro' ? prof(S.proArg) : me();
 window.guardarRM = async () => { const p=rmTarget(), e=val('rm-e'), kg=+val('rm-k'), reps=+val('rm-r'), r=rmCalc(kg,reps);
   if(!e) return toast('Elige el ejercicio','err'); if(!r) return toast('Ingresa kg y repeticiones (1 a 36)','err');
-  p.rmLog=p.rmLog||[]; p.rmLog.push({id:uid(), fecha:val('rm-f')||todayISO(), ejercicio:e, kg, reps, rm:+r.avg.toFixed(1), fuente:S.role==='pro'?'kine':'propio'});
+  p.rmLog=p.rmLog||[]; p.rmLog.push({id:uid(), fecha:val('rm-f')||todayISO(), ejercicio:e, kg, reps, rm:+r.avg.toFixed(1), fuente:S.role==='pro'?'kine':'propio'}); if(S.role==='pat') revisarObjetivos(p,false);
   const kk='rm_'+keyOf(p); S[kk]=[...new Set([e, ...(S[kk]||[])])]; if(await save(p)) toast(`1RM ${e}: ${r.avg.toFixed(1)} kg`); keepScroll(render); };
 window.borrarRM = async id => { const p=rmTarget(); p.rmLog=(p.rmLog||[]).filter(r=>r.id!==id); await save(p); keepScroll(render); };
 
@@ -2094,7 +2182,7 @@ function pAgenda(p){ const up=proximasCitas(p), past=(p.citas||[]).filter(c=>!up
 function pProgreso(p){ const per=perfilOf(p);
   S.after.push(()=>{ if(per!=='entrenamiento') chartEVA(p,'c-eva'); chartHG(p,'c-hg'); chartPasos(p,'c-pasos'); });
   return `<section class="card"><div class="row between"><span class="b">Adherencia 30 días</span><span class="b acc-t">${adherence(p)}%</span></div><div style="margin-top:12px">${heatmap(p)}</div></section>
-  ${rmCard(p)}${saltoCard(p)}
+  ${objetivosCard(p, false)}${rmCard(p)}${saltoCard(p)}
   <div class="cols2 stack">${per!=='entrenamiento'?`<section class="card"><span class="b">Dolor por sesión (EVA)</span><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>`:''}
   <section class="card"><span class="b">Handgrip bilateral (kg)</span><div class="chart" style="margin-top:10px"><canvas id="c-hg"></canvas></div></section>
   <section class="card"><span class="b">Pasos diarios</span><div class="chart" style="margin-top:10px"><canvas id="c-pasos"></canvas></div></section></div>
@@ -3096,7 +3184,7 @@ async function storyBlob(p, d, mode='card', foto=null){
   return new Promise(r=>out.toBlob(r,'image/png'));
 }
 const SHARE_MODOS=[['sticker','Sticker sin fondo'],['foto','Con mi foto'],['card','Tarjeta']];
-window.compartir = async (id, mode) => { const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareId=id;
+window.compartir = async (id, mode) => { S.shareAgain=null; const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareId=id;
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
   const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const ayuda = mode==='sticker' ? 'Imagen <b>sin fondo</b>: en tu historia de Instagram toca el ícono de stickers → <b>Foto</b>, elige esta imagen y ubícala sobre tu foto.'
@@ -3107,7 +3195,7 @@ window.compartir = async (id, mode) => { const p=me(), d=(p.diarios||[]).find(x=
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button>${(d.ejercicios||[]).length&&!d.guardadaComoRutina?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}<a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}">${ic('download','s')} Descargar imagen</a>`); };
 window.elegirFotoHistoria = () => { const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
-  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; compartir(S.shareId,'foto'); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; (S.shareAgain||(()=>compartir(S.shareId,'foto')))(); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
   inp.click(); };
 window.shareNow = async () => { const jpg=S.shareBlob&&S.shareBlob.type==='image/jpeg'; const f=new File([S.shareBlob], jpg?'strongmed.jpg':'strongmed.png', {type:jpg?'image/jpeg':'image/png'});
   if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title:'StrongMed', text:'Mi entrenamiento con StrongMed 💪'}); }catch(e){} }

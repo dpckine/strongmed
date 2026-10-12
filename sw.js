@@ -1,6 +1,6 @@
 /* StrongMed — service worker: la app abre sin internet.
    Los datos (Firestore) los guarda Firebase en el teléfono y los sincroniza solo. */
-const V = 'sm-v29';
+const V = 'sm-v30';
 const SHELL = ['./', './index.html', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json?v=24', './js/sm-anim.js?v=24'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'sm-media' && k !== 'sm-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())); });

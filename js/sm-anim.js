@@ -389,6 +389,7 @@
     wall: (J, o) => `<rect x="${o.x}" y="0" width="${o.w || 8}" height="${FLOOR}" fill="${COL.padDark}"/>`,
     table: (J, o) => line([o.x, o.y], [o.x + o.w, o.y], 5, COL.pad) + line([o.x + 4, o.y], [o.x + 4, FLOOR], 3, COL.padDark) + line([o.x + o.w - 4, o.y], [o.x + o.w - 4, FLOOR], 3, COL.padDark),
     rails: (J, o) => { const p = at(J, o.at || 'wr1'); return line([p[0] - 2, -12], [p[0] - 2, FLOOR], 3, COL.padDark) + line([p[0] + 3, -12], [p[0] + 3, FLOOR], 2, COL.pad, 'opacity=".6"'); },
+    twistball: (J, o) => { const b = J.p.bs ?? 1, c = [(J.hd1[0] + J.hd2[0]) / 2 + 3, (J.hd1[1] + J.hd2[1]) / 2 - 1]; return `<g opacity="${f1(0.45 + 0.55 * b)}">${circ(c, 7 + 2 * b, '#3b4655', '#8a96a6', 1.6)}</g>`; },
     hbar: (J, o) => line([o.x1, o.y], [o.x2, o.y], 4, COL.metal) + line([o.x1, 0 - 12], [o.x1, o.y], 3, COL.padDark) + line([o.x2, -12], [o.x2, o.y], 3, COL.padDark),
     pullbar: (J, o) => line([o.x - 8, -12], [o.x - 8, o.y], 3, COL.padDark) + line([o.x - 8, o.y], [o.x, o.y], 3, COL.padDark) + circ([o.x, o.y], 4, COL.metal, '#64748b', 1.5),
     tower: (J, o) => {
@@ -1658,9 +1659,9 @@
     frames: [{}, { y: 100, t: 178, a1: 150, e1: 150, a2: 150, e2: 150 }]
   });
   add('russian_twist', 'Giros rusos', {
-    base: { view: 'front', x: 100, y: 164, t: 180, l1: 34, k1: -8, ts1: 0.45, ss1: 0.5, pf: false, a1: 20, e1: 0, a2: 20, e2: -20 },
-    props: [{ type: 'ball', at: J => [(J.hd1[0] + J.hd2[0]) / 2, (J.hd1[1] + J.hd2[1]) / 2], r: 8 }],
-    frames: [{ a1: 40, e1: 20, a2: 40, e2: 10, t: 176 }, { a1: -40, e1: -10, a2: -40, e2: -20, t: 184 }]
+    base: { x: 86, y: 172, t: 222, h: -16, pf: false, l1: 146, k1: 66, l2: 142, k2: 62, f1: 82, f2: 82, H1: [80, 144], H2: [78, 145], bs: 1 },
+    props: [{ type: 'twistball' }],
+    frames: [{ d: 0.5 }, { H1: [100, 170], H2: [102, 168], bs: 1, t: 218, d: 0.9 }, { d: 0.5 }, { H1: [94, 160], H2: [92, 161], bs: 0, t: 226, d: 0.9 }], free: true, dur: 2.8
   });
   add('landmine_twist', 'Landmine twist / rainbows', {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [124, AY], F2: [76, AY], a1: 150, e1: 150, a2: 150, e2: 150 },

@@ -2006,3 +2006,78 @@
 
   G.SMGif = { encode };
 })(typeof window !== 'undefined' ? window : globalThis);
+/* Plantillas "En casa · Inicial": ejercicios fáciles con silla y pared para personas que empiezan o tienen movilidad reducida */
+(function (G) {
+  'use strict';
+  const A = G.SMAnim, T = G.SMTemplates; if (!A || !T) return;
+  const AY = 179;
+  const S = o => Object.assign({ x: 100, y: 100, t: 180, F1: [104, AY], F2: [99, AY], a1: 4, e1: 8 }, o || {});
+  const add = (name, label, def) => { def.label = label; T[name] = def; };
+  // silla vista de lado (mirando a la derecha): asiento, patas y respaldo
+  const chair = (x0 = 52, x1 = 96, y = 128) => [{ type: 'bench', a: [x0, y], b: [x1, y], legs: [x0 + 6, x1 - 6] }, { type: 'pad', a: [x0 + 1, y], b: [x0 - 4, y - 50], w: 6 }];
+  // silla al frente para apoyar las manos (respaldo a la altura de la cadera)
+  const chairFront = (x = 140) => [{ type: 'pad', a: [x, 104], b: [x + 3, 128], w: 6 }, { type: 'bench', a: [x, 128], b: [x + 40, 128], legs: [x + 4, x + 36] }];
+  const SEAT = { x: 76, y: 120, t: 182, F1: [118, AY], F2: [114, AY], pf: true };
+
+  add('sit_stand', 'Pararse y sentarse de la silla', {
+    base: Object.assign({}, SEAT, { a1: 80, e1: 84 }), props: chair(),
+    frames: [{}, { x: 92, y: 118, t: 146 }, { x: 110, y: 100, t: 180, a1: 70, e1: 76 }, { x: 92, y: 118, t: 146 }], dur: 4.2
+  });
+  add('chair_march', 'Marcha sentado', {
+    base: { x: 76, y: 120, t: 182, pf: false, l1: 90, k1: 2, l2: 90, k2: 2, f1: 85, f2: 85, a1: 4, e1: 30 }, props: chair(),
+    frames: [{}, { l1: 118, k1: 22 }, {}, { l2: 118, k2: 22 }], dur: 2.6
+  });
+  add('chair_knee_ext', 'Extensión de rodilla sentado', {
+    base: { x: 76, y: 120, t: 182, pf: false, l1: 90, k1: 2, l2: 90, k2: 2, f1: 85, f2: 85, a1: 4, e1: 30 }, props: chair(),
+    frames: [{}, { k1: 86 }], dur: 3
+  });
+  add('chair_heel_toe', 'Puntas y talones sentado', {
+    base: Object.assign({}, SEAT, { f1: 78, a1: 4, e1: 30 }), props: chair(),
+    frames: [{}, { F1: [118, 170], F2: [114, 170], f1: 34, f2: 34 }, {}, { f1: 128, f2: 128 }], dur: 3
+  });
+  add('chair_arms_up', 'Elevación de brazos sentado', {
+    base: Object.assign({}, SEAT, { a1: 4, e1: 6 }), props: chair(),
+    frames: [{}, { a1: 172, e1: 174 }], dur: 3
+  });
+  add('chair_row_band', 'Remo con banda sentado', {
+    base: Object.assign({}, SEAT, { H1: [138, 122] }), props: chair().concat([{ type: 'band', from: 'hd1', to: [142, 178] }]),
+    frames: [{}, { H1: [96, 116] }], dur: 3
+  });
+  add('chair_hams_stretch', 'Estiramiento de isquiotibiales sentado', {
+    base: { x: 84, y: 120, t: 182, F1: [138, AY], f1: 120, F2: [112, AY], a1: 40, e1: 50 }, props: chair(56, 98),
+    frames: [{}, { t: 152, a1: 70, e1: 80 }], dur: 4
+  });
+  add('wall_pushup', 'Flexiones en la pared', {
+    base: { x: 104, y: 99, t: 166, F1: [92, AY], F2: [88, AY], H1: [150, 66], H2: [150, 70] }, props: [{ type: 'wall', x: 152, w: 10 }],
+    frames: [{}, { x: 116, y: 100, t: 154 }], dur: 3
+  });
+  add('chair_calf', 'Elevación de talones con apoyo', {
+    base: S({ x: 104, f1: 78, H1: [142, 104], H2: [142, 106] }), props: chairFront(140),
+    frames: [{}, { y: 90, F1: [104, 169], F2: [99, 169], f1: 30, f2: 30, H1: [142, 104], H2: [142, 106] }], dur: 3
+  });
+  add('chair_hip_ext', 'Extensión de cadera de pie con apoyo', {
+    base: S({ x: 104, t: 174, H1: [142, 104], H2: [142, 106], F2: [104, AY] }), props: chairFront(140),
+    frames: [{ l1: 0, k1: 0 }, { l1: -28, k1: -28 }], dur: 3
+  });
+  add('chair_knee_curl', 'Flexión de rodilla de pie con apoyo', {
+    base: S({ x: 104, t: 178, H1: [142, 104], H2: [142, 106], F2: [104, AY] }), props: chairFront(140),
+    frames: [{ l1: 0, k1: 0 }, { l1: 4, k1: -100 }], dur: 3
+  });
+  add('chair_abd', 'Abducción de cadera de pie con apoyo', {
+    base: { view: 'front', x: 96, y: 99, t: 180, l1: 2, k1: 2, l2: -2, k2: -2, a1: 4, e1: 4, H2: [56, 104] },
+    props: [{ type: 'pad', a: [40, 104], b: [70, 104], w: 6 }, { type: 'pad', a: [44, 104], b: [44, 184], w: 4 }, { type: 'pad', a: [66, 104], b: [66, 184], w: 4 }],
+    frames: [{}, { l1: 30, k1: 30, t: 176 }], dur: 3
+  });
+  add('chair_balance', 'Equilibrio con apoyo en silla', {
+    base: { x: 104, y: 100, t: 180, F1: [106, AY], f1: 78, l2: 14, k2: -60, H1: [142, 104], H2: [142, 106] }, props: chairFront(140),
+    frames: [{ t: 178 }, { t: 182 }], dur: 2.4
+  });
+  add('wall_squat_mini', 'Mini sentadilla apoyado en la pared', {
+    base: S({ x: 62, t: 182, F1: [92, AY], F2: [88, AY], a1: 60, e1: 70 }), props: [{ type: 'wall', x: 40, w: 10 }],
+    frames: [{}, { x: 60, y: 118, t: 182 }], dur: 3.2
+  });
+  add('step_in_place', 'Marcha en el lugar con apoyo', {
+    base: S({ x: 104, H1: [142, 104], H2: [142, 106] }), props: chairFront(140),
+    frames: [{ l1: 0, k1: 0 }, { l1: 66, k1: -6 }, { l1: 0, k1: 0, l2: 0, k2: 0 }, { l2: 66, k2: -6 }], dur: 2.6
+  });
+})(window);

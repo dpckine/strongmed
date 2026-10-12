@@ -1607,7 +1607,7 @@ window.verEj = async id => { await loadLib(); const x=S.lib.find(e=>e.i===id); i
 window.ejAnTap = () => { const P=S.ejP, el=$('#ejan'); if(!P||!el) return; P.paused=!P.paused; el.classList.toggle('paused', P.paused); };
 window.ejAnSpeed = () => { const P=S.ejP; if(!P) return; P.speed = P.speed===1 ? .5 : 1; const b=$('#ejsp'); if(b) b.textContent = P.speed===1 ? 'Ver lento' : 'Ver normal'; };
 window.ejGif = async id => { const x=S.lib.find(e=>e.i===id); if(!x||!x.a) return; const b=$('#ejgif'); if(b){ b.disabled=true; b.textContent='Creando GIF…'; }
-  try{ const tpl=SMTemplates[x.a]||SMTemplates.stand, dur=tpl.dur||2.6, fps=12, nf=Math.max(10,Math.min(72,Math.round(dur*fps))), W=360;
+  try{ const tpl=SMAnim.tpl(x.a), dur=tpl.dur||2.6, fps=12, nf=Math.max(10,Math.min(72,Math.round(dur*fps))), W=360;
     const cv=document.createElement('canvas'); cv.width=cv.height=W; const ctx=cv.getContext('2d',{willReadFrequently:true}); const frames=[];
     const load=src=>new Promise((ok,ko)=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=ko; im.src=src; });
     for(let i=0;i<nf;i++){ const im=await load('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SMAnim.fullSVG(x.a, i/nf, ejHL(x), i/nf*dur, {title:x.n})));

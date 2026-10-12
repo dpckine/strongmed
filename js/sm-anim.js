@@ -415,23 +415,30 @@
   const BG = BGBASE + `<line x1="-6" y1="${FLOOR + 0.5}" x2="206" y2="${FLOOR + 0.5}" stroke="#2f353d" stroke-width="1.5"/><rect x="-6" y="${FLOOR + 1}" width="212" height="${200 - FLOOR}" fill="#0e1012"/>`;
   const bgFor = tpl => tpl && tpl.custom ? BGBASE : BG;
 
+  // plantillas con variante de postura: "curl@seated", "row_cable@kneel"…
+  function tplOf(name) {
+    const T = G.SMTemplates;
+    if (T[name]) return T[name];
+    if (name && name.includes('@') && G.SMVariant) { const v = G.SMVariant(name); if (v) { T[name] = v; return v; } }
+    return T[String(name).split('@')[0]] || T.stand;
+  }
   // ---------------------------------------------------------------- reproductor
   const players = new Set();
   let raf = null, last = 0;
   const reduce = G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function frameSVG(tplName, phase, hl, T) {
-    const tpl = G.SMTemplates[tplName] || G.SMTemplates.stand;
+    const tpl = tplOf(tplName);
     return render(tpl, phase, hl, T ?? phase * (tpl.dur || 2.6));
   }
   function fullSVG(tplName, phase, hl, T, mark) {
-    const tpl = G.SMTemplates[tplName] || G.SMTemplates.stand;
+    const tpl = tplOf(tplName);
     const wm = mark ? `<g font-family="Inter,Arial,sans-serif" font-weight="800" font-size="7.5"><text x="-1" y="-3" fill="#ffffff" opacity=".9">STRONG<tspan fill="#bbf426">MED</tspan><tspan fill="#64748b"> × </tspan>Kin <tspan fill="#bbf426">At Home</tspan></text>${mark.title ? `<text x="-1" y="196" fill="#cbd5e1" font-size="7" font-weight="700">${mark.title.replace(/[&<>]/g, '')}</text>` : ''}</g>` : '';
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB}" width="420" height="420">${DEFS}${bgFor(tpl)}<g>${frameSVG(tplName, phase, hl, T)}</g>${wm}</svg>`;
   }
 
   function mount(el, tplName, hl, opts = {}) {
-    const tpl = G.SMTemplates[tplName] || G.SMTemplates.stand;
+    const tpl = tplOf(tplName);
     el.innerHTML = `<svg viewBox="${VB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animación del ejercicio">${DEFS}${bgFor(tpl)}<g class="fig"></g></svg>`;
     const g = el.querySelector('.fig');
     const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false };
@@ -464,7 +471,7 @@
     }
   }
 
-  G.SMAnim = { mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
+  G.SMAnim = { tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
 })(window);
 /* Primeros planos animados: mano, pie y cara (rehabilitación fina) */
 (function (G) {
@@ -1418,6 +1425,10 @@
     base: { x: 100, y: 175, t: -90, h: -4, F1: [134, AY], l2: 90, k2: 90, pf: true, H1: [100, 182] },
     frames: [{}, { t: -104, h: -6 }], pulse: true
   });
+  add('bicycle_crunch', 'Crunch bicicleta', {
+    base: { x: 100, y: 175, t: -112, h: -14, pf: false, l1: 160, k1: 70, l2: 120, k2: 30, h1: [6, -6] },
+    frames: [{ t: -116, l1: 172, k1: 82, l2: 118, k2: 118 }, { t: -116, l1: 118, k1: 118, l2: 172, k2: 82 }], dur: 1.8
+  });
   add('situp', 'Abdominal completo (sit-up)', {
     base: { x: 100, y: 175, t: -90, h: -6, F1: [134, AY], F2: [130, AY], pf: true, h1: [8, -6] },
     frames: [{}, { t: -170, h: -20 }]
@@ -1695,7 +1706,7 @@
     frames: walk({ h1: [-2, -8], armSwing: 0, stride: 0.6 }), ease: 'linear', dur: 1.6
   });
   const crank = [124, 150];
-  const pedal = (k, n) => { const a = k / n * 360; const c = [crank[0] + Math.sin(a * Math.PI / 180) * 15, crank[1] + Math.cos(a * Math.PI / 180) * 15]; const c2 = [crank[0] - Math.sin(a * Math.PI / 180) * 15, crank[1] - Math.cos(a * Math.PI / 180) * 15]; return { F1: c, F2: c2 }; };
+  const pedal = (k, n) => { const a = 180 - k / n * 360; const c = [crank[0] + Math.sin(a * Math.PI / 180) * 15, crank[1] + Math.cos(a * Math.PI / 180) * 15]; const c2 = [crank[0] - Math.sin(a * Math.PI / 180) * 15, crank[1] - Math.cos(a * Math.PI / 180) * 15]; return { F1: c, F2: c2 }; };
   add('bike', 'Bicicleta estática', {
     base: { x: 92, y: 98, t: 148, H1: [150, 82], pf: false, f1: 90, f2: 90 },
     props: [{ type: 'bike', crank, seat: [92, 98], bar: [150, 80] }],
@@ -1875,6 +1886,31 @@
     ];
   }
 
+  // ---- variantes de postura para ejercicios de tren superior: sentado o arrodillado
+  G.SMVariant = name => {
+    const [b, mod] = name.split('@'), src = T[b];
+    if (!src || src.custom || !src.frames) return null;
+    const front = (src.base || {}).view === 'front';
+    const t = Object.assign({}, src, { base: Object.assign({}, src.base), frames: src.frames.map(f => Object.assign({}, f)), props: (src.props || []).slice() });
+    delete t._c;
+    const legs = ['F1', 'F2', 'l1', 'k1', 'l2', 'k2', 'ts1', 'ss1', 'f1', 'f2', 'x', 'y'];
+    const oldY = t.base.y ?? 100, x = t.base.x ?? 100;
+    t.frames.forEach(f => legs.forEach(k => delete f[k]));
+    legs.forEach(k => delete t.base[k]);
+    let y;
+    if (mod === 'seated') {
+      if (front) { y = 124; Object.assign(t.base, { x, y, l1: 20, k1: 0, ts1: 0.4, pf: false }); t.props.unshift({ type: 'box', x: x - 26, y: 128, w: 52 }); }
+      else { y = 126; Object.assign(t.base, { x, y, F1: [x + 40, AY], F2: [x + 36, AY], pf: true }); t.props.unshift({ type: 'bench', a: [x - 24, 134], b: [x + 14, 134], legs: [x - 16, x + 6] }); }
+    } else if (mod === 'kneel') {
+      y = 137;
+      if (front) Object.assign(t.base, { x, y, l1: 3, k1: 3, ss1: 0.12, pf: false, f1: 0 });
+      else Object.assign(t.base, { x, y, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, pf: false });
+    } else return null;
+    const dy = y - oldY;
+    [t.base, ...t.frames].forEach(f => ['H1', 'H2'].forEach(k => { if (f[k]) f[k] = [f[k][0], f[k][1] + dy]; }));
+    t.label = src.label + (mod === 'seated' ? ' (sentado)' : ' (arrodillado)');
+    return t;
+  };
   G.SMTemplates = T;
 })(window);
 /* Codificador GIF animado mínimo (sin dependencias).

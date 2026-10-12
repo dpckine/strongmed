@@ -1257,9 +1257,11 @@ function vPlan(p){
   } else h+=fichasHTML(p);
   return h+'</div>';
 }
+function misInformesHTML(p){ const inf=(p.informes||[]).filter(i=>i.enviado).slice().reverse(); if(!inf.length) return '';
+  return `<div class="sec-t"><h2>Mis informes</h2></div><div class="list">${inf.map(i=>`<div class="li"><span class="ico">${ic('file','s')}</span><button class="grow" style="text-align:left" onclick="verMiInforme(${q(i.id)})"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'kinesiológico'}</div><div class="xs muted">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</div></button><button class="btn pri sm" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} PDF</button></div>`).join('')}</div>`; }
 function fichasHTML(p){
   const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length).reverse();
-  return (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
+  return misInformesHTML(p) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
     + `<button class="btn sec block" onclick="go('ficha')">${ic('clip','s')} ${p.anamnesis?'Actualizar':'Completar'} mi cuestionario inicial</button>`;
 }
 window.toggleEj = async (rid,i) => { const p=me(); const r=(p.rutinasAsignadas||[]).find(x=>x.id===rid); if(!r) return; r.ejercicios[i].hecho=!r.ejercicios[i].hecho; await save(p); keepScroll(render); };
@@ -1981,7 +1983,7 @@ function pClinico(p){
   <section class="card stack"><div class="row between"><span class="b">Tareas en casa</span><button class="btn ghost sm" onclick="nuevaTarea()">${ic('plus','s')} Tarea</button></div>
     ${ts.length?`<div class="stack" style="gap:6px">${ts.map(t=>`<div class="ex"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span><button class="ibtn red" onclick="borrarTarea(${q(t.id)})" aria-label="Eliminar">${ic('x','s')}</button></div>`).join('')}</div>`:'<div class="xs muted">Sin tareas asignadas.</div>'}</section>
   <div class="sec-t"><h2>Informes</h2><button class="btn ghost sm" onclick="pgo('informe',${q(k)})">${ic('plus','s')} Informe</button></div>
-  ${(p.informes||[]).length?`<div class="list">${p.informes.slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
+  ${(p.informes||[]).length?`<div class="list">${p.informes.slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'de inicio'} · ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}${i.enviado?` · enviado al paciente ${fmtDate(i.enviadoFecha)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
   <section class="card">${tl.length?`<div class="tl">${tl.map(x=> x.k==='eval'
     ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div><button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${(x.e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`
@@ -2071,7 +2073,9 @@ window.sheetPro = id => { const x=S.pros.find(y=>y.id===id)||{org:'sm', activo:t
   <button class="btn pri block" onclick="guardarPro(${q(x.id||'')})">Guardar</button>${x.id?`<button class="btn danger block" onclick="borrarPro(${q(x.id)})">${ic('trash','s')} Eliminar</button>`:''}</div>`); };
 window.sheetAgendaBuiltin = id => { const ag=agendaOf(id);
   sheet(`<h2 class="disp h2">${esc(ag.nombre)}</h2><div class="stack" style="margin-top:16px">${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(id)})">Guardar</button></div>`); };
-const agendaFields = ag => `<label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
+const agendaFields = ag => `<label class="field"><span class="lbl">Mi nombre (como lo ven los pacientes y en los informes)</span><input class="inp" id="ag-n" value="${esc(ag.nombre||'')}" placeholder="Ej: David Ponce Caro"></label>
+  <label class="field"><span class="lbl">Título en la firma de informes</span><input class="inp" id="ag-tf" value="${esc(ag.tituloFirma??'Kinesiólogo')}" placeholder="Kinesiólogo · Klgo. · Dra. (o vacío)"></label>
+  <label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
   <div class="grid2"><label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="ag-r" value="${esc(ag.rut||'')}"></label><label class="field"><span class="lbl">Link de pago</span><input class="inp" id="ag-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label></div>
   <label class="field"><span class="lbl">WhatsApp para pacientes (opcional)</span><input class="inp" id="ag-w" inputmode="tel" value="${esc(ag.whatsapp||'')}" placeholder="+56 9 …"></label>
   <label class="field"><span class="lbl">Link fijo de videollamada (opcional)</span><input class="inp" id="ag-v" value="${esc(ag.linkVideo||'')}" placeholder="https://meet.google.com/… (vacío = sala Jitsi nueva)"></label>
@@ -2086,6 +2090,8 @@ window.cenRow = cenRow;
 window.guardarAgendaCampos = async id => { const ag={...(agendaOf(id)||myAgenda())};
   for(const [k,f] of [['pagoLink','ag-pg'],['linkVideo','ag-v']]){ const v=val(f); if(v && !/^https?:\/\//.test(v)) return toast('Los links deben empezar con https://','err'); ag[k]=v; }
   const centros=[...document.querySelectorAll('.cenrow')].map(e=>({id:e.dataset.id||('c'+uid().toString(36)), nombre:e.querySelector('.c-n').value.trim(), direccion:e.querySelector('.c-d').value.trim()})).filter(c=>c.nombre);
+  const nn=val('ag-n'); if($('#ag-n') && !nn) return toast('Escribe tu nombre','err'); if(nn) ag.nombre=nn; if($('#ag-tf')) ag.tituloFirma=val('ag-tf');
+  if(nn && ag.id===S.pro.id){ S.pro.nombre=nn; if(S.pro.builtin){ try{ const k='sm_pro_'+S.pro.usuario, o=JSON.parse(localStorage.getItem(k))||{}; o.nombre=nn; localStorage.setItem(k, JSON.stringify(o)); }catch(e){} } }
   Object.assign(ag,{whatsapp:val('ag-w'), titulo:val('ag-t'), rut:val('ag-r'), contacto:val('ag-c'), disponible:$('#ag-d').checked, centros, domicilio:$('#ag-dom').checked, online:$('#ag-onl').checked});
   if(await saveAgenda(ag)){ closeSheet(); toast('Guardado'); render(); } };
 window.guardarPro = async id => { const u=proUser(val('pr-u')), c=$('#pr-c').value, n=val('pr-n'); if(!n||!u) return toast('Completa nombre y usuario (solo letras, números, - o _)','err'); if((!id || c) && c.length<8) return toast('La contraseña debe tener al menos 8 caracteres','err');
@@ -2302,6 +2308,7 @@ const servAg = a => a && a.servicio==='oral' ? 'oral' : 'kine';
 async function loadAgendas(){
   let a=[]; if(await initFB()){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'agendas')); sn.forEach(d=>a.push({id:d.id,...d.data()})); }catch(e){ console.warn(e); } }
   S.agendas = [...BUILTIN_AGENDAS.map(b=>({...b, ...(a.find(x=>x.id===b.id)||{})})), ...a.filter(x=>!String(x.id).startsWith('b-'))];
+  if(S.role==='pro' && S.pro){ const mine=S.agendas.find(x=>x.id===S.pro.id); if(mine && mine.nombre) S.pro.nombre=mine.nombre; }   // el nombre que el profesional eligió
 }
 async function loadJornadas(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'jornadas')); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.jornadas=a; }catch(e){ console.warn(e); } }
 const agendaOf = id => S.agendas.find(a=>a.id===id);
@@ -2725,6 +2732,31 @@ window.tFC = () => { const e=+val('t4-e'), r=+val('t4-r'), o=$('#t4-o'); if(!e){
 
 /* ================= INFORME (solo profesionales, editable) ================= */
 const stripTags = s => String(s).replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+const firmaNombre = ag => { const t=(ag.tituloFirma??'Kinesiólogo').trim(), n=String(ag.nombre||S.pro.nombre||'').trim(); return t ? `${t} ${n.replace(/^(Klg[oa]\.|Kinesi[oó]log[oa]|Dra?\.)\s*/i,'')}` : n; };
+/* fechas de atención: sesiones registradas + citas realizadas */
+function fechasAtencion(p){ const set=new Set([...(p.sesionesRehab||[]).map(x=>toISO(x.fecha)), ...(p.citas||[]).filter(c=>c.estado==='realizada').map(c=>toISO(c.fecha))].filter(Boolean)); return [...set].sort(); }
+const fCL = d => { const x=parseISO(d); return `${String(x.getDate()).padStart(2,'0')}-${String(x.getMonth()+1).padStart(2,'0')}-${x.getFullYear()}`; };
+/* informe de alta / final (formato Sebastián) */
+function informeAlta(p){
+  const a=p.anamnesis||{}, evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), last=evs[evs.length-1], ed=last?.evalData||{}, ag=agendaOf(S.pro.id)||{};
+  const E=s=>esc(s||''), fs=fechasAtencion(p), n=fs.length, half=Math.ceil(n/2), ss=p.sesionesRehab||[], ena=[...ss].reverse().find(x=>x.eva!==''&&x.eva!=null);
+  const ant=[`${E(first(p.nombre))}, ${E(p.edad||'—')} años${p.deporte||a.actividad?`, practicante de ${E(p.deporte||a.actividad)}`:''}${p.ocupacion||a.ocupacion?`, se desempeña como ${E(p.ocupacion||a.ocupacion)}`:''}.`,
+    p.diagnostico?`Diagnóstico: ${E(p.diagnostico)}.`:'', a.lesiones||ed.lesiones?`Antecedentes traumáticos/quirúrgicos: ${E(a.lesiones||ed.lesiones)}.`:'', a.enfermedades||ed.comorbilidades?`Comorbilidades: ${E(a.enfermedades||ed.comorbilidades)}.`:'No presenta comorbilidades asociadas.'].filter(Boolean).join(' ');
+  const fila=i=>`<tr><td>${i<n?`Sesión ${String(i+1).padStart(2,'0')}: ${fCL(fs[i])}`:''}</td><td>${i+half<n?`— Sesión ${String(i+half+1).padStart(2,'0')}: ${fCL(fs[i+half])}`:''}</td></tr>`;
+  const res=(last?.resultados||[]).slice(1).map(stripTags).filter(Boolean);
+  return `<h1>INFORME KINESIOLÓGICO</h1>
+<h2>ANTECEDENTES PERSONALES DEL USUARIO</h2>
+<table class="ap"><tr><td>Nombre</td><td>: ${E(p.nombre)}</td></tr><tr><td>RUT</td><td>: ${E(p.rut)}</td></tr><tr><td>Edad</td><td>: ${E(p.edad||'—')} años</td></tr></table>
+<p>${ant}</p>
+${n?`<p class="c"><b>Fechas de atención (${n} sesiones)</b></p><table class="fx">${[...Array(half).keys()].map(fila).join('')}</table>`:''}
+<p><b>Sintomatología:</b> ${ena?`Dolor ENA ${E(ena.eva)}/10 en la última sesión registrada.`:''} [Describe el estado actual del usuario/a.]</p>
+<p><b>Evaluación de fuerza y rendimiento final:</b> ${res.length?E(res.join('. '))+'.':'[Resultados de la evaluación final: dinamometría, simetría (LSI), pruebas funcionales…]'}</p>
+<p><b>Capacidad funcional y resistencia:</b> [Pruebas funcionales y su interpretación.]</p>
+<p>Usuario/a finaliza satisfactoriamente su plan de ${n||rehabPlan(p)||'—'} sesiones con alta kinésica de fase. [Conclusión clínica.]</p>
+<p><b>Sugerencias:</b> [Indicaciones para la continuidad: progresión deportiva, rutina de fuerza, ergonomía, controles.]</p>
+<p class="c"><b>Se extiende el presente informe a solicitud del/la usuario/a para los fines que estime conveniente.</b></p>
+<p class="sig"><b>${E(firmaNombre(ag))} - RUT: ${E(ag.rut||'—')}</b></p>`;
+}
 function informeDraft(p){
   const a=p.anamnesis||{}, evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), last=evs[evs.length-1], ed=last?.evalData||{}, per=perfilOf(p);
   const ss=p.sesionesRehab||[], firstDate=toISO(ss[0]?.fecha)||toISO(evs[0]?.fecha)||toISO(p.fecha), ag=agendaOf(S.pro.id)||{};
@@ -2746,35 +2778,48 @@ ${rehabPlan(p)?`<p><b>Se proyecta un plan inicial de ${rehabPlan(p)} sesiones.</
 <p><b>A la fecha ${fmtLong(new Date())}, ${u} ha completado ${ss.length} sesiones${ss.length?', donde realiza:':'.'}</b> ${E(notas)}</p>
 <p>[Escribe aquí la evolución, conclusiones y sugerencias.]</p>
 <p class="c"><b>Se extiende el presente informe a solicitud de${p.nombre?'l/la '+u:''} para los fines que estime conveniente.</b></p>
-<p class="sig"><b>${E(ag.nombre||S.pro.nombre)}</b><br><b>RUT: ${E(ag.rut||'—')}</b></p>`;
+<p class="sig"><b>${E(firmaNombre(ag))}</b><br><b>RUT: ${E(ag.rut||'—')}</b></p>`;
 }
 function vInforme(){
   const p=prof(S.proArg); if(!p) return `<div class="card empty">Persona no encontrada</div>`;
   const saved=p.informes||[], cur=S.infId?saved.find(i=>i.id===S.infId):null;
-  if(!S.infHtml) S.infHtml = cur ? cur.html : informeDraft(p);
+  if(cur && cur.tipo) S.infTipo=cur.tipo; S.infTipo=S.infTipo||'inicio';
+  if(!S.infHtml) S.infHtml = cur ? cur.html : (S.infTipo==='alta' ? informeAlta(p) : informeDraft(p));
   const ag=agendaOf(S.pro.id)||{};
   return `<header class="top"><button class="back" onclick="S.infHtml=null;S.infId=null;openPersona(${q(keyOf(p))},'clinico')">${ic('chevl','s')} ${esc(first(p.nombre))}</button><h1 class="disp h1" style="margin-top:4px">Informe</h1><p class="muted sm" style="margin-top:6px">Toca el texto para editarlo antes de descargarlo. Solo los profesionales pueden generar informes.</p></header>
-  <div class="stack"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="descargarInforme()">${ic('download','s')} Descargar PDF</button><button class="btn sec sm" onclick="guardarInforme()">${ic('check','s')} Guardar borrador</button><button class="btn ghost sm" onclick="if(confirm('¿Volver a generar el texto desde la ficha? Se pierden tus cambios no guardados.')){S.infHtml=informeDraft(prof(S.proArg));render()}">Regenerar</button>
+  <div class="stack"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="descargarInforme()">${ic('download','s')} Descargar PDF</button><button class="btn sec sm" onclick="guardarInforme()">${ic('check','s')} Guardar borrador</button><button class="btn sec sm" onclick="enviarInforme()">${ic('send','s')} ${cur&&cur.enviado?'Actualizar envío':'Enviar al paciente'}</button><button class="btn ghost sm" onclick="if(confirm('¿Volver a generar el texto desde la ficha? Se pierden tus cambios no guardados.')){const p=prof(S.proArg);S.infHtml=S.infTipo==='alta'?informeAlta(p):informeDraft(p);render()}">Regenerar</button>
     <label class="row sm" style="gap:6px"><input type="checkbox" id="inf-kah" ${p.marca==='sm+kah'||p.org==='kah'?'checked':''} onchange="$('#inf-logos').innerHTML=infLogos()"> Logo Kin At Home</label></div>
-  ${saved.length?`<div class="pills">${saved.slice().reverse().map(i=>`<button class="pill ${i.id===S.infId?'on':''}" onclick="S.infId=${i.id};S.infHtml=null;render()">${fmtDate(i.fecha)}</button>`).join('')}<button class="pill ${!S.infId?'on':''}" onclick="S.infId=null;S.infHtml=null;render()">+ Nuevo</button></div>`:''}
+  ${!cur?`<div class="seg" style="max-width:420px"><button class="${S.infTipo!=='alta'?'on':''}" onclick="S.infTipo='inicio';S.infHtml=null;render()">Informe de inicio</button><button class="${S.infTipo==='alta'?'on':''}" onclick="S.infTipo='alta';S.infHtml=null;render()">Informe de alta / final</button></div>`:''}
+  ${cur&&cur.enviado?`<div class="note">${ic('check','s')}<span>Enviado al paciente el ${fmtDate(cur.enviadoFecha)}. Puede descargarlo desde su app.</span></div>`:''}
+  ${saved.length?`<div class="pills">${saved.slice().reverse().map(i=>`<button class="pill ${i.id===S.infId?'on':''}" onclick="S.infId=${i.id};S.infHtml=null;render()">${i.tipo==='alta'?'Alta':'Inicio'} · ${fmtDate(i.fecha)}${i.enviado?' ✓':''}</button>`).join('')}<button class="pill ${!S.infId?'on':''}" onclick="S.infId=null;S.infHtml=null;render()">+ Nuevo</button></div>`:''}
   <div class="a4wrap"><div class="a4"><div class="a4logos" id="inf-logos">${infLogos(p)}</div><div id="inf" class="a4body" contenteditable="true" oninput="S.infHtml=this.innerHTML">${S.infHtml}</div><div class="a4foot" contenteditable="true" id="inf-foot">${esc(ag.contacto||'StrongMed · Kinesiología y entrenamiento · Concepción, Chile')}</div></div></div></div>`;
 }
 const LOGO_KIDS = '<span class="kids"><i>K</i><i>I</i><i>D</i><i>S</i></span>';
 function infLogos(p){ p=p||prof(S.proArg); const k=$('#inf-kah') ? $('#inf-kah').checked : (p.marca==='sm+kah'||p.org==='kah');
   return `<span class="lsm">${smIcon(58)}</span>${k?`<span class="lkah">${KAH_SVG}</span><span class="ltxt">StrongMed<br>× Kin At Home</span>`:'<span class="ltxt">Strong<span style="color:#7fb000">Med</span><br><small style="font-size:9px;letter-spacing:1px;color:#666;white-space:nowrap">Kinesiología · Entrenamiento</small></span>'}${p.kids?LOGO_KIDS:''}`; }
 window.infLogos = () => infLogos();
-window.guardarInforme = async () => { const p=prof(S.proArg); p.informes=p.informes||[]; const html=$('#inf').innerHTML;
-  if(S.infId){ const i=p.informes.find(x=>x.id===S.infId); i.html=html; i.editado=todayISO(); } else { const i={id:uid(), fecha:todayISO(), autor:S.pro.nombre, html}; p.informes.push(i); S.infId=i.id; }
-  if(await save(p)) toast('Informe guardado'); };
-window.descargarInforme = () => { const p=prof(S.proArg), w=window.open('','_blank'); if(!w) return toast('Permite ventanas emergentes para descargar el PDF','err');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Informe ${esc(p.nombre)}</title><style>${INF_CSS}
-  @page{size:A4;margin:16mm 18mm 18mm} body{margin:0} .a4{box-shadow:none;width:auto;min-height:0;padding:0} .a4foot{position:fixed;bottom:0;left:0;right:0}</style></head><body><div class="a4"><div class="a4logos">${$('#inf-logos').innerHTML}</div><div class="a4body">${$('#inf').innerHTML}</div><div class="a4foot">${$('#inf-foot').innerHTML}</div></div></body></html>`);
-  w.document.close(); setTimeout(()=>w.print(), 500); };
+function infUpsert(p){ p.informes=p.informes||[]; const html=$('#inf').innerHTML, logos=$('#inf-logos').innerHTML, pie=$('#inf-foot').innerHTML;
+  let i=S.infId?p.informes.find(x=>x.id===S.infId):null; if(i) Object.assign(i,{html, logos, pie, editado:todayISO()}); else { i={id:uid(), fecha:todayISO(), autor:S.pro.nombre, tipo:S.infTipo||'inicio', html, logos, pie}; p.informes.push(i); S.infId=i.id; } return i; }
+window.guardarInforme = async () => { const p=prof(S.proArg); infUpsert(p); if(await save(p)){ toast('Informe guardado'); keepScroll(render); } };
+window.enviarInforme = async () => { const p=prof(S.proArg); if(/\[[^\]]{3,}\]/.test($('#inf').innerText) && !confirm('El informe todavía tiene textos de ejemplo entre corchetes [ ]. ¿Enviarlo igual?')) return; if(!confirm(`¿Enviar este informe a ${first(p.nombre)}? Podrá verlo y descargarlo desde su app.`)) return;
+  const i=infUpsert(p), nuevo=!i.enviado; i.enviado=true; i.enviadoFecha=todayISO(); if(nuevo) addAviso(p,'evaluacion',`${S.pro.nombre} te envió tu informe kinesiológico. Puedes descargarlo en Mis fichas.`);
+  if(await save(p)){ toast('Informe enviado al paciente'); keepScroll(render); } };
+function informeVentana(titulo, logos, html, pie){ const w=window.open('','_blank'); if(!w) return toast('Permite ventanas emergentes para descargar el PDF','err');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap" rel="stylesheet"><style>${INF_CSS}
+  @page{size:A4;margin:16mm 18mm 18mm} body{margin:0} .a4{box-shadow:none;width:auto;min-height:0;padding:0} .a4foot{position:fixed;bottom:0;left:0;right:0}</style></head><body><div class="a4"><div class="a4logos">${logos}</div><div class="a4body">${html}</div><div class="a4foot">${pie||''}</div></div></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(), 700); }
+window.descargarMiInforme = id => { const p=me(), i=(p.informes||[]).find(x=>String(x.id)===String(id) && x.enviado); if(!i) return; informeVentana(`Informe ${p.nombre}`, i.logos||'', i.html, i.pie); };
+window.verMiInforme = id => { const p=me(), i=(p.informes||[]).find(x=>String(x.id)===String(id) && x.enviado); if(!i) return;
+  sheet(`<h2 class="disp h2">Informe ${i.tipo==='alta'?'de alta':'kinesiológico'}</h2><p class="muted sm" style="margin-top:4px">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</p>
+  <div style="margin-top:12px;max-height:56vh;overflow:auto;border-radius:12px"><div class="a4" style="min-height:0;padding:22px 20px;font-size:12px"><div class="a4logos">${i.logos||''}</div><div class="a4body">${i.html}</div><div class="a4foot" style="position:static;margin-top:16px">${i.pie||''}</div></div></div>
+  <button class="btn pri block" style="margin-top:14px" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} Descargar PDF</button>`); };
+window.descargarInforme = () => { const p=prof(S.proArg); informeVentana(`Informe ${p.nombre}`, $('#inf-logos').innerHTML, $('#inf').innerHTML, $('#inf-foot').innerHTML); };
 const INF_CSS = `.a4{background:#fff;color:#111;width:100%;max-width:794px;min-height:1000px;margin:0 auto;padding:44px 52px 70px;font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.45;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.35);border-radius:4px}
 .a4logos{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:6px}.a4logos .lsm{display:block;line-height:0;width:58px;height:58px}.a4logos .lsmx{padding:4px}.a4logos .lkah{width:58px;height:58px;background:#ccff33;border-radius:12px;padding:10px;display:grid}.a4logos .lkah svg{width:100%;height:100%}
 .a4logos .ltxt{font-family:'Barlow Condensed',Arial Narrow,sans-serif;font-weight:800;text-transform:uppercase;font-size:15px;line-height:1.05;color:#111}
 .a4body h1{text-align:center;font-size:18px;font-weight:800;margin:6px 0 18px;letter-spacing:.02em}.a4body h2{font-size:13.5px;font-weight:800;margin:10px 0 4px}
 .a4body table{font-size:inherit;border-collapse:collapse}.a4body table.ap td{padding:1px 0;vertical-align:top}.a4body table.ap td:first-child{width:140px}.a4body p{margin:0 0 10px;text-align:justify}.a4body ul{margin:0 0 10px 18px;padding:0}.a4body li{margin:1px 0}
+.a4body table.fx{margin:4px auto 12px}.a4body table.fx td{padding:3px 10px;white-space:nowrap}
 .a4body .c{text-align:center}.a4body .sig{text-align:center;margin-top:28px}.a4foot{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:11.5px;color:#444}
 .kids{display:inline-flex;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;padding:3px 7px;border-radius:9px;background:#fff;border:1.5px solid #ddd;gap:1px}.kids i{font-style:normal}.kids i:nth-child(1){color:#ff5a4f}.kids i:nth-child(2){color:#ffb02e}.kids i:nth-child(3){color:#2fbf71}.kids i:nth-child(4){color:#3d8bff}`;
 

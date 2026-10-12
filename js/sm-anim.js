@@ -1737,6 +1737,74 @@
     frames: [{ d: 1 }, { t: -140, H2: [62, 182], d: 1 }, { x: 98, y: 137, t: 182, pf: false, l2: 4, k2: -90, f2: 0, F1: [128, AY], a1: 182, e1: 182, d: 1 }, { x: 100, y: 100, t: 180, F1: [104, AY], F2: [99, AY], pf: true, d: 1.2 }], dur: 5
   });
 
+  /* ============================== ESTIRAMIENTOS Y VARIOS ============================== */
+  add('chest_stretch', 'Estiramiento de pecho', {
+    base: S({ H1: [80, 92] }),
+    frames: [{}, { H1: [70, 90], t: 176 }], pulse: true
+  });
+  add('cross_arm_stretch', 'Estiramiento de hombro cruzando el brazo', {
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: 92, e1: 92, H2: [118, 68] },
+    frames: [{ a1: 80, e1: 80 }, { a1: 64, e1: 64 }], pulse: true
+  });
+  add('triceps_stretch', 'Estiramiento de tríceps sobre la cabeza', {
+    base: S({ a1: 172, e1: -10, H2: [96, 40] }),
+    frames: [{}, { a1: 178, e1: -4 }], pulse: true
+  });
+  add('side_stretch', 'Estiramiento lateral de tronco', {
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [114, AY], a1: 170, e1: 176, a2: -6, e2: -6 },
+    frames: [{ t: 180 }, { t: 160, a1: 150, e1: 140 }]
+  });
+  add('quad_stretch', 'Estiramiento de cuádriceps de pie', {
+    base: S({ F2: [99, AY], F1: undefined, l1: -16, k1: -168, pf: false, f1: -70, H1: [82, 102], a2: 30, e2: 30 }),
+    frames: [{}, { l1: -24, k1: -174, H1: [78, 98] }], pulse: true
+  });
+  add('ham_stretch', 'Estiramiento de isquiotibiales sentado', {
+    base: { x: 74, y: 172, t: 186, pf: false, l1: 90, k1: 90, l2: 90, k2: 90, f1: 175, f2: 175, H1: [118, 168] },
+    frames: [{ t: 176 }, { t: 128, H1: [150, 172] }]
+  });
+  add('calf_stretch', 'Estiramiento de gemelos en la pared', {
+    base: { x: 104, y: 104, t: 164, F1: [126, AY], F2: [64, AY], f2: 84, H1: [148, 72] },
+    props: [{ type: 'wall', x: 152, w: 10 }],
+    frames: [{}, { x: 112, y: 108, t: 158 }], pulse: true
+  });
+  add('piriformis_stretch', 'Estiramiento de glúteo / piriforme acostado', {
+    base: { x: 104, y: 176, t: -90, h: 0, pf: false, l1: 150, k1: 60, l2: 140, k2: 30, h1: [30, -4] },
+    frames: [{}, { l1: 165, k1: 70, l2: 160, k2: 40 }], pulse: true
+  });
+  add('butterfly_stretch', 'Estiramiento de aductores (mariposa)', {
+    base: { view: 'front', x: 100, y: 166, t: 180, l1: 62, k1: 160, l2: -62, k2: -160, ts1: 0.95, pf: false, H1: [110, 178] },
+    frames: [{ t: 180 }, { t: 186, y: 167 }], pulse: true
+  });
+  add('lying_twist', 'Rotación lumbar acostado', {
+    base: { x: 104, y: 176, t: -90, h: 0, pf: false, l1: 150, k1: 60, l2: 150, k2: 60, a1: 90, e1: 90 },
+    frames: [{}, { l1: 118, k1: 30, l2: 112, k2: 24 }], dur: 3.4
+  });
+  add('childs_pose', 'Postura del niño (estiramiento de espalda)', {
+    base: { x: 70, y: 160, t: 78, h: 14, pf: false, l1: 59, k1: -90, l2: 59, k2: -90, f1: 0, f2: 0, H1: [162, 180] },
+    frames: [{ t: 74 }, { t: 82, x: 72 }], pulse: true
+  });
+  add('cat_cow', 'Gato-camello', {
+    base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, a1: 0, e1: 0, h: -6 },
+    frames: [{ t: 84, h: 10 }, { t: 100, h: -20 }], dur: 3.2
+  });
+  add('inchworm', 'Gusano (inchworm)', {
+    base: S({}),
+    frames: [{ d: 0.6 }, { x: 84, y: 104, t: 96, H1: [118, 182], d: 0.9 }, Object.assign(plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }), { d: 1 }), { x: 84, y: 104, t: 96, F1: [104, AY], F2: [99, AY], H1: [118, 182], d: 0.9 }], free: true, dur: 4
+  });
+  add('iso_chest', 'Compresión isométrica de pecho', {
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], H1: [104, 82], e1s: 1 },
+    frames: [{}, { H1: [102, 82] }], pulse: true
+  });
+  add('chest_pass', 'Pase de pecho con balón medicinal', {
+    base: { x: 96, y: 104, t: 176, F1: [124, AY], F2: [76, AY], h1: [-10, 12], e1s: -1 },
+    props: [{ type: 'ball', at: J => [J.hd1[0] + 6, J.hd1[1]], r: 8 }],
+    frames: [{ d: 1 }, { x: 102, t: 168, h1: [-4, 48], d: 0.5 }], free: true, dur: 1.6
+  });
+  add('wall_sit', 'Sentadilla isométrica en la pared', {
+    base: { x: 60, y: 136, t: 182, F1: [100, AY], F2: [96, AY], a1: 4, e1: 30 },
+    props: [{ type: 'wall', x: 38, w: 10 }],
+    frames: [{ l1: 90, k1: 0, pf: true, F1: undefined }, { l2: 90, k2: 0, pf: true, F1: [100, AY], F2: undefined }], free: true, dur: 2.6
+  });
   /* ============================== POTENCIA / OLÍMPICOS ============================== */
   add('clean', 'Cargada (clean)', {
     base: { x: 80, y: 130, t: 124, F1: [104, AY], F2: [99, AY], H1: [106, 171] }, props: [BB],

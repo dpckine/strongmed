@@ -648,7 +648,7 @@ const TOLERANCIAS = ['Buena tolerancia','Regular / fatiga moderada','Mala tolera
 const KAH_SVG = '<svg viewBox="0 0 400 400"><g fill="#1a1a1a"><rect x="81" y="170" width="246" height="34"/><rect x="187" y="70" width="34" height="233"/><rect x="187" y="70" width="34" height="120" transform="rotate(-45 187 187)"/></g></svg>';
 
 const S = { fb:null, dbs:{}, all:[], pros:[], faq:[], role:null, me:null, pro:null,
-  patTab:'hoy', planSeg:null, proTab:'inicio', proArg:null, pSeg:'resumen', filt:'todos', orgF:'todas', q:'',
+  patTab:'hoy', planSeg:null, proTab:'inicio', proArg:null, pSeg:'resumen', filt:'todos', orgF:'todas', segF:'activos', q:'',
   chatKey:null, chatUnsub:null, meUnsub:null, workout:null, rest:null, ci:{}, rpe:null,
   np:{perfil:'entrenamiento'}, evMode:'kinesica', editEval:null, charts:[], after:[], loginMode:'pat',
   lib:null, libQ:'', libC:'★', rmSel:null, agendas:[], jornadas:[], bk:null, agSeg:'dia', agId:null };
@@ -939,12 +939,27 @@ function alertsOf(p){
   if(an && daysAgo(an.fecha)<=3 && an.v<=2) a.push({t:`Se siente ${ANIMO[an.v-1][1].toLowerCase()}`, c:'red'});
   if(an && daysAgo(an.fecha)<=3 && an.dolor && an.dolor<=2) a.push({t:'Reporta dolor muscular alto', c:'red'});
   if(an && daysAgo(an.fecha)<=3 && an.sueno && an.sueno<=2) a.push({t:'Durmió mal', c:'orange'});
-  const la=lastActivity(p); if(!isPending(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
-  if(!isPending(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
+  const la=lastActivity(p); if(!isPending(p) && enSeguimiento(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
+  if(!isPending(p) && enSeguimiento(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
   if((p.escalas||[]).some(e=>e.estado==='respondida' && !e.visto)) a.push({t:'Respondió cuestionarios', c:'acc'});
   const cn=(p.citas||[]).find(c=>c.estado==='cancelada' && c.canceladaPor==='persona' && !c.cancelVisto && S.role==='pro' && esMiaCita(c)); if(cn) a.push({t:`Canceló su hora del ${fmtDate(cn.fecha)}`, c:'red'});
   return a;
 }
+/* Seguimiento: activo / inactivo. No borra ni bloquea nada; solo indica si hoy la estás atendiendo. */
+const enSeguimiento = p => p.seguimiento!=='inactivo';
+const MOTIVOS_INACT = ['Alta','Terminó su plan','Abandonó / no volvió','Pausa (viaje, vacaciones, salud)','Se cambió de profesional','Otro'];
+function marcarSeguimiento(p, activo, motivo, quien){ const ahora=todayISO(); p.seguimientoLog=p.seguimientoLog||[];
+  if(activo){ if(!enSeguimiento(p)){ p.seguimiento='activo'; p.seguimientoLog.push({f:ahora, a:'activo', motivo:motivo||'Reactivado', por:quien||''}); delete p.inactivoDesde; delete p.inactivoMotivo; } }
+  else { p.seguimiento='inactivo'; p.inactivoDesde=ahora; p.inactivoMotivo=motivo||''; p.seguimientoLog.push({f:ahora, a:'inactivo', motivo:motivo||'', por:quien||''}); }
+  if(p.seguimientoLog.length>40) p.seguimientoLog=p.seguimientoLog.slice(-40); }
+const segBadge = p => enSeguimiento(p) ? `<button class="badge acc" onclick="sheetSeguimiento()" title="Cambiar">● Activo</button>` : `<button class="badge" style="opacity:.85" onclick="sheetSeguimiento()" title="Cambiar">○ Inactivo${p.inactivoDesde?` desde ${fmtDate(p.inactivoDesde)}`:''}</button>`;
+window.sheetSeguimiento = () => { const p=prof(S.proArg); if(!p) return; const act=enSeguimiento(p), log=(p.seguimientoLog||[]).slice().reverse();
+  sheet(`<h2 class="disp h2">${act?'Marcar como inactivo':'Reactivar persona'}</h2><p class="sm muted" style="margin-top:6px">${act?`${esc(first(p.nombre))} deja de contarse entre las personas que atiendes. <b>No se borra nada</b> y puede seguir entrando a su app; si vuelve a agendar o le registras una sesión, se reactiva sola.`:`${esc(first(p.nombre))} vuelve a contarse entre las personas que atiendes.`}</p>
+  <div class="stack" style="margin-top:14px">${act?`<label class="field"><span class="lbl">Motivo</span><select class="inp" id="sg-m">${MOTIVOS_INACT.map(m=>`<option>${m}</option>`).join('')}</select></label>`:''}
+  <button class="btn ${act?'sec':'pri'} block" onclick="guardarSeguimiento(${act?0:1})">${act?'Marcar como inactivo':'Reactivar'}</button>
+  ${log.length?`<div class="sec-sub">Historial</div><div class="list">${log.slice(0,8).map(x=>`<div class="li"><span class="ico ${x.a==='activo'?'':'orange'}">${ic(x.a==='activo'?'check':'clock','s')}</span><div class="grow"><div class="sm b">${x.a==='activo'?'Activo':'Inactivo'}${x.motivo?` · ${esc(x.motivo)}`:''}</div><div class="xs muted">${fmtDate(x.f)}${x.por?` · ${esc(x.por)}`:''}</div></div></div>`).join('')}</div>`:''}</div>`); };
+window.guardarSeguimiento = async activo => { const p=prof(S.proArg); marcarSeguimiento(p, !!activo, activo?'Reactivado':val('sg-m'), S.pro.nombre);
+  if(await save(p)){ closeSheet(); toast(activo?'Persona activa':'Persona marcada como inactiva'); keepScroll(render); } };
 const hasConfirmed = p => (p.citas||[]).some(c=>c.estado==='confirmada' || c.estado==='realizada');
 function avatar(p, size=44){ const ini=String(p?.nombre||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase();
   return p?.avatar ? `<div class="av" style="width:${size}px;height:${size}px;background-image:url('${p.avatar}')"></div>`
@@ -2051,11 +2066,11 @@ const proHead = (eyebrow, title, right='') => `<header class="top row between" s
 
 function personRow(p){ const per=perfilOf(p), la=lastActivity(p), al=alertsOf(p);
   const sub = isOdonto() && !isPending(p) ? `${oralHechas(p)}${oralPlan(p)?`/${oralPlan(p)}`:''} ${oralHechas(p)===1&&!oralPlan(p)?'atención':'atenciones'}${(p.oral?.plan?.tratamiento)?` · ${esc(p.oral.plan.tratamiento)}`:''}` : isPending(p) ? `Creó su cuenta ${rel(toISO(p.fecha))}${p.anamnesis?' · ficha completa':''}` : per!=='entrenamiento' && rehabPlan(p) ? `Rehab ${rehabDone(p)}/${rehabPlan(p)} · ${la?rel(la):'sin actividad'}` : `${sessions(p).length} sesiones · ${la?rel(la):'sin actividad'}`;
-  return `<button class="li" onclick="openPersona(${q(keyOf(p))})">${avatar(p,44)}<div class="grow"><div class="row" style="gap:8px"><span class="b trunc">${esc(p.nombre)}</span>${orgChip(p)}${al.some(a=>a.c==='red')?`<span style="width:8px;height:8px;border-radius:50%;background:var(--red);flex:none"></span>`:''}</div><div class="xs muted trunc">${sub}</div></div>${perfilBadge(p)}${ic('chevr','s chev')}</button>`; }
+  return `<button class="li" onclick="openPersona(${q(keyOf(p))})">${avatar(p,44)}<div class="grow"><div class="row" style="gap:8px"><span class="b trunc" style="${enSeguimiento(p)||isPending(p)?'':'opacity:.55'}">${esc(p.nombre)}</span>${orgChip(p)}${!isPending(p)&&!enSeguimiento(p)?'<span class="badge" style="font-size:10px;padding:1px 6px">Inactivo</span>':''}${al.some(a=>a.c==='red')?`<span style="width:8px;height:8px;border-radius:50%;background:var(--red);flex:none"></span>`:''}</div><div class="xs muted trunc">${sub}</div></div>${perfilBadge(p)}${ic('chevr','s chev')}</button>`; }
 function allCitas(){ const out=[]; people().forEach(p=>(p.citas||[]).forEach(c=>{ const oral=c.servicio==='oral'||servAg(agendaOf(c.proId))==='oral'; if(isAdmin() || (isOdonto()?oral:!oral)) out.push({c,p}); })); return out.sort((a,b)=>citaTs(a.c)-citaTs(b.c)); }
 
 function vProInicio(){
-  const ps=people(), act=ps.filter(p=>!isPending(p)), cnt=k=>act.filter(p=>perfilOf(p)===k).length, pend=ps.filter(isPending);
+  const ps=people(), act=ps.filter(p=>!isPending(p) && enSeguimiento(p)), inact=ps.filter(p=>!isPending(p) && !enSeguimiento(p)).length, cnt=k=>act.filter(p=>perfilOf(p)===k).length, pend=ps.filter(isPending);
   const cs=allCitas(), sol=cs.filter(x=>x.c.estado==='solicitada'), hoy=cs.filter(x=>toISO(x.c.fecha)===todayISO() && x.c.estado==='confirmada');
   const al=ps.map(p=>({p,a:alertsOf(p).filter(x=>!/habilitar|Solicitó|primera sesión|Canceló/.test(x.t))})).filter(x=>x.a.length);
   const feed=[]; ps.forEach(p=>{ sessions(p).forEach(d=>feed.push({p, f:toISO(d.fecha), id:d.id||0, i:d.tipoActividad?'run':'dumbbell', t:d.tipoActividad?`${d.tipoActividad}`:`Entrenó · ${d.nombreSesion||'sesión'}`, s:`RPE ${d.rpe||'—'}`}));
@@ -2064,7 +2079,7 @@ function vProInicio(){
   feed.sort((a,b)=>b.f.localeCompare(a.f) || b.id-a.id);
   return `${proHead(fmtLong(new Date()), `Hola, <span class="acc-t">${esc(first(S.pro.nombre.replace(/^Klg[oa]\.\s*/,'')))}</span>`)}<div class="stack">
   ${usoCard(usoNivel()>=.7)}
-  <div class="grid4"><button class="stat acc" onclick="S.filt='todos';pgo('personas')"><b>${act.length}</b><span>Personas activas</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
+  <div class="grid4"><button class="stat acc" onclick="S.filt='todos';S.segF='activos';pgo('personas')"><b>${act.length}</b><span>Personas activas${inact?` · ${inact} inactivas`:''}</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
   ${pend.length?`<div class="sec-t"><h2>Cuentas nuevas por habilitar</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.map(personRow).join('')}</div>`:''}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes de hora</h2><span class="badge acc">${sol.length}</span></div><div class="list">${sol.slice(0,6).map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre), right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>`:''}
   ${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
@@ -2080,10 +2095,11 @@ function vPersonas(){
   return `${proHead('Directorio',isOdonto()?'Pacientes':'Personas',`<button class="btn pri sm" onclick="pgo('nueva')">${ic('plus','s')} Nueva</button>`)}<div class="stack">
   <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar por nombre, RUT o deporte…" value="${esc(S.q)}" oninput="S.q=this.value;$('#plist').innerHTML=personList()"></div>
   <div class="pills">${(isOdonto()?[['todos','Todos'],['pendiente','Por habilitar']]:[['todos','Todos'],['entrenamiento','Entrenamiento'],['rehabilitacion','Rehabilitación'],['mixto','Mixto'],...(people().some(esOral)?[['oral','Odontología']]:[]),['pendiente','Por habilitar']]).map(([k,l])=>`<button class="pill ${f===k?'on':''}" onclick="S.filt='${k}';render()">${l}</button>`).join('')}</div>
+  <div class="pills">${(()=>{ const ps=people().filter(p=>!isPending(p)), na=ps.filter(enSeguimiento).length; return [['activos',`Activos (${na})`],['inactivos',`Inactivos (${ps.length-na})`],['todos','Todos']].map(([k,l])=>`<button class="pill ${S.segF===k?'on':''}" onclick="S.segF='${k}';render()">${l}</button>`).join(''); })()}</div>
   ${S.pro.org==='all'&&!isOdonto()?`<div class="pills">${[['todas','StrongMed + Kin At Home'],['sm','Solo StrongMed'],['kah','Solo Kin At Home']].map(([k,l])=>`<button class="pill ${S.orgF===k?'on':''}" onclick="S.orgF='${k}';render()">${l}</button>`).join('')}</div>`:''}
   <div id="plist">${personList()}</div></div>`;
 }
-function personList(){ const t=S.q.toLowerCase(); const ps=people().filter(p=>(S.filt==='todos' || (S.filt==='pendiente'?isPending(p): S.filt==='oral'?esOral(p) : !isPending(p)&&perfilOf(p)===S.filt)) && (S.orgF==='todas'||p.org===S.orgF) && (!t || String(p.nombre).toLowerCase().includes(t) || normRut(p.rut).includes(normRut(t)) || String(p.deporte||'').toLowerCase().includes(t)));
+function personList(){ const t=S.q.toLowerCase(); const ps=people().filter(p=>(S.filt==='todos' || (S.filt==='pendiente'?isPending(p): S.filt==='oral'?esOral(p) : !isPending(p)&&perfilOf(p)===S.filt)) && (S.orgF==='todas'||p.org===S.orgF) && (t || S.filt==='pendiente' || S.segF==='todos' || isPending(p) || (S.segF==='activos')===enSeguimiento(p)) && (!t || String(p.nombre).toLowerCase().includes(t) || normRut(p.rut).includes(normRut(t)) || String(p.deporte||'').toLowerCase().includes(t)));
   return ps.length ? `<div class="list">${ps.map(personRow).join('')}</div>` : `<div class="card empty">${S.all.length?'Sin resultados':'Aún no tienes personas registradas. Crea la primera con “Nueva”.'}</div>`; }
 window.personList = personList;
 
@@ -2131,7 +2147,7 @@ function vPersona(){
   const bodies={resumen:pResumen, rutinas:pRutinas, clinico:pClinico, agenda:pAgenda, progreso:pProgreso};
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Personas</button></header><div class="stack">
   <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}${orgChip(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.deporte?`<span class="badge">${esc(p.deporte)}</span>`:''}</div></div></div>
-    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}</div>
+    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}${isPending(p)?'':segBadge(p)}</div>
     ${videoOn(p)?`<div class="aviso red" style="margin-top:12px"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b sm">Videollamada en curso</div><div class="xs muted">Desde ${relTs(p.videoActiva.ts)}</div></div><a class="btn sec sm" href="${safeUrl(p.videoActiva.url)}" target="_blank" rel="noopener">Entrar</a><button class="btn danger sm" onclick="finalizarVideo(${q(k)})">Finalizar</button></div>`:''}
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button>${videoOn(p)?`<button class="btn danger sm" onclick="finalizarVideo(${q(k)})">${ic('video','s')} Finalizar llamada</button>`:`<button class="btn sec sm" onclick="iniciarVideo(${q(k)})">${ic('video','s')} Videollamada</button>`}<button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn sec sm" onclick="pgo('informe',${q(k)})">${ic('file','s')} Informe</button>${!isPending(p)?`<button class="btn pri sm" onclick="S.evMode='${per==='entrenamiento'?'funcional':'kinesica'}';pgo('evaluar',${q(k)})">${ic('steth','s')} Evaluar</button>`:''}</div></section>
   ${isPending(p)?`<section class="card pend stack"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">${hasConfirmed(p)?'Hora confirmada · primer desbloqueo':p.creadoPor==='reserva'?'Reservó sin cuenta':'Cuenta creada por la persona'}</div><p class="sm muted" style="margin-top:4px">${hasConfirmed(p)?'Ve su hora, lugar, profesional y su perfil. Cuando marques la sesión como realizada podrás habilitar su app completa.':'Hoy solo puede usar chat, pasos, su ficha inicial y solicitar horas. Confirma su hora o habilítala directamente.'}</p>${p.motivoConsulta?`<p class="sm" style="margin-top:6px"><b>Motivo:</b> ${esc(p.motivoConsulta)}</p>`:''}</div></div><button class="btn pri block" onclick="sheetHabilitar()">${ic('shield','s')} Habilitar perfil completo</button></section>`:''}
@@ -2246,17 +2262,19 @@ window.sheetFinTrat = () => { const p=prof(S.proArg);
   <div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Motivo de cierre</span><select class="inp" id="ft-m">${MOTIVOS_FIN.map(m=>`<option>${m}</option>`).join('')}</select></label>
   <label class="field"><span class="lbl">Nota de cierre (opcional)</span><textarea class="inp" id="ft-n" rows="4" placeholder="Ej: Remisión completa de síntomas, fuerza simétrica (LSI 93 %). Apto para reintegro deportivo progresivo."></textarea></label>
   <div class="note">${ic('info','s')}<span>¿Necesitas el informe de alta? Créalo <b>antes</b> de finalizar: <button class="b acc-t" onclick="closeSheet();S.infTipo='alta';S.infId=null;pgo('informe',${q(keyOf(p))})">Crear informe de alta</button></span></div>
+  <label class="check"><input type="checkbox" id="ft-in" checked><span>Marcar como <b>inactivo</b> (deja de contarse entre las personas que atiendes; no se borra nada)</span></label>
   <button class="btn pri block" onclick="finalizarTratamiento()">${ic('check','s')} Finalizar y guardar</button></div>`); };
 window.finalizarTratamiento = async () => { const p=prof(S.proArg); p.tratamientos=p.tratamientos||[];
   p.tratamientos.push({id:String(uid()), diagnostico:p.diagnostico||'', sesionesPlan:p.sesionesPlan||'', perfil:p.perfil||'', inicio:tratInicioDe(p), fin:todayISO(), motivo:val('ft-m'), nota:val('ft-n'), sesionesRehab:p.sesionesRehab||[], tareasClinicas:p.tareasClinicas||[], klgo:S.pro.nombre});
   Object.assign(p,{sesionesRehab:[], tareasClinicas:[], diagnostico:'', sesionesPlan:'', sinTratamiento:true, tratInicio:''});
   addAviso(p,'evaluacion',`Tu tratamiento quedó finalizado (${val('ft-m').toLowerCase()}). Puedes verlo en Mis fichas.`);
+  if($('#ft-in')?.checked) marcarSeguimiento(p, false, val('ft-m')||'Alta', S.pro.nombre);
   if(await save(p)){ closeSheet(); toast('Tratamiento finalizado y guardado'); keepScroll(render); } };
 window.nuevoTratamiento = async () => { const p=prof(S.proArg), dx=val('nt-dx'); if(!dx) return toast('Escribe el diagnóstico o motivo','err');
-  Object.assign(p,{diagnostico:dx, sesionesPlan:val('nt-ses'), sinTratamiento:false, tratInicio:todayISO(), sesionesRehab:[], tareasClinicas:[]});
+  marcarSeguimiento(p, true, 'Nuevo tratamiento', S.pro.nombre); Object.assign(p,{diagnostico:dx, sesionesPlan:val('nt-ses'), sinTratamiento:false, tratInicio:todayISO(), sesionesRehab:[], tareasClinicas:[]});
   addAviso(p,'evaluacion',`Comenzó un nuevo tratamiento: ${dx}.`); if(await save(p)){ toast('Nuevo tratamiento iniciado'); keepScroll(render); } };
 window.continuarTratamiento = async () => { const p=prof(S.proArg), t=(p.tratamientos||[]).pop(); if(!t) return; if(!confirm(`¿Reabrir "${t.diagnostico||'el tratamiento anterior'}" y seguir sumando sesiones?`)){ p.tratamientos.push(t); return; }
-  Object.assign(p,{diagnostico:t.diagnostico, sesionesPlan:t.sesionesPlan, sesionesRehab:t.sesionesRehab||[], tareasClinicas:t.tareasClinicas||[], tratInicio:t.inicio, sinTratamiento:false});
+  marcarSeguimiento(p, true, 'Tratamiento reabierto', S.pro.nombre); Object.assign(p,{diagnostico:t.diagnostico, sesionesPlan:t.sesionesPlan, sesionesRehab:t.sesionesRehab||[], tareasClinicas:t.tareasClinicas||[], tratInicio:t.inicio, sinTratamiento:false});
   if(await save(p)){ toast('Tratamiento reabierto'); keepScroll(render); } };
 function pClinico(p){
   const per=perfilOf(p), ts=tareas(p), k=keyOf(p);
@@ -2286,7 +2304,7 @@ function sesionForm(s, pre){ const hasEva = s.eva!==''&&s.eva!=null;
     ${pre==='cs'?`<label class="field"><span class="lbl">Tarea para la casa (opcional)</span><textarea class="inp" id="cs-t" rows="3" style="resize:vertical" placeholder="Ej: Movilidad de cadera 3×10 diaria"></textarea></label>`:''}`; }
 const readSesion = pre => { const ev=$(`#${pre}-eva`); return {fecha:val(pre+'-f')||todayISO(), eva: ev.dataset.t ? +ev.value : '', klgo:val(pre+'-k'), tolerancia:val(pre+'-tol'), nota:val(pre+'-n')}; };
 window.guardarSesion = async () => { const p=prof(S.proArg), s=readSesion('cs'); if(!s.nota) return toast('Escribe la evolución de la sesión','err');
-  p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), ...s});
+  p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), ...s}); marcarSeguimiento(p, true, 'Registró una sesión', S.pro.nombre);
   const t=val('cs-t'); if(t){ p.tareasClinicas=tareas(p); p.tareasClinicas.push({id:'t'+uid(), texto:t, fecha:todayISO(), hecha:false}); addAviso(p,'tarea',`Nueva tarea para la casa: ${t}`); }
   if(await save(p)) toast(`Sesión ${p.sesionesRehab.length} registrada`); keepScroll(render); };
 window.editarSesion = id => { const p=prof(S.proArg), s=(p.sesionesRehab||[]).find(x=>x.id===id); if(!s) return;
@@ -3130,7 +3148,7 @@ function buildCita(p){
   const cen = String(b.lugar).startsWith('C:') ? centroById(b.lugar.slice(2)) : null;
   const svc=svcsAg(a).find(x=>x.id===b.servId), sm=svc?.mod?.[modOf(b.lugar)]||{}, lk=sm.link||a?.pagoLink||'';
   const oral=b.serv==='oral', pago = oral ? {requerido:true, estado:'pendiente', link:lk} : (b.lugar==='Domicilio'||b.lugar==='Online') && !pagoPrevio ? {requerido:true, estado:'pendiente', link:lk||agendaOf('b-sm')?.pagoLink||''} : null;
-  const num = contKine ? bkNumero(p, b.tipo) : null;
+  const num = contKine ? bkNumero(p, b.tipo) : null; marcarSeguimiento(p, true, 'Solicitó una hora', 'la persona');
   if(a && (a.orgs||[]).length && !(a.orgs||[]).includes(p.org||'sm')){ p.atiende=[...new Set([...(p.atiende||[]), ...a.orgs.filter(o=>o!==(p.org||'sm'))])];
     p.atiende.forEach(o=>{ try{ S.fb.setDoc(S.fb.doc(S.dbs[p.org||'sm'],'atiende',`${normRut(p.rut)}_${o}`), {rut:normRut(p.rut), org:o, ts:Date.now()}).catch(e=>console.warn('atiende',e)); }catch(e){} }); }
   return {id:uid(), servicio:oral?'oral':'kine', tipo:b.tipo, ...(svc?{servId:svc.id}:{}), ...(+sm.precio?{precio:+sm.precio}:{}), ...(num?{nSesion:num.n, ...(num.plan?{planSes:num.plan}:{})}:{}), lugar:b.lugar, lugarNombre:lugarLabel(b.lugar), proId:b.proId, pro:a?.nombre||'', fecha:b.fecha, bloque:b.bloque, hora:'', direccion:b.lugar==='Domicilio'?val('bk-dir-i'):(cen?.direccion||''), motivo:val('bk-mot')||(contKine?`Continuación de ${esTipoEnt(b.tipo)?'entrenamiento':'tratamiento'}`:''), nota:val('bk-nota'),
@@ -3371,7 +3389,7 @@ window.ciHoras = () => { const box=$('#ci-free'); if(!box) return; const a=agend
 const videoRoomFor = (p, proId) => (agendaOf(proId||S.pro?.id)?.linkVideo) || `https://meet.jit.si/StrongMed-${normRut(p.rut).slice(-5)}-${Math.random().toString(36).slice(2,8)}`;
 window.guardarCita = async id => {
   const k=val('ci-p'), p=prof(k); if(!p) return toast('Elige una persona','err'); const f=val('ci-f'), h=val('ci-h'); if(!f||!h) return toast('Indica fecha y hora','err');
-  p.citas=p.citas||[]; let c=id?p.citas.find(x=>x.id===id):null; const wasReq=c&&c.estado==='solicitada', moved=c&&!wasReq&&(toISO(c.fecha)!==f||c.hora!==h);
+  p.citas=p.citas||[]; marcarSeguimiento(p, true, 'Agendó una hora', S.pro.nombre); let c=id?p.citas.find(x=>x.id===id):null; const wasReq=c&&c.estado==='solicitada', moved=c&&!wasReq&&(toISO(c.fecha)!==f||c.hora!==h);
   const pg=$('#ci-pg'); if(c && pg){ c.pago=c.pago||{requerido:false, estado:'pendiente'}; if(c.pago.estado!=='reembolsado') c.pago.estado = pg.checked ? 'pagado' : (c.pago.estado==='pagado'?'pendiente':c.pago.estado); const mo=parseInt(String(val('ci-mo')).replace(/\D/g,'')); c.pago.monto=mo||''; c.pago.boleta=val('ci-bo'); if($('#ci-me')) c.pago.medio=val('ci-me'); if(c.pago.estado==='pagado' && !c.pago.fechaPago) c.pago.fechaPago=todayISO(); if(c.pago.estado==='pendiente') delete c.pago.fechaPago;
     if(c.pago.requerido && c.pago.estado!=='pagado' && !confirm('El pago previo no está marcado como recibido. ¿Confirmar la hora igual?')) return; }
   const a=agendaOf(S.ci.proId);

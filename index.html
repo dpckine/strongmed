@@ -244,6 +244,8 @@ button.stat{text-align:left}
 .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;height:calc(var(--tabh) + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-start;padding:9px 4px env(safe-area-inset-bottom)}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--mu);text-align:center}
 .tab .icon{width:23px;height:23px}
+.tab{position:relative}.nbadge{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:auto}
+.tab .nbadge{position:absolute;top:-2px;left:calc(50% + 6px);margin:0}
 .tab.on{color:var(--tx)}.tab.on .icon{color:var(--acc-tx)}
 .fabc{width:60px;height:60px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-28px;border:5px solid var(--bg);box-shadow:0 8px 28px color-mix(in srgb,var(--acc) 30%,transparent);position:relative}
 .tab.fab .icon{color:var(--acc-ink)!important;width:26px;height:26px}
@@ -1247,7 +1249,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
 function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
-window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
+window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} try{ bandejaUnsub && bandejaUnsub(); bandejaUnsub=null; S.bandeja=[]; }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
 function watchMe(){
@@ -1773,7 +1775,28 @@ function renderMsgs(msgs, p){ const c=$('#chat-m'); if(!c) return; const h=miHil
 function chatPane(p, title, sub, back, extra=''){ return `<div class="chat"><div class="chat-h">${back?`<button class="ibtn" onclick="${back}" aria-label="Volver">${ic('chevl')}</button>`:''}${title.av}<div class="grow"><div class="b trunc">${esc(title.name)}</div><div class="xs" style="color:var(--green);font-weight:600">${sub}</div></div>${extra}</div>
   <div class="chat-m" id="chat-m"><div class="empty" style="margin:auto">Cargando…</div></div>
   <form class="chat-f" onsubmit="sendMsg(event,${q(keyOf(p))})"><input class="inp" id="chat-in" placeholder="Escribe un mensaje…" autocomplete="off"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`; }
-async function postMsg(p, m){ try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
+/* Bandeja del profesional: un documento por conversación (profesional + persona), para avisarle de mensajes nuevos */
+const bandejaId = (proId, p) => `${proId}_${p.org||'sm'}_${normRut(p.rut)}`;
+function bandejaSet(p, m){ try{ const proId=miHilo(p); if(!proId) return; const pat=S.role==='pat';
+  S.fb.setDoc(S.fb.doc(S.dbs.sm,'bandeja',bandejaId(proId,p)), {proId, org:p.org||'sm', rut:normRut(p.rut), key:keyOf(p), nombre:p.nombre||'', texto:String(m.tipo==='video'?'Videollamada':m.text||'').slice(0,140), ts:Date.now(), de:S.role, leido:!pat}, {merge:true}).catch(e=>console.warn('bandeja',e)); }catch(e){} }
+let bandejaUnsub=null;
+function vigilarBandeja(){ if(bandejaUnsub){ try{ bandejaUnsub(); }catch(e){} bandejaUnsub=null; } if(!S.fb || S.role!=='pro' || !S.pro) return; const F=S.fb;
+  const key='sm_bandeja_'+S.pro.id; let visto=+localStorage.getItem(key)||Date.now(); try{ localStorage.setItem(key, visto); }catch(e){}
+  try{ bandejaUnsub=F.onSnapshot(F.query(F.collection(S.dbs.sm,'bandeja'), F.where('proId','==',S.pro.id)), snap=>{ const a=[]; snap.forEach(d=>a.push({id:d.id,...d.data()})); S.bandeja=a.sort((x,y)=>(y.ts||0)-(x.ts||0));
+      const nuevos=a.filter(x=>!x.leido && x.de==='pat' && (x.ts||0)>visto); if(nuevos.length){ visto=Math.max(...nuevos.map(x=>x.ts)); try{ localStorage.setItem(key, visto); }catch(e){}
+        nuevos.forEach(x=>{ const abierto = S.proTab==='mensajes' && S.chatKey===x.key && document.visibilityState==='visible'; if(abierto){ marcarLeido(x.key); return; }
+          notificar(`Mensaje de ${first(x.nombre)}`, x.texto||'Te escribió', {tag:'msg'+x.id}); if(document.visibilityState==='visible') toast(`💬 ${first(x.nombre)}: ${String(x.texto||'').slice(0,60)}`); }); }
+      softBandeja(); }, e=>console.warn('bandeja', e)); }catch(e){ console.warn(e); } }
+const noLeidos = () => (S.bandeja||[]).filter(x=>!x.leido && x.de==='pat');
+function marcarLeido(k){ const p=prof(k); if(!p || S.role!=='pro') return; const x=(S.bandeja||[]).find(b=>b.key===k && !b.leido); if(!x) return; x.leido=true;
+  try{ S.fb.setDoc(S.fb.doc(S.dbs.sm,'bandeja',x.id), {leido:true}, {merge:true}).catch(()=>{}); }catch(e){} softBandeja(); }
+function softBandeja(){ const n=noLeidos().length; document.querySelectorAll('[data-nb]').forEach(el=>{ el.textContent=n||''; el.classList.toggle('hidden',!n); });
+  const c=$('#msgs-nuevos'); if(c) c.outerHTML=mensajesNuevosHTML(); }
+function mensajesNuevosHTML(){ const L=noLeidos(); if(!L.length) return '<div id="msgs-nuevos"></div>';
+  return `<div id="msgs-nuevos" class="stack" style="gap:8px"><div class="sec-t"><h2>Mensajes nuevos</h2><span class="badge acc">${L.length}</span></div>
+  <div class="list">${L.slice(0,6).map(x=>{ const p=prof(x.key); return `<button class="li" onclick="pgo('mensajes',${q(x.key)})">${p?avatar(p,40):`<span class="ico">${ic('chat','s')}</span>`}<div class="grow" style="min-width:0"><div class="row between"><span class="b sm trunc">${esc(x.nombre)}</span><span class="xs muted">${relTs(x.ts)}</span></div><div class="sm muted trunc">${esc(x.texto)}</div></div><span style="width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none"></span></button>`; }).join('')}</div>
+  ${'Notification' in window && Notification.permission!=='granted'?`<div class="aviso acc"><span class="ico">${ic('bell')}</span><div class="grow"><div class="b sm">Activa las notificaciones</div><div class="xs muted">Para que te avisemos aunque estés en otra pantalla.</div></div><button class="btn pri sm" onclick="pedirNotis()">Activar</button></div>`:''}</div>`; }
+async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
 window.sendMsg = async (e, k) => { e.preventDefault(); const t=val('chat-in'); if(!t) return; $('#chat-in').value=''; await postMsg(prof(k), {text:t}); };
 window.delMsg = async (k,id) => { if(!confirm('¿Eliminar este mensaje?')) return; try{ await S.fb.deleteDoc(S.fb.doc(chatColl(prof(k)), id)); }catch(e){} };
 function vChatPat(p){ S.after.push(()=>chatListen(p));
@@ -2079,8 +2102,8 @@ window.loginPro = async e => { e.preventDefault(); const u=val('l-user').toLower
   await iniciarPro(pro); };
 async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.builtin){ try{ Object.assign(S.pro, JSON.parse(localStorage.getItem('sm_pro_'+pro.usuario))||{}); }catch(x){} }
   S.role='pro';
-  if(rapido && await loadDB(null,'cache')){ S.proTab='inicio'; render(); S._lastSync=Date.now(); await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(S.role==='pro') softRender(); return; }
-  await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(isAdmin() && S.pros.some(x=>x.clave)) borrarClavesAntiguas(); S.proTab='inicio'; render(); }
+  if(rapido && await loadDB(null,'cache')){ S.proTab='inicio'; render(); vigilarBandeja(); S._lastSync=Date.now(); await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(S.role==='pro') softRender(); return; }
+  await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(isAdmin() && S.pros.some(x=>x.clave)) borrarClavesAntiguas(); S.proTab='inicio'; render(); vigilarBandeja(); }
 
 function shellPro(){
   const t=S.proTab, act=(t==='persona'||t==='evaluar'||t==='informe')?'personas':t;
@@ -2094,10 +2117,10 @@ function shellPro(){
   return `<div class="shell pro"><aside class="side">${brands(org==='kah'?'sm+kah':'sm')}
     <div class="row" style="margin-top:16px;gap:10px"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b sm trunc">${esc(S.pro.nombre)}</div><div class="xs muted">${od?'Odontología general':org==='all'?'StrongMed + Kin At Home':ORGS[org].label}${isAdmin()?' · Admin':''}</div></div></div>
     <button class="btn pri block" style="margin-top:16px" onclick="pgo('nueva')">${ic('plus','s')} ${od?'Nuevo paciente':'Nueva persona'}</button>
-    <div class="nav">${side.map(([k,i,l])=>`<button class="${act===k?'on':''}" onclick="pgo('${k}')">${ic(i)}${l}</button>`).join('')}</div>
+    <div class="nav">${side.map(([k,i,l])=>`<button class="${act===k?'on':''}" onclick="pgo('${k}')">${ic(i)}${l}${k==='mensajes'?`<i class="nbadge ${noLeidos().length?'':'hidden'}" data-nb>${noLeidos().length||''}</i>`:''}</button>`).join('')}</div>
     <button class="btn ghost" style="margin-top:auto;justify-content:flex-start;color:var(--mu)" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></aside>
   <main class="wrap wide ${t==='mensajes'?'chatmode':''} fade">${body}</main>
-  <nav class="tabbar">${nav.map(([k,i,l])=> k==='nueva' ? `<button class="tab fab" onclick="pgo('nueva')"><span class="fabc">${ic('plus')}</span><span>${l}</span></button>` : `<button class="tab ${act===k||(k==='inicio'&&['mas','faq','biblioteca','profesionales','ajustes','herramientas','rutinas','uso'].includes(act))?'on':''}" onclick="pgo('${k}')">${ic(i)}<span>${l}</span></button>`).join('')}</nav></div>`;
+  <nav class="tabbar">${nav.map(([k,i,l])=> k==='nueva' ? `<button class="tab fab" onclick="pgo('nueva')"><span class="fabc">${ic('plus')}</span><span>${l}</span></button>` : `<button class="tab ${k==='mensajes'?'tabmsg':''} ${act===k||(k==='inicio'&&['mas','faq','biblioteca','profesionales','ajustes','herramientas','rutinas','uso'].includes(act))?'on':''}" onclick="pgo('${k}')">${ic(i)}<span>${l}</span>${k==='mensajes'?`<i class="nbadge ${noLeidos().length?'':'hidden'}" data-nb>${noLeidos().length||''}</i>`:''}</button>`).join('')}</nav></div>`;
 }
 window.pgo = (t, arg) => { if(t!=='mensajes' && t!=='persona') stopChat(); if(t==='mensajes' && arg===undefined && innerWidth<900) S.chatKey=null; if(arg!==undefined){ if(t==='mensajes') S.chatKey=arg; else S.proArg=arg; }
   if(t==='nueva') S.np={perfil:'entrenamiento', org: S.pro.org==='all'?'sm':S.pro.org}; if(t==='evaluar'){ if(!S.keepEdit) S.editEval=null; S.evDraft=null; } if(t==='informe'){ S.infHtml=null; S.infId=null; } S.keepEdit=false;
@@ -2123,7 +2146,7 @@ function vProInicio(){
   <div class="grid4"><button class="stat acc" onclick="S.filt='todos';S.segF='activos';pgo('personas')"><b>${act.length}</b><span>Personas activas${inact?` · ${inact} inactivas`:''}</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
   ${pend.length?`<div class="sec-t"><h2>Cuentas nuevas por habilitar</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.map(personRow).join('')}</div>`:''}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes de hora</h2><span class="badge acc">${sol.length}</span></div><div class="list">${sol.slice(0,6).map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre), right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>`:''}
-  ${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
+  ${mensajesNuevosHTML()}${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
   <div class="cols2"><div class="stack"><div class="sec-t"><h2>Hoy en agenda</h2><button class="xs b acc-t" onclick="pgo('agenda')">Ver agenda</button></div>
     ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))},'agenda')">${citaHTML(c,{who:first(p.nombre)})}</button>`).join('')}</div>`:`<div class="card empty">Sin sesiones confirmadas para hoy.</div>`}
     <div class="sec-t"><h2>Requieren atención</h2><span class="badge ${al.length?'red':''}">${al.length}</span></div>
@@ -2480,11 +2503,12 @@ window.finalizarVideo = async k => { const p=prof(k); if(!p.videoActiva) return;
 
 /* ---- Mensajes ---- */
 function vMensajes(){
-  const ps=people(), sel=S.chatKey, p=sel?prof(sel):null;
-  if(p) S.after.push(()=>chatListen(p));
+  const ps=people(), sel=S.chatKey, p=sel?prof(sel):null, nl=new Set(noLeidos().map(x=>x.key));
+  if(p) S.after.push(()=>{ chatListen(p); marcarLeido(sel); });
+  const ult=k=>(S.bandeja||[]).find(x=>x.key===k)?.ts||0; ps.sort((a,b)=>(nl.has(keyOf(b))-nl.has(keyOf(a))) || (ult(keyOf(b))-ult(keyOf(a))));
   return `<div class="msgs ${p?'has':''}"><aside class="mlist stack" style="padding-bottom:calc(var(--tabh) + 30px)"><h1 class="disp h1">Mensajes</h1>
     <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar persona…" oninput="document.querySelectorAll('.chat-it').forEach(b=>b.style.display=b.dataset.n.includes(this.value.toLowerCase())?'':'none')"></div>
-    <div class="list">${ps.map(x=>`<button class="li chat-it ${sel===keyOf(x)?'on':''}" data-n="${esc(String(x.nombre).toLowerCase())}" onclick="pgo('mensajes',${q(keyOf(x))})">${avatar(x,40)}<div class="grow"><div class="row" style="gap:6px"><span class="b sm trunc">${esc(x.nombre)}</span>${orgChip(x)}</div><div class="xs muted">${isPending(x)?'Por habilitar':PERFIL[perfilOf(x)].label}</div></div>${ic('chevr','s chev')}</button>`).join('')||'<div class="empty">Sin personas</div>'}</div></aside>
+    <div class="list">${ps.map(x=>`<button class="li chat-it ${sel===keyOf(x)?'on':''}" data-n="${esc(String(x.nombre).toLowerCase())}" onclick="pgo('mensajes',${q(keyOf(x))})">${avatar(x,40)}<div class="grow"><div class="row" style="gap:6px"><span class="b sm trunc">${esc(x.nombre)}</span>${orgChip(x)}${nl.has(keyOf(x))?'<i class="nbadge" style="margin-left:4px">•</i>':''}</div><div class="xs muted">${isPending(x)?'Por habilitar':PERFIL[perfilOf(x)].label}</div></div>${ic('chevr','s chev')}</button>`).join('')||'<div class="empty">Sin personas</div>'}</div></aside>
   <section class="mpane">${p?chatPane(p,{name:p.nombre, av:avatar(p,40)}, isPending(p)?'Por habilitar':PERFIL[perfilOf(p)].label, `S.chatKey=null;stopChat();render()`, `${videoOn(p)?`<button class="btn danger sm" onclick="finalizarVideo(${q(keyOf(p))})">Finalizar</button>`:`<button class="ibtn" onclick="iniciarVideo(${q(keyOf(p))})" aria-label="Videollamada">${ic('video','s')}</button>`}<button class="ibtn" onclick="openPersona(${q(keyOf(p))})" aria-label="Ver ficha">${ic('user','s')}</button>`):`<div class="card empty" style="margin-top:60px">Elige una persona para conversar</div>`}</section></div>`;
 }
 window.stopChat = stopChat;

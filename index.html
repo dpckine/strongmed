@@ -942,6 +942,7 @@ function alertsOf(p){
   const la=lastActivity(p); if(!isPending(p) && enSeguimiento(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
   if(!isPending(p) && enSeguimiento(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
   if((p.escalas||[]).some(e=>e.estado==='respondida' && !e.visto)) a.push({t:'Respondió cuestionarios', c:'acc'});
+  if(presPend(p).length) a.push({t:`${presPend(p).length===1?'Sesión presencial':presPend(p).length+' sesiones presenciales'} por aprobar`, c:'acc'});
   const cn=(p.citas||[]).find(c=>c.estado==='cancelada' && c.canceladaPor==='persona' && !c.cancelVisto && S.role==='pro' && esMiaCita(c)); if(cn) a.push({t:`Canceló su hora del ${fmtDate(cn.fecha)}`, c:'red'});
   return a;
 }
@@ -952,6 +953,37 @@ function marcarSeguimiento(p, activo, motivo, quien){ const ahora=todayISO(); p.
   if(activo){ if(!enSeguimiento(p)){ p.seguimiento='activo'; p.seguimientoLog.push({f:ahora, a:'activo', motivo:motivo||'Reactivado', por:quien||''}); delete p.inactivoDesde; delete p.inactivoMotivo; } }
   else { p.seguimiento='inactivo'; p.inactivoDesde=ahora; p.inactivoMotivo=motivo||''; p.seguimientoLog.push({f:ahora, a:'inactivo', motivo:motivo||'', por:quien||''}); }
   if(p.seguimientoLog.length>40) p.seguimientoLog=p.seguimientoLog.slice(-40); }
+/* Modalidad del plan y registro presencial hecho por la persona (lo aprueba el profesional) */
+const MODALIDAD = {presencial:'Presencial (centro)', domicilio:'A domicilio', online:'Asesoría online', app:'Solo app'};
+const modBadge = p => `<button class="badge" onclick="sheetModalidad()" title="Plan y modalidad">${ic(p.autoRegistro?'clip':'sliders','s')} ${esc(MODALIDAD[p.modalidad]||'Modalidad')}${p.autoRegistro?' · registro propio':''}</button>`;
+window.sheetModalidad = () => { const p=prof(S.proArg); if(!p) return;
+  sheet(`<h2 class="disp h2">Plan y modalidad</h2><p class="sm muted" style="margin-top:6px">Cómo atiendes a ${esc(first(p.nombre))}. Es informativo y te sirve para ordenar a tus personas.</p>
+  <div class="stack" style="margin-top:14px"><div class="grid2">${Object.entries(MODALIDAD).map(([k,l])=>`<label class="pcard" style="cursor:pointer"><div class="row"><input type="radio" name="md" value="${k}" ${p.modalidad===k?'checked':''} style="accent-color:var(--acc)"><b>${l}</b></div></label>`).join('')}</div>
+  <label class="check" style="margin-top:4px"><input type="checkbox" id="md-ar" ${p.autoRegistro?'checked':''}><span><b style="color:var(--tx)">Registro presencial hecho por la persona</b><br>Durante la sesión en el centro, ${esc(first(p.nombre))} anota su entrenamiento en la app (puede ajustar ejercicios, series y cargas) y te lo envía. Queda como registro oficial solo cuando tú lo apruebas. No reemplaza tus registros.</span></label>
+  <button class="btn pri block" onclick="guardarModalidad()">Guardar</button></div>`); };
+window.guardarModalidad = async () => { const p=prof(S.proArg), m=document.querySelector('input[name=md]:checked')?.value||''; const ar=$('#md-ar').checked, antes=!!p.autoRegistro;
+  p.modalidad=m; p.autoRegistro=ar; if(ar && !antes) addAviso(p,'rutina','Ahora puedes registrar tus sesiones presenciales: al terminar tu entrenamiento, envíalo a tu profesional para que lo apruebe.');
+  if(await save(p)){ closeSheet(); toast('Plan actualizado'); keepScroll(render); } };
+const presPend = p => (p.diarios||[]).filter(d=>d.presencial && d.presencial.estado==='pendiente');
+const presAprob = p => (p.diarios||[]).filter(d=>d.presencial && d.presencial.estado==='aprobada').sort((a,b)=>String(toISO(a.fecha)).localeCompare(String(toISO(b.fecha))));
+const ejResumenHTML = d => (d.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${esc(e.ejercicio)}</span><span class="muted b">${(e.sets&&e.sets.length?e.sets:[{kg:e.kilos,reps:e.reps}]).map(x=>`${esc(x.kg||0)}×${esc(x.reps||'—')}`).join(' · ')}</span></div>`).join('');
+function presencialesHTML(p){ const pend=presPend(p), ok=presAprob(p); if(!p.autoRegistro && !pend.length && !ok.length) return '';
+  return `${pend.length?`<div class="sec-t"><h2>Sesiones presenciales por aprobar</h2><span class="badge orange">${pend.length}</span></div>
+  ${pend.map(d=>`<section class="card stack" style="border-color:color-mix(in srgb,var(--orange) 40%,transparent)"><div class="row between"><div><div class="b">${esc(d.nombreSesion||'Sesión')}</div><div class="xs muted">${fmtDate(d.fecha)} · ${d.duracion||'—'} min · RPE ${esc(d.rpe||'—')}</div></div><span class="badge orange">${ic('clock','s')} Por aprobar</span></div>
+    <div class="stack" style="gap:4px">${ejResumenHTML(d)}</div>${d.comentarios?`<div class="note">${ic('chat','s')}<span>${esc(d.comentarios)}</span></div>`:''}
+    <div class="grid2"><button class="btn sec" onclick="rechazarPresencial(${q(d.id)})">${ic('x','s')} Rechazar</button><button class="btn pri" onclick="aprobarPresencial(${q(d.id)})">${ic('check','s')} Aprobar</button></div></section>`).join('')}`:''}
+  <div class="sec-t"><h2>Registro de sesiones presenciales (${ok.length})</h2></div>
+  ${ok.length?`<div class="list">${ok.slice().reverse().map(d=>`<details class="li" style="display:block"><summary class="row"><span class="ico">${ic('check','s')}</span><div class="grow"><div class="b sm">Sesión presencial ${d.presencial.n||''} · ${esc(d.nombreSesion||'')}</div><div class="xs muted">${fmtDate(d.fecha)} · RPE ${esc(d.rpe||'—')} · aprobada por ${esc(d.presencial.por||'')}</div></div>${ic('chevr','s chev')}</summary><div class="stack" style="gap:4px;padding:10px 0 4px 48px">${ejResumenHTML(d)}${d.presencial.nota?`<div class="xs muted">Nota: ${esc(d.presencial.nota)}</div>`:''}</div></details>`).join('')}</div>`:`<div class="card empty">${p.autoRegistro?'Cuando apruebes una sesión presencial aparecerá aquí.':'Activa el registro presencial en "Plan y modalidad".'}</div>`}`; }
+window.aprobarPresencial = async id => { const p=prof(S.proArg), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; const nota=prompt('Nota para el registro (opcional)','');
+  if(nota===null) return; d.presencial={...d.presencial, estado:'aprobada', por:S.pro.nombre, ts:Date.now(), nota, n:presAprob(p).length+1};
+  const c=(p.citas||[]).find(x=>x.estado==='confirmada' && toISO(x.fecha)===toISO(d.fecha) && !esOralCita(x)); if(c){ c.estado='realizada'; }
+  marcarSeguimiento(p, true, 'Sesión presencial aprobada', S.pro.nombre);
+  addAviso(p,'rutina',`${S.pro.nombre} aprobó tu sesión presencial del ${fmtDate(d.fecha)}${nota?`: ${nota}`:''}`);
+  if(await save(p)){ toast(`Sesión presencial ${d.presencial.n} registrada${c?' · hora marcada como realizada':''}`); keepScroll(render); } };
+window.rechazarPresencial = async id => { const p=prof(S.proArg), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; const m=prompt('¿Por qué no se aprueba? (la persona lo verá)','No corresponde a una sesión presencial');
+  if(m===null) return; d.presencial={...d.presencial, estado:'rechazada', por:S.pro.nombre, ts:Date.now(), nota:m};
+  addAviso(p,'rutina',`Tu registro del ${fmtDate(d.fecha)} no se aprobó como sesión presencial${m?`: ${m}`:''}. Queda igual en tu historial de entrenamientos.`);
+  if(await save(p)){ toast('Registro rechazado (queda como entrenamiento personal)'); keepScroll(render); } };
 const segBadge = p => enSeguimiento(p) ? `<button class="badge acc" onclick="sheetSeguimiento()" title="Cambiar">● Activo</button>` : `<button class="badge" style="opacity:.85" onclick="sheetSeguimiento()" title="Cambiar">○ Inactivo${p.inactivoDesde?` desde ${fmtDate(p.inactivoDesde)}`:''}</button>`;
 window.sheetSeguimiento = () => { const p=prof(S.proArg); if(!p) return; const act=enSeguimiento(p), log=(p.seguimientoLog||[]).slice().reverse();
   sheet(`<h2 class="disp h2">${act?'Marcar como inactivo':'Reactivar persona'}</h2><p class="sm muted" style="margin-top:6px">${act?`${esc(first(p.nombre))} deja de contarse entre las personas que atiendes. <b>No se borra nada</b> y puede seguir entrando a su app; si vuelve a agendar o le registras una sesión, se reactiva sola.`:`${esc(first(p.nombre))} vuelve a contarse entre las personas que atiendes.`}</p>
@@ -1502,6 +1534,7 @@ function vEntrenar(p){
       <div class="grid2"><button class="btn sec" onclick="startWorkout(null)">${ic('plus','s')} Sesión libre</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div>
       ${gpsBtns()}
       ${misRutinasHTML(p)}
+      ${p.autoRegistro?`<section class="card row" style="gap:12px"><span class="ico">${ic('clip','s')}</span><div class="grow"><div class="b sm">Registro de sesiones presenciales</div><div class="xs muted">${presAprob(p).length} aprobadas${presPend(p).length?` · ${presPend(p).length} esperando aprobación`:''}. Al terminar tu entrenamiento en el centro, márcalo como sesión presencial.</div></div></section>`:''}
       <div class="sec-t"><h2>Más</h2></div><div class="grid2"><button class="btn sec" onclick="sheetMiRutina()">${ic('clip','s')} Crear rutina</button><button class="btn sec" onclick="go('biblioteca')">${ic('book','s')} Ejercicios</button></div>${destacadasPatHTML()}
       <div class="note">${ic('info','s')}<span>Al tocar <b>Hacer rutina</b> parte el cronómetro. Marca cada serie con ✓ y comienza el descanso automático. Tu kine ve tus cargas al instante.</span></div></div>`;
   }
@@ -1545,6 +1578,8 @@ window.finishSheet = () => { const w=S.workout; const dn=w.ex.reduce((a,e)=>a+e.
   <div class="stack" style="margin-top:16px"><div><div class="lbl">¿Qué tan dura fue la sesión? (RPE 1–10)</div><div class="rpe" id="rpe">${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="pickRPE(${v})" data-v="${v}">${v}</button>`).join('')}</div><div class="scale-l"><span>Muy suave</span><span>Máximo</span></div></div>
   <div class="grid2"><label class="field"><span class="lbl">Pasos de hoy</span><input class="inp" id="fw-p" inputmode="numeric" placeholder="Opcional"></label><label class="field"><span class="lbl">Horas de sueño</span><input class="inp" id="fw-s" inputmode="decimal" placeholder="Opcional"></label></div>
   <label class="field"><span class="lbl">Notas o molestias</span><textarea class="inp" id="fw-n" placeholder="Ej: buenas sensaciones, leve molestia en rodilla…"></textarea></label>
+  ${(()=>{ const p=me(); if(!p||!p.autoRegistro) return ''; const hoy=(p.citas||[]).some(c=>c.estado==='confirmada' && toISO(c.fecha)===todayISO() && !esOralCita(c));
+    return `<label class="check card tight" style="padding:12px"><input type="checkbox" id="fw-pres" ${hoy?'checked':''}><span><b style="color:var(--tx)">Enviar como mi sesión presencial</b><br>Tu profesional la revisa y, si la aprueba, queda en tu registro de sesiones.${hoy?' Tienes hora hoy.':''}</span></label>`; })()}
   <button class="btn pri block" onclick="saveWorkout()">Guardar entrenamiento</button></div>`); };
 window.pickRPE = v => { S.rpe=v; document.querySelectorAll('#rpe button').forEach(b=>b.classList.toggle('on', +b.dataset.v===v)); };
 window.saveWorkout = async () => {
@@ -1554,9 +1589,10 @@ window.saveWorkout = async () => {
     const top=use.reduce((a,b)=> est1RM(+b.kg||0,+b.reps||0) > est1RM(+a.kg||0,+a.reps||0) ? b : a);
     return {ejercicio:e.n, exId:e.exId||'', series:use.length, reps:top.reps||'', kilos:top.kg||0, rir:top.rir||'', sets:use.map(s=>({kg:s.kg,reps:s.reps,rir:s.rir}))}; }).filter(Boolean);
   p.diarios=p.diarios||[]; const nid=uid();
-  p.diarios.push({id:nid, fecha:todayISO(), duracion:Math.max(1,Math.round((Date.now()-w.start)/60000)), pasos:val('fw-p')||0, rpe:S.rpe, sueno:val('fw-s'), ejercicios:ej, nombreSesion:w.titulo, comentarios:val('fw-n'), rutinaId:w.rid});
+  const pres=!!$('#fw-pres')?.checked, cHoy=(p.citas||[]).find(c=>c.estado==='confirmada' && toISO(c.fecha)===todayISO() && !esOralCita(c));
+  p.diarios.push({id:nid, fecha:todayISO(), duracion:Math.max(1,Math.round((Date.now()-w.start)/60000)), pasos:val('fw-p')||0, rpe:S.rpe, sueno:val('fw-s'), ejercicios:ej, nombreSesion:w.titulo, comentarios:val('fw-n'), rutinaId:w.rid, ...(pres?{presencial:{estado:'pendiente', enviado:Date.now(), proId:cHoy?.proId||''}}:{})});
   if(w.rid){ const r=(p.rutinasAsignadas||[]).find(x=>x.id===w.rid); if(r){ if(conDias(r)){ r.ultima=todayISO(); r.veces=(r.veces||0)+1; (r.ejercicios||[]).forEach(e=>e.hecho=false); } else { r.completada=true; (r.ejercicios||[]).forEach(e=>e.hecho=true); } } const m=(p.misRutinas||[]).find(x=>x.id===w.rid); if(m){ m.veces=(m.veces||0)+1; m.ultima=todayISO(); } }
-  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast('Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); const logros=await revisarObjetivos(p); if(!logros.length) compartir(nid);
+  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast(pres?'Entrenamiento guardado y enviado a tu profesional 💪':'Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); const logros=await revisarObjetivos(p); if(!logros.length) compartir(nid);
 };
 
 /* ---- Progreso ---- */
@@ -2152,7 +2188,7 @@ function vPersona(){
   const bodies={resumen:pResumen, rutinas:pRutinas, clinico:pClinico, agenda:pAgenda, progreso:pProgreso};
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Personas</button></header><div class="stack">
   <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${perfilBadge(p)}${orgChip(p)}<span class="badge">${esc(p.rut)}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.deporte?`<span class="badge">${esc(p.deporte)}</span>`:''}</div></div></div>
-    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}${isPending(p)?'':segBadge(p)}</div>
+    <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}${isPending(p)?'':segBadge(p)+modBadge(p)}</div>
     ${videoOn(p)?`<div class="aviso red" style="margin-top:12px"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b sm">Videollamada en curso</div><div class="xs muted">Desde ${relTs(p.videoActiva.ts)}</div></div><a class="btn sec sm" href="${safeUrl(p.videoActiva.url)}" target="_blank" rel="noopener">Entrar</a><button class="btn danger sm" onclick="finalizarVideo(${q(k)})">Finalizar</button></div>`:''}
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button>${videoOn(p)?`<button class="btn danger sm" onclick="finalizarVideo(${q(k)})">${ic('video','s')} Finalizar llamada</button>`:`<button class="btn sec sm" onclick="iniciarVideo(${q(k)})">${ic('video','s')} Videollamada</button>`}<button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn sec sm" onclick="pgo('informe',${q(k)})">${ic('file','s')} Informe</button>${!isPending(p)?`<button class="btn pri sm" onclick="S.evMode='${per==='entrenamiento'?'funcional':'kinesica'}';pgo('evaluar',${q(k)})">${ic('steth','s')} Evaluar</button>`:''}</div></section>
   ${isPending(p)?`<section class="card pend stack"><div class="row" style="align-items:flex-start"><span class="ico orange">${ic('clock')}</span><div class="grow"><div class="b">${hasConfirmed(p)?'Hora confirmada · primer desbloqueo':p.creadoPor==='reserva'?'Reservó sin cuenta':'Cuenta creada por la persona'}</div><p class="sm muted" style="margin-top:4px">${hasConfirmed(p)?'Ve su hora, lugar, profesional y su perfil. Cuando marques la sesión como realizada podrás habilitar su app completa.':'Hoy solo puede usar chat, pasos, su ficha inicial y solicitar horas. Confirma su hora o habilítala directamente.'}</p>${p.motivoConsulta?`<p class="sm" style="margin-top:6px"><b>Motivo:</b> ${esc(p.motivoConsulta)}</p>`:''}</div></div><button class="btn pri block" onclick="sheetHabilitar()">${ic('shield','s')} Habilitar perfil completo</button></section>`:''}
@@ -2207,8 +2243,8 @@ function pRutinas(p){
   const rs=(p.rutinasAsignadas||[]).slice().reverse(); S.after.push(loadLib); if(!S.plantillas && !S._plLoading){ S._plLoading=true; S.after.push(async()=>{ await loadPlantillas(); keepScroll(render); }); }
   const mr=(p.misRutinas||[]).slice().reverse(); const ed = S.rbEdit ? (S.rbEditMis ? mr : rs).find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed){ S.rbEdit=null; S.rbEditMis=false; }
   const dsel = ed ? (ed.dias||[]) : [];
-  return `<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?(S.rbEditMis?'Editando rutina guardada por la persona':'Editando rutina'):'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Ejercicios</button></div>
-    ${ed?'':`<button class="btn sec block" onclick="sheetPlantillas('usar')">${ic('clip','s')} Usar una rutina guardada <span class="xs muted" style="margin-left:4px">★ destacadas, del equipo y de pacientes</span></button>`}
+  return `${presencialesHTML(p)}<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?(S.rbEditMis?'Editando rutina guardada por la persona':'Editando rutina'):'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Ejercicios</button></div>
+    ${ed?'':`<button class="btn sec block" onclick="sheetPlantillas('usar')">${ic('clip','s')} Usar una rutina guardada</button>`}
     <div class="grid2"><input class="inp" id="rb-t" placeholder="Nombre (ej: Rutina 1 · Tren superior)" value="${esc(ed?ed.titulo:'')}"><input class="inp" id="rb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(ed?ed.tiempo||'':'')}"></div>
     <div><div class="lbl">Días de la semana <span class="xs muted">(opcional: se repite cada semana)</span></div><div class="dias" id="rb-dias" style="margin-top:6px">${[1,2,3,4,5,6,7].map(d=>`<button type="button" data-d="${d}" class="${dsel.includes(d)?'on':''}" onclick="this.classList.toggle('on')">${DIAS_C[d]}</button>`).join('')}</div></div>
     ${ed?'':recoPanel('rb-rows',true)}
@@ -2375,7 +2411,7 @@ window.continuarTratamiento = async () => { const p=prof(S.proArg), t=(p.tratami
   if(await save(p)){ toast('Tratamiento reabierto'); keepScroll(render); } };
 function pClinico(p){
   const per=perfilOf(p), ts=tareas(p), k=keyOf(p);
-  const tl=[...evalsOf(k).filter(e=>(e.resultados||[]).length).map(e=>({f:toISO(e.fecha)||'0', id:e.id, k:'eval', e})), ...(p.sesionesRehab||[]).map((s,i)=>({f:toISO(s.fecha)||'0', id:s.id||0, k:'ses', s, n:i+1}))].sort((a,b)=>b.f.localeCompare(a.f)||b.id-a.id);
+  const tl=[...evalsOf(k).filter(e=>(e.resultados||[]).length).map(e=>({f:toISO(e.fecha)||'0', id:e.id, k:'eval', e})), ...(p.sesionesRehab||[]).map((s,i)=>({f:toISO(s.fecha)||'0', id:s.id||0, k:'ses', s, n:i+1})), ...presAprob(p).map(d=>({f:toISO(d.fecha)||'0', id:d.id||0, k:'pres', d}))].sort((a,b)=>b.f.localeCompare(a.f)||b.id-a.id);
   if(p.sinTratamiento) return `${anamnesisHTML(p.anamnesis)}${tratNuevoCard(p)}${escalasCard(p)}${tratAnterioresHTML(p,true)}`;
   const ce=evalsOf(k).filter(e=>e.evalData).map(e=>e.id);
   return `${anamnesisHTML(p.anamnesis)}${tratActualCard(p)}
@@ -2389,7 +2425,7 @@ function pClinico(p){
   ${escalasCard(p)}
   ${tratAnterioresHTML(p,true)}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
-  <section class="card">${tl.length?`<div class="tl">${tl.map(x=> x.k==='eval'
+  <section class="card">${tl.length?`<div class="tl">${tl.map(x=> x.k==='pres' ? `<div class="tl-i"><div class="b sm">Sesión presencial de entrenamiento ${x.d.presencial.n||''}</div><div class="xs muted">${fmtDate(x.d.fecha)} · registrada por la persona · aprobada por ${esc(x.d.presencial.por||'')}</div><div class="body muted">${esc((x.d.ejercicios||[]).map(e=>e.ejercicio).join(', '))}${x.d.rpe?` · RPE ${esc(x.d.rpe)}`:''}${x.d.presencial.nota?` · ${esc(x.d.presencial.nota)}`:''}</div></div>` : x.k==='eval'
     ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div>${ce.indexOf(x.e.id)>0?`<button class="ibtn" style="width:30px;height:30px" onclick="compararEval(${x.e.id})" aria-label="Comparar con la anterior" title="Comparar con la anterior">${ic('chart','s')}</button>`:''}<button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${(x.e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`
     : `<div class="tl-i blue"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Sesión ${x.n}${x.s.eva!==''&&x.s.eva!=null?` · EVA ${esc(x.s.eva)}/10`:''}</div><div class="xs muted">${fmtDate(x.s.fecha)}${x.s.klgo?` · ${esc(x.s.klgo)}`:''}</div></div><button class="ibtn" style="width:30px;height:30px" onclick="editarSesion(${x.s.id})" aria-label="Editar">${ic('edit','s')}</button></div>${x.s.tolerancia?`<div class="xs b" style="margin-top:2px;color:var(--blue)">${esc(x.s.tolerancia)}</div>`:''}${x.s.nota?`<div class="body muted">${esc(x.s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Sin registros clínicos todavía.</div>'}</section>`;
 }

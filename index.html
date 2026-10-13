@@ -2048,12 +2048,12 @@ async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.b
 
 function shellPro(){
   const t=S.proTab, act=(t==='persona'||t==='evaluar'||t==='informe')?'personas':t;
-  const views={reportes:vReportes, inicio:vProInicio, personas:vPersonas, nueva:vNueva, persona:vPersona, evaluar:vEvaluar, agenda:vAgendaPro, mensajes:vMensajes, mas:vMas, faq:vKinIA, biblioteca:vLib, profesionales:vProfesionales, ajustes:vAjustes, herramientas:vTools, informe:vInforme, uso:vUso};
-  const od=isOdonto(); if(od){ Object.assign(views,{inicio:vOralInicio, nueva:vNuevaOral}); if(['herramientas','faq','biblioteca','evaluar','informe','profesionales'].includes(t)) S.proTab='inicio'; }
+  const views={reportes:vReportes, inicio:vProInicio, personas:vPersonas, nueva:vNueva, persona:vPersona, evaluar:vEvaluar, agenda:vAgendaPro, mensajes:vMensajes, mas:vMas, faq:vKinIA, biblioteca:vLib, profesionales:vProfesionales, ajustes:vAjustes, herramientas:vTools, rutinas:vRutinasPro, informe:vInforme, uso:vUso};
+  const od=isOdonto(); if(od){ Object.assign(views,{inicio:vOralInicio, nueva:vNuevaOral}); if(['herramientas','rutinas','faq','biblioteca','evaluar','informe','profesionales'].includes(t)) S.proTab='inicio'; }
   const body=(views[S.proTab]||vProInicio)();
   const nav=[['inicio','home','Inicio'],['personas','users',od?'Pacientes':'Personas'],['nueva','plus','Nueva'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']];
   const side= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['ajustes','sliders','Ajustes']]
-    : [['inicio','home','Inicio'],['personas','users','Personas'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['herramientas','target','Herramientas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[]), ['ajustes','sliders','Ajustes']];
+    : [['inicio','home','Inicio'],['personas','users','Personas'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[]), ['ajustes','sliders','Ajustes']];
   const org=S.pro.org;
   return `<div class="shell pro"><aside class="side">${brands(org==='kah'?'sm+kah':'sm')}
     <div class="row" style="margin-top:16px;gap:10px"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b sm trunc">${esc(S.pro.nombre)}</div><div class="xs muted">${od?'Odontología general':org==='all'?'StrongMed + Kin At Home':ORGS[org].label}${isAdmin()?' · Admin':''}</div></div></div>
@@ -2061,7 +2061,7 @@ function shellPro(){
     <div class="nav">${side.map(([k,i,l])=>`<button class="${act===k?'on':''}" onclick="pgo('${k}')">${ic(i)}${l}</button>`).join('')}</div>
     <button class="btn ghost" style="margin-top:auto;justify-content:flex-start;color:var(--mu)" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></aside>
   <main class="wrap wide ${t==='mensajes'?'chatmode':''} fade">${body}</main>
-  <nav class="tabbar">${nav.map(([k,i,l])=> k==='nueva' ? `<button class="tab fab" onclick="pgo('nueva')"><span class="fabc">${ic('plus')}</span><span>${l}</span></button>` : `<button class="tab ${act===k||(k==='inicio'&&['mas','faq','biblioteca','profesionales','ajustes','herramientas','uso'].includes(act))?'on':''}" onclick="pgo('${k}')">${ic(i)}<span>${l}</span></button>`).join('')}</nav></div>`;
+  <nav class="tabbar">${nav.map(([k,i,l])=> k==='nueva' ? `<button class="tab fab" onclick="pgo('nueva')"><span class="fabc">${ic('plus')}</span><span>${l}</span></button>` : `<button class="tab ${act===k||(k==='inicio'&&['mas','faq','biblioteca','profesionales','ajustes','herramientas','rutinas','uso'].includes(act))?'on':''}" onclick="pgo('${k}')">${ic(i)}<span>${l}</span></button>`).join('')}</nav></div>`;
 }
 window.pgo = (t, arg) => { if(t!=='mensajes' && t!=='persona') stopChat(); if(t==='mensajes' && arg===undefined && innerWidth<900) S.chatKey=null; if(arg!==undefined){ if(t==='mensajes') S.chatKey=arg; else S.proArg=arg; }
   if(t==='nueva') S.np={perfil:'entrenamiento', org: S.pro.org==='all'?'sm':S.pro.org}; if(t==='evaluar'){ if(!S.keepEdit) S.editEval=null; S.evDraft=null; } if(t==='informe'){ S.infHtml=null; S.infId=null; } S.keepEdit=false;
@@ -2204,7 +2204,7 @@ window.eliminarPersona = async () => { const p=prof(S.proArg); if(!confirm(`¿El
   try{ for(const it of evalsOf(keyOf(p))) await removeDoc(it); toast('Persona eliminada'); pgo('personas'); }catch(e){ toast('No se pudo eliminar','err'); } };
 
 function pRutinas(p){
-  const rs=(p.rutinasAsignadas||[]).slice().reverse(); S.after.push(loadLib);
+  const rs=(p.rutinasAsignadas||[]).slice().reverse(); S.after.push(loadLib); if(!S.plantillas && !S._plLoading){ S._plLoading=true; S.after.push(async()=>{ await loadPlantillas(); keepScroll(render); }); }
   const mr=(p.misRutinas||[]).slice().reverse(); const ed = S.rbEdit ? (S.rbEditMis ? mr : rs).find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed){ S.rbEdit=null; S.rbEditMis=false; }
   const dsel = ed ? (ed.dias||[]) : [];
   return `<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?(S.rbEditMis?'Editando rutina guardada por la persona':'Editando rutina'):'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Ejercicios</button></div>
@@ -2218,11 +2218,11 @@ function pRutinas(p){
   <div class="sec-t"><h2>Rutinas enviadas (${rs.length})</h2></div>
   ${rs.length?`<div class="list">${rs.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico ${r.completada?'':'orange'}">${ic(r.completada?'check':'clock','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${conDias(r)?`<b class="acc-t">${diasTxt(r)}</b> · `:''}${fmtDate(r.fecha)} · ${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Creada por la persona':'Enviada por '+esc(r.pro||'el equipo')} · ${r.completada?'Completada':(conDias(r)?(r.veces?`Hecha ${r.veces} ${r.veces===1?'vez':'veces'}${r.ultima?' · última '+fmtDate(r.ultima):''}`:'Semanal'):'Pendiente')}${r.editada?' · editada '+fmtDate(r.editada):''}</div></div>${ic('chevr','s chev')}</summary>
     <div class="stack" style="padding:10px 0 4px 48px">${(r.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${e.hecho?'✓ ':''}${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg||e.kilos?` · ${esc(e.kg||e.kilos)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${r.id})">${ic('clip','s')} Editar</button><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${r.id})">${ic('clip','s')} Editar</button><button class="btn sec sm" onclick="duplicarRutina(${r.id})">${ic('play','s')} Repetir (enviar de nuevo)</button><button class="btn ${estaDestacada(r)?'pri':'sec'} sm" onclick="destacarRutinaPersona(${q(r.id)},false)">${estaDestacada(r)?'★ Destacada':'☆ Destacar'}</button><button class="btn danger sm" onclick="borrarRutina(${r.id})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no envías rutinas.</div>`}
   <div class="sec-t"><h2>Guardadas por la persona (${mr.length})</h2></div>
   ${mr.length?`<div class="list">${mr.map(r=>`<details class="li" style="display:block"><summary class="row"><span class="ico">${ic('clip','s')}</span><div class="grow"><div class="b sm trunc">${esc(r.titulo)}</div><div class="xs muted">${r.creada?`Creada ${fmtDate(r.creada)} · `:''}${(r.ejercicios||[]).length} ejercicios · hecha ${r.veces||0} ${r.veces===1?'vez':'veces'}${r.editor?` · ajustada por ${esc(r.editor)}`:''}</div></div>${ic('chevr','s chev')}</summary>
     <div class="stack" style="padding:10px 0 4px 48px">${(r.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg||e.kilos?` · ${esc(e.kg||e.kilos)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${q(r.id)},true)">${ic('clip','s')} Editar</button><button class="btn danger sm" onclick="borrarMisRutinaPro(${q(r.id)})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">La persona aún no guarda rutinas propias.</div>`}`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="editarRutina(${q(r.id)},true)">${ic('clip','s')} Editar</button><button class="btn ${estaDestacada(r)?'pri':'sec'} sm" onclick="destacarRutinaPersona(${q(r.id)},true)">${estaDestacada(r)?'★ Destacada':'☆ Destacar'}</button><button class="btn danger sm" onclick="borrarMisRutinaPro(${q(r.id)})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">La persona aún no guarda rutinas propias.</div>`}`;
 }
 /* ================= BIBLIOTECA DE RUTINAS =================
    Toda rutina que crea un profesional o una persona queda guardada para reutilizarla.
@@ -2233,9 +2233,9 @@ async function loadPlantillas(){ try{ const sn=await S.fb.getDocs(S.fb.collectio
 /* guarda (o suma un uso a) la rutina en la biblioteca, sin duplicar */
 async function guardarPlantilla(r, rol){ try{ const ej=plLimpia(r.ejercicios); if(!r.titulo || !ej.length) return; const firma=plFirma(r.titulo, ej);
   if(!S.plantillas) await loadPlantillas(); const ex=(S.plantillas||[]).find(x=>x.firma===firma);
-  if(ex){ ex.usos=(ex.usos||1)+1; ex.ultimoUso=todayISO(); await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',ex.id), {usos:ex.usos, ultimoUso:ex.ultimoUso}, {merge:true}); return; }
-  const d={id:'pl'+uid(), firma, titulo:r.titulo, tiempo:r.tiempo||'', ejercicios:ej, autor:rol==='pro'?(S.pro?.nombre||'Profesional'):`Paciente · ${first(me()?.nombre||'')}`, autorRol:rol, org:rol==='pro'?(S.pro?.org||'sm'):(me()?.org||'sm'), fecha:todayISO(), usos:1, destacada:false};
-  await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',d.id), d); (S.plantillas=S.plantillas||[]).push(d); }catch(e){ console.warn('plantilla', e); } }
+  if(ex){ if(r._sinUso) return ex; ex.usos=(ex.usos||1)+1; ex.ultimoUso=todayISO(); await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',ex.id), {usos:ex.usos, ultimoUso:ex.ultimoUso}, {merge:true}); return ex; }
+  const d={id:'pl'+uid(), firma, titulo:r.titulo, tiempo:r.tiempo||'', ejercicios:ej, autor:r._autor || (rol==='pro'?(S.pro?.nombre||'Profesional'):`Paciente · ${first(me()?.nombre||'')}`), autorRol:rol, org:r._org || (rol==='pro'?(S.pro?.org||'sm'):(me()?.org||'sm')), fecha:r._fecha||todayISO(), usos:1, destacada:false};
+  await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',d.id), d); (S.plantillas=S.plantillas||[]).push(d); return d; }catch(e){ console.warn('plantilla', e); } }
 const plResumen = x => `${(x.ejercicios||[]).length} ejercicios${x.tiempo?` · ${esc(x.tiempo)} min`:''}`;
 function plItemsHTML(lista, modo){ if(!lista.length) return `<div class="card empty">No hay rutinas aquí todavía.</div>`;
   return `<div class="list">${lista.map(x=>`<details class="li" style="display:block"><summary class="row"><button class="ibtn" style="width:34px;height:34px;${x.destacada?'color:var(--yellow)':''}" ${S.role==='pro'?`onclick="event.preventDefault();destacarPlantilla(${q(x.id)})" aria-label="Destacar"`:'disabled'}>${x.destacada?'★':'☆'}</button><div class="grow" style="min-width:0"><div class="b sm trunc">${esc(x.titulo)}</div><div class="xs muted trunc">${plResumen(x)}${S.role==='pro'?` · ${esc(x.autor||'')}${x.usos>1?` · usada ${x.usos} veces`:''}`:''}</div></div>${ic('chevr','s chev')}</summary>
@@ -2250,7 +2250,7 @@ function plRender(){ const modo=S.plModo, t=(S.plQ||'').toLowerCase(), tab=S.plT
   ${pat?'':`<div class="seg" style="margin-top:10px">${[['dest',`★ Destacadas (${all.filter(x=>x.destacada).length})`],['pro',`Del equipo (${all.filter(x=>x.autorRol==='pro').length})`],['pat',`De pacientes (${all.filter(x=>x.autorRol==='pat').length})`]].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="S.plTab='${k}';plRender()">${l}</button>`).join('')}</div>`}
   <div style="margin-top:12px">${plItemsHTML(L, modo)}</div>`; }
 window.plRender = plRender;
-window.destacarPlantilla = async id => { const x=(S.plantillas||[]).find(y=>y.id===id); if(!x) return; x.destacada=!x.destacada; x.destacadaPor=x.destacada?S.pro.nombre:'';
+window.destacarPlantilla = async id => { if(S.role==='pro' && !$('#sheet') && S.proTab==='rutinas'){ const x=(S.plantillas||[]).find(y=>y.id===id); if(x){ await destacarPlantillaSilencio(x,!x.destacada); toast(x.destacada?'Rutina destacada ★ · ya la ven las personas':'Ya no está destacada'); keepScroll(render); } return; } const x=(S.plantillas||[]).find(y=>y.id===id); if(!x) return; x.destacada=!x.destacada; x.destacadaPor=x.destacada?S.pro.nombre:'';
   try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',id), {destacada:x.destacada, destacadaPor:x.destacadaPor}, {merge:true}); toast(x.destacada?'Rutina destacada ★':'Ya no está destacada'); }catch(e){ toast('No se pudo guardar','err'); }
   if($('#sheet')) plRender(); else keepScroll(render); };
 window.borrarPlantilla = async id => { if(!confirm('¿Quitar esta rutina de la biblioteca? Las personas que ya la tienen no la pierden.')) return; if(await fsDel('plantillas', id)){ S.plantillas=(S.plantillas||[]).filter(y=>y.id!==id); plRender(); } };
@@ -2261,6 +2261,57 @@ window.usarPlantilla = id => { const x=(S.plantillas||[]).find(y=>y.id===id); if
 window.tomarPlantilla = async id => { const x=(S.plantillas||[]).find(y=>y.id===id), p=me(); if(!x||!p) return;
   p.rutinasAsignadas=p.rutinasAsignadas||[]; p.rutinasAsignadas.push({id:uid(), creador:'user', desdeBiblioteca:id, titulo:x.titulo, fecha:todayISO(), tiempo:x.tiempo||'', ejercicios:plLimpia(x.ejercicios).map(e=>({...e, hecho:false})), completada:false});
   if(await save(p)){ closeSheet(); toast('Rutina agregada a tu plan'); S.planSeg='rutinas'; S.patTab='plan'; render(); } };
+/* ---- pestaña Rutinas del profesional ---- */
+async function plBackfill(){ // las rutinas que existían antes de la biblioteca también entran (una sola vez por sesión)
+  if(S._plBack) return; S._plBack=true; await loadPlantillas(); const firmas=new Set((S.plantillas||[]).map(x=>x.firma)); let n=0;
+  for(const p of people()){ const todas=[...(p.rutinasAsignadas||[]).map(r=>[r, r.creador==='user'?'pat':'pro']), ...(p.misRutinas||[]).map(r=>[r,'pat'])];
+    for(const [r,rol] of todas){ const f=plFirma(r.titulo, r.ejercicios); if(!r.titulo || !plLimpia(r.ejercicios).length || firmas.has(f)) continue; firmas.add(f);
+      await guardarPlantilla({...r, _sinUso:true, _autor: rol==='pro'?(r.pro||r.editor||S.pro.nombre):`Paciente · ${first(p.nombre)}`, _org:p.org, _fecha:toISO(r.fecha||r.creada)||todayISO()}, rol); if(++n>=150) break; } if(n>=150) break; }
+  if(n){ await loadPlantillas(); if(S.proTab==='rutinas') keepScroll(render); } }
+function vRutinasPro(){ S.after.push(async()=>{ if(!S.plantillas) { await loadPlantillas(); keepScroll(render); } plBackfill(); });
+  const t=(S.plQ||'').toLowerCase(), tab=S.plTabPro||'todas', all=(S.plantillas||[]).filter(x=>!t || String(x.titulo).toLowerCase().includes(t) || (x.ejercicios||[]).some(e=>String(e.ejercicio).toLowerCase().includes(t)));
+  const L = tab==='dest'?all.filter(x=>x.destacada): tab==='pro'?all.filter(x=>x.autorRol==='pro'): tab==='pat'?all.filter(x=>x.autorRol==='pat'): all;
+  return `${proHead('Biblioteca','Rutinas',`<button class="btn pri sm" onclick="sheetRutinaBib()">${ic('plus','s')} Nueva</button>`)}<div class="stack">
+  <div class="note">${ic('info','s')}<span>Aquí están todas las rutinas: las que envías y las que crean tus pacientes. Toca <b>☆ Destacar</b> para que las personas la vean al crear su rutina, y <b>Enviar</b> para mandarla a una o varias personas.</span></div>
+  <div class="searchbox">${ic('search','s')}<input class="inp" id="rp-q" placeholder="Buscar por nombre o ejercicio…" value="${esc(S.plQ||'')}" oninput="S.plQ=this.value;clearTimeout(window._rpT);window._rpT=setTimeout(()=>{keepScroll(render);const i=$('#rp-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300)"></div>
+  <div class="pills">${[['todas',`Todas (${all.length})`],['dest',`★ Destacadas (${all.filter(x=>x.destacada).length})`],['pro',`Del equipo (${all.filter(x=>x.autorRol==='pro').length})`],['pat',`De pacientes (${all.filter(x=>x.autorRol==='pat').length})`]].map(([k,l])=>`<button class="pill ${tab===k?'on':''}" onclick="S.plTabPro='${k}';render()">${l}</button>`).join('')}</div>
+  ${!S.plantillas?`<div class="card empty">Cargando rutinas…</div>`:L.length?`<div class="stack">${L.map(x=>`<section class="card stack" style="gap:10px"><div class="row" style="align-items:flex-start;gap:10px"><div class="grow" style="min-width:0"><div class="b">${esc(x.titulo)}</div><div class="xs muted">${plResumen(x)} · ${esc(x.autor||'')}${x.usos>1?` · usada ${x.usos} veces`:''}</div></div>
+      <button class="btn ${x.destacada?'pri':'sec'} sm" style="flex:none" onclick="destacarPlantilla(${q(x.id)})">${x.destacada?'★ Destacada':'☆ Destacar'}</button></div>
+    <details><summary class="xs b acc-t" style="cursor:pointer">Ver ${(x.ejercicios||[]).length} ejercicios</summary><div class="stack" style="gap:4px;margin-top:8px">${(x.ejercicios||[]).map(e=>`<div class="row between sm"><span class="trunc">${esc(e.ejercicio)}</span><span class="muted b">${esc(e.series||3)}×${esc(e.reps||10)}${e.kg?` · ${esc(e.kg)}kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}</span></div>`).join('')}</div></details>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="sheetEnviarRutina(${q(x.id)})">${ic('send','s')} Enviar</button><button class="btn sec sm" onclick="sheetRutinaBib(${q(x.id)})">${ic('edit','s')} Editar</button>${isAdmin()||x.autor===S.pro.nombre||x.autorRol==='pat'?`<button class="btn ghost sm" onclick="borrarPlantilla(${q(x.id)})">${ic('trash','s')} Quitar</button>`:''}</div></section>`).join('')}</div>`
+    :`<div class="card empty">${t?'Sin resultados':tab==='dest'?'Aún no destacas rutinas. Toca ☆ Destacar en cualquiera.':'Aún no hay rutinas. Crea la primera con "Nueva".'}</div>`}</div>`; }
+window.sheetRutinaBib = id => { loadLib(); const x=id?(S.plantillas||[]).find(y=>y.id===id):null;
+  sheet(`<h2 class="disp h2">${x?'Editar rutina':'Nueva rutina'}</h2><p class="sm muted" style="margin-top:6px">${x?'Los cambios quedan en la biblioteca. Quienes ya la recibieron conservan su versión.':'Queda guardada en la biblioteca y después la envías a quien quieras.'}</p>
+  <div class="stack" style="margin-top:14px"><div class="grid2"><input class="inp" id="rbb-t" placeholder="Nombre (ej: Tren superior A)" value="${esc(x?.titulo||'')}"><input class="inp" id="rbb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(x?.tiempo||'')}"></div>
+  ${x?'':recoPanel('rbb-rows',true)}<div id="rbb-rows" class="stack">${x?(x.ejercicios||[]).map(e=>exRow(e,true)).join(''):exRow()}</div>
+  <button class="btn sec block" onclick="addRow('rbb-rows',true)">${ic('plus','s')} Ejercicio</button>
+  <label class="check"><input type="checkbox" id="rbb-d" ${x?.destacada?'checked':''}><span>★ Destacada (las personas la ven al crear su rutina)</span></label>
+  <div class="grid2"><button class="btn sec" onclick="guardarRutinaBib(${q(id||'')},false)">Guardar</button><button class="btn pri" onclick="guardarRutinaBib(${q(id||'')},true)">${ic('send','s')} Guardar y enviar</button></div></div>`); };
+window.guardarRutinaBib = async (id, enviar) => { const t=val('rbb-t'), ej=plLimpia(collectRows('rbb-rows')); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
+  let x=id?(S.plantillas||[]).find(y=>y.id===id):null, dest=$('#rbb-d').checked;
+  if(x){ Object.assign(x,{titulo:t, tiempo:val('rbb-m'), ejercicios:ej, firma:plFirma(t,ej), destacada:dest, destacadaPor:dest?(x.destacadaPor||S.pro.nombre):'', editadoPor:S.pro.nombre, editado:todayISO()});
+    try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',x.id), x); }catch(e){ return toast('No se pudo guardar','err'); } }
+  else { x=await guardarPlantilla({titulo:t, tiempo:val('rbb-m'), ejercicios:ej, _sinUso:true}, 'pro'); if(!x) return toast('No se pudo guardar','err'); if(dest!==!!x.destacada) await destacarPlantillaSilencio(x, dest); }
+  closeSheet(); toast('Rutina guardada en la biblioteca'); if(enviar) sheetEnviarRutina(x.id); else keepScroll(render); };
+async function destacarPlantillaSilencio(x, v){ x.destacada=v; x.destacadaPor=v?S.pro.nombre:''; try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',x.id), {destacada:x.destacada, destacadaPor:x.destacadaPor}, {merge:true}); }catch(e){} }
+window.sheetEnviarRutina = id => { const x=(S.plantillas||[]).find(y=>y.id===id); if(!x) return; const ps=people().filter(p=>!isPending(p) && !esOral(p) && enSeguimiento(p));
+  sheet(`<h2 class="disp h2">Enviar rutina</h2><p class="sm muted" style="margin-top:6px"><b>${esc(x.titulo)}</b> · ${plResumen(x)}. Cada persona recibe su copia y un aviso.</p>
+  <div class="searchbox" style="margin-top:12px">${ic('search','s')}<input class="inp" placeholder="Buscar persona…" oninput="document.querySelectorAll('#er-l label').forEach(l=>l.style.display=l.dataset.n.includes(this.value.toLowerCase())?'':'none')"></div>
+  <div class="stack" id="er-l" style="gap:6px;margin-top:10px;max-height:40dvh;overflow:auto">${ps.map(p=>`<label class="check" data-n="${esc(String(p.nombre).toLowerCase())}" style="padding:6px 2px"><input type="checkbox" data-k="${esc(keyOf(p))}"><span><b style="color:var(--tx)">${esc(p.nombre)}</b> · ${PERFIL[perfilOf(p)].label}</span></label>`).join('')||'<div class="empty">No hay personas activas</div>'}</div>
+  <div><div class="lbl" style="margin-top:12px">Días de la semana <span class="xs muted">(opcional)</span></div><div class="dias" id="er-dias" style="margin-top:6px">${[1,2,3,4,5,6,7].map(d=>`<button type="button" data-d="${d}" onclick="this.classList.toggle('on')">${DIAS_C[d]}</button>`).join('')}</div></div>
+  <button class="btn pri block" style="margin-top:14px" onclick="enviarRutinaBib(${q(id)})">${ic('send','s')} Enviar</button>`); };
+window.enviarRutinaBib = async id => { const x=(S.plantillas||[]).find(y=>y.id===id), ks=[...document.querySelectorAll('#er-l input:checked')].map(i=>i.dataset.k), dias=[...document.querySelectorAll('#er-dias button.on')].map(b=>+b.dataset.d);
+  if(!ks.length) return toast('Elige al menos una persona','err'); let ok=0;
+  for(const k of ks){ const p=prof(k); if(!p) continue; p.rutinasAsignadas=p.rutinasAsignadas||[];
+    const nr={id:uid(), creador:'pro', pro:S.pro.nombre, desdeBiblioteca:id, titulo:x.titulo, fecha:todayISO(), tiempo:x.tiempo||'', ejercicios:plLimpia(x.ejercicios).map(e=>({...e, hecho:false})), completada:false}; if(dias.length) nr.dias=dias;
+    p.rutinasAsignadas.push(nr); addAviso(p,'rutina',`Nueva rutina cargada: ${x.titulo}${dias.length?` (${dias.map(d=>DIAS_L[d].toLowerCase()).join(', ')})`:''}`); if(await save(p)) ok++; }
+  x.usos=(x.usos||1)+ok; try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',id), {usos:x.usos, ultimoUso:todayISO()}, {merge:true}); }catch(e){}
+  closeSheet(); toast(ok===1?'Rutina enviada':`Rutina enviada a ${ok} personas`); keepScroll(render); };
+/* destacar directo desde el perfil de una persona */
+window.destacarRutinaPersona = async (id, mis) => { const p=prof(S.proArg), r=(mis?(p.misRutinas||[]):(p.rutinasAsignadas||[])).find(x=>String(x.id)===String(id)); if(!r) return;
+  const x=await guardarPlantilla({...r, _sinUso:true, _autor: (mis||r.creador==='user')?`Paciente · ${first(p.nombre)}`:(r.pro||S.pro.nombre), _org:p.org}, (mis||r.creador==='user')?'pat':'pro'); if(!x) return toast('No se pudo destacar','err');
+  await destacarPlantillaSilencio(x, !x.destacada); toast(x.destacada?'Rutina destacada ★ · ya la ven las personas':'Ya no está destacada'); keepScroll(render); };
+const estaDestacada = r => { const f=plFirma(r.titulo, r.ejercicios); return (S.plantillas||[]).some(x=>x.firma===f && x.destacada); };
 function destacadasPatHTML(){ if(!S._plPat){ S._plPat=true; S.after.push(async()=>{ await loadPlantillas(); keepScroll(render); }); }
   const d=(S.plantillas||[]).filter(x=>x.destacada); if(!d.length) return '';
   return `<div class="sec-t"><h2>★ Rutinas destacadas por tu equipo</h2></div>${plItemsHTML(d.slice(0,6),'pat')}`; }
@@ -2404,7 +2455,7 @@ window.stopChat = stopChat;
 
 /* ---- Más / Profesionales / Ajustes ---- */
 function vMas(){ return `<header class="top"><h1 class="disp h1">Más</h1></header><div class="stack"><div class="list">
-  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['herramientas','target','Herramientas y calculadoras'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],['rutinasbib','clip','Biblioteca de rutinas'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="${k==='rutinasbib'?`sheetPlantillas('gestionar')`:`pgo('${k}')`}"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
+  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="${k==='rutinasbib'?`sheetPlantillas('gestionar')`:`pgo('${k}')`}"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
   <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
   <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }

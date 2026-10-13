@@ -856,7 +856,7 @@ async function loadDB(orgs, src){
   if(S.role==='pro'){ await loadOralDocs(src); all.forEach(oralAttach); }
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
   else S.all = all;
-  if(S.role==='pro' && src!=='cache'){ migrarOral(); setTimeout(()=>{ try{ avisarCancelaciones(); }catch(e){} }, 800); } return true;
+  if(S.role==='pro' && src!=='cache'){ migrarOral(); setTimeout(()=>{ try{ avisarCancelaciones(); }catch(e){} }, 800); setTimeout(()=>{ enviarSeguimientos().catch(()=>{}); }, 2500); } return true;
 }
 /* Escritura que no se queda esperando sin internet: Firestore la guarda en el teléfono y la sube al volver la conexión */
 let offToast=0;
@@ -944,7 +944,7 @@ function alertsOf(p){
   if(an && daysAgo(an.fecha)<=3 && an.v<=2) a.push({t:`Se siente ${ANIMO[an.v-1][1].toLowerCase()}`, c:'red'});
   if(an && daysAgo(an.fecha)<=3 && an.dolor && an.dolor<=2) a.push({t:'Reporta dolor muscular alto', c:'red'});
   if(an && daysAgo(an.fecha)<=3 && an.sueno && an.sueno<=2) a.push({t:'Durmió mal', c:'orange'});
-  const la=lastActivity(p); if(!isPending(p) && enSeguimiento(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=10) a.push({t: la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad', c:''});
+  const la=lastActivity(p); if(!isPending(p) && enSeguimiento(p) && (p.rutinasAsignadas||[]).length && daysAgo(la)>=sinActividadDias()) a.push({t: (la?`Sin actividad desde ${fmtDate(la)}`:'Aún no registra actividad')+(p.checkinAuto&&daysAgo(p.checkinAuto.fecha)<sinActividadDias()?' · le escribimos':''), c:''});
   if(!isPending(p) && enSeguimiento(p) && per!=='entrenamiento' && rehabPlan(p) && rehabDone(p)>=rehabPlan(p)) a.push({t:'Completó su plan: reevaluar', c:'acc'});
   if((p.escalas||[]).some(e=>e.estado==='respondida' && !e.visto)) a.push({t:'Respondió cuestionarios', c:'acc'});
   if(presPend(p).length) a.push({t:`${presPend(p).length===1?'Sesión presencial':presPend(p).length+' sesiones presenciales'} por aprobar`, c:'acc'});
@@ -2626,10 +2626,31 @@ window.guardarPro = async id => { const u=proUser(val('pr-u')), c=$('#pr-c').val
   if(old.usuario && proUser(old.usuario)!==u) for(const o of ['sm','kah']) await fsSet2(o,'acceso',proUser(old.usuario),{activo:false},true);
   if(await fsSet('profesionales', d.id, d) && await saveAgenda(ag)){ await loadPros(); closeSheet(); toast(c?`Profesional guardado. Entrega la contraseña a ${first(n)} en persona.`:'Profesional guardado'); render(); } };
 window.borrarPro = async id => { if(!confirm('¿Eliminar este profesional? Ya no podrá ingresar.')) return; const x=S.pros.find(y=>y.id===id); if(x) for(const o of ['sm','kah']) await fsSet2(o,'acceso',proUser(x.usuario),{activo:false},true); if(await fsDel('profesionales', id)){ const ag=agendaOf(id); if(ag){ ag.disponible=false; await saveAgenda(ag); } await loadPros(); closeSheet(); render(); } };
+const SEG_TXT = 'Hola, ¿cómo estás hoy? ¿Has podido entrenar o realizar tu rutina?';
+const segCfg = () => { const a=agendaOf(S.pro?.id)||{}; const c=a.seguimientoAuto||{}; return {on:c.on!==false, dias:+c.dias||3, texto:c.texto||SEG_TXT}; };
+const sinActividadDias = () => (S.role==='pro' ? segCfg().dias : 3);
+window.guardarSeguimientoAuto = async () => { const a={...(agendaOf(S.pro.id)||myAgenda())}; a.seguimientoAuto={on:$('#sa-on').checked, dias:+val('sa-d')||3, texto:val('sa-t')||SEG_TXT};
+  if(await saveAgenda(a)){ toast('Seguimiento automático guardado'); keepScroll(render); } };
+function seguimientoAutoHTML(){ const c=segCfg();
+  return `<section class="card stack"><label class="check"><input type="checkbox" id="sa-on" ${c.on?'checked':''}><span><b style="color:var(--tx)">Escribir automáticamente a quienes no registran actividad</b><br>Cuando una persona activa que tú atiendes lleva varios días sin registrar entrenamientos, sesiones ni ánimo, la app le envía este mensaje a su chat contigo (una vez, y de nuevo solo si sigue sin actividad).</span></label>
+  <div class="grid2"><label class="field"><span class="lbl">Días sin actividad</span><select class="inp" id="sa-d">${[2,3,4,5,7,10,14].map(d=>`<option ${c.dias===d?'selected':''}>${d}</option>`).join('')}</select></label><span></span></div>
+  <label class="field"><span class="lbl">Mensaje</span><textarea class="inp" id="sa-t" rows="2">${esc(c.texto)}</textarea></label>
+  <button class="btn pri block" onclick="guardarSeguimientoAuto()">Guardar</button><div class="xs muted">Se envía cuando abres la app; no necesitas hacer nada.</div></section>`; }
+/* envía el mensaje de seguimiento a las personas sin actividad (lo hace la app del profesional principal de cada persona) */
+async function enviarSeguimientos(){ if(S.role!=='pro' || isOdonto() || S._segHecho) return; S._segHecho=true; const c=segCfg(); if(!c.on) return; let n=0;
+  for(const p of people()){ if(isPending(p) || !enSeguimiento(p) || esOral(p)&&soloOral(p) || hiloPrincipal(p)!==S.pro.id) continue;
+    if(!(p.rutinasAsignadas||[]).length && perfilOf(p)==='rehabilitacion' && !tareas(p).length) continue;
+    const la=lastActivity(p), ref=la || toISO(p.habilitado||p.fecha) || ''; if(!ref || daysAgo(ref)<c.dias) continue;
+    const prev=p.checkinAuto?.fecha; if(prev && prev>=ref && daysAgo(prev)<c.dias) continue;
+    try{ await postMsg(p, {text:c.texto.replace(/\{nombre\}/g, first(p.nombre)), auto:'seguimiento'}); p.checkinAuto={fecha:todayISO(), ts:Date.now()}; await save(p); n++; }catch(e){ console.warn('seguimiento', e); }
+    if(n>=40) break; }
+  if(n) toast(n===1?'Se envió 1 mensaje de seguimiento a quien no registra actividad':`Se enviaron ${n} mensajes de seguimiento a quienes no registran actividad`); }
+window.enviarSeguimientos = () => { S._segHecho=false; return enviarSeguimientos(); };
 function vAjustes(){ const ag=myAgenda();
   return `${proHead('Configuración','Ajustes')}<div class="stack" style="max-width:660px">
   <div class="sec-t"><h2>Mi perfil profesional</h2></div><section class="card stack"><div class="row"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b">${esc(ag.nombre)}</div><div class="xs muted">Usuario: ${esc(S.pro.usuario)}</div></div></div>
     ${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(ag.id)})">Guardar</button></section>
+  ${isOdonto()?'':`<div class="sec-t"><h2>Seguimiento automático</h2></div>${seguimientoAutoHTML()}`}
   <div class="sec-t"><h2>Seguridad</h2></div>${seguridadCard()}<button class="btn sec block" onclick="sheetClave()">${ic('lock','s')} Cambiar mi contraseña</button>
   <div class="sec-t"><h2>Apariencia</h2></div>${appearanceHTML()}
   <div class="sec-t"><h2>Datos</h2></div>${isAdmin()?respaldoAjustesHTML():''}<div class="list"><button class="li" onclick="exportDB()"><span class="ico">${ic('download','s')}</span><span class="grow">Descargar respaldo (.json)</span></button>
@@ -4596,7 +4617,8 @@ function waTexto(p, c, tipo){ const n=first(p.nombre), pro=(S.pro&&S.pro.nombre)
 window.recordarCita = async (k, id) => { const p=prof(k), c=(p&&p.citas||[]).find(x=>String(x.id)===String(id)); if(!p||!c) return; const l=waLink(p.contacto, waTexto(p,c,'recordatorio'));
   if(l) window.open(l,'_blank','noopener'); else toast('Esta persona no tiene teléfono registrado: el recordatorio queda solo en la app');
   addAviso(p,'cita',`Recordatorio: tu cita es el ${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''} en ${lugarLabel(c)}. ¡Nos vemos!`); c.recordado=todayISO();
-  if(await save(p)){ toast('Recordatorio enviado'); keepScroll(render); } };
+  if(await save(p)){ postMsg(p, {tipo:'cita', text:waTexto(p,c,'recordatorio'), titulo:'Recordatorio de tu sesión', detalle:`${c.tipo||'Sesión'} · ${fmtLong(parseISO(toISO(c.fecha)))}${c.hora?` a las ${c.hora}`:''} · ${lugarLabel(c)}. ¡Nos vemos!`, estado:'confirmada', citaId:c.id});
+    toast(l?'Recordatorio enviado por WhatsApp y por la app':'Recordatorio enviado por la app'); keepScroll(render); } };
 function recordatoriosHTML(){ const td=todayISO(), m=new Date(); m.setDate(m.getDate()+1); const mn=iso(m);
   const cs=allCitas().filter(x=>x.c.estado==='confirmada' && [td,mn].includes(toISO(x.c.fecha))).sort((a,b)=>String(toISO(a.c.fecha)+a.c.hora).localeCompare(String(toISO(b.c.fecha)+b.c.hora)));
   if(!cs.length) return ''; const pend=cs.filter(x=>!x.c.recordado).length;

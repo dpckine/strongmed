@@ -244,7 +244,10 @@ button.stat{text-align:left}
 .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;height:calc(var(--tabh) + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-start;padding:9px 4px env(safe-area-inset-bottom)}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--mu);text-align:center}
 .tab .icon{width:23px;height:23px}
-.tab{position:relative}.nbadge{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:auto}
+.tab{position:relative}
+.ccard{min-width:230px;white-space:normal}.ccard .hopt .icon{width:16px;height:16px;flex:none}.ccard .ico{background:color-mix(in srgb,currentColor 12%,transparent)}
+.hopt{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border-radius:12px;background:color-mix(in srgb,currentColor 8%,transparent);border:1px solid color-mix(in srgb,currentColor 18%,transparent);color:inherit;font-size:13.5px;text-align:left}
+.hopt span{flex:1}.hopt.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}.hopt[disabled]:not(.on){opacity:.55}.bub.me .ccard .ico{color:var(--acc-ink);background:rgba(0,0,0,.12)}.bub.me .hopt.on{background:rgba(0,0,0,.86);color:var(--acc);border-color:transparent}.nbadge{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:auto}
 .tab .nbadge{position:absolute;top:-2px;left:calc(50% + 6px);margin:0}
 .tab.on{color:var(--tx)}.tab.on .icon{color:var(--acc-tx)}
 .fabc{width:60px;height:60px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-28px;border:5px solid var(--bg);box-shadow:0 8px 28px color-mix(in srgb,var(--acc) 30%,transparent);position:relative}
@@ -1309,8 +1312,8 @@ function weekStrip(p, rehab=false){ const sd=stepDays(p), tr=new Set(sessions(p)
   const n=rehab ? [...set].filter(s=>s>=iso(ws)).length : sessWeek(p);
   return `<section class="card tight"><div class="row between" style="padding:2px 4px 8px"><span class="eyebrow">Esta semana</span><span class="xs muted b">${rehab?`${n} sesiones · ● próxima hora`:`${n} de ${meta(p)} días activos`}</span></div><div class="week">${h}</div></section>`; }
 
-const AV_ICON = {escala:'clip', rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
-function avisoAction(a){ return ({rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
+const AV_ICON = {horarios:'cal', escala:'clip', rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
+function avisoAction(a){ return ({horarios:`go('chat')`, rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
 function avisosHoy(p){
   let h=notisCard()+escalasPendCard(p);
   const v=p.videoActiva, vOn = videoOn(p); if(vOn) h+=`<div class="aviso red"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b">Tu kine te invita a una videollamada</div><div class="xs muted">${esc(v.pro||'')} · ${relTs(v.ts)}</div></div><a class="btn pri sm" href="${safeUrl(v.url)}" target="_blank" rel="noopener">Unirme</a></div>`;
@@ -1769,12 +1772,12 @@ function renderMsgs(msgs, p){ const c=$('#chat-m'); if(!c) return; const h=miHil
   let last='';
   c.innerHTML=msgs.map(m=>{ const mine=m.senderRole===S.role, d=new Date(m.timestamp||0), day=iso(d); const sep= day!==last ? `<div class="xs muted center b" style="margin:10px 0 4px">${fmtDate(day)}</div>` : ''; last=day;
     const live = m.tipo==='video' && videoOn(prof(keyOf(p))||p) && (prof(keyOf(p))||p).videoActiva.url===m.url;
-    const body = m.tipo==='video' ? `<div class="vcall">${ic('video')}<div class="grow"><b>Videollamada</b><div class="xs" style="opacity:.7">${live?'En curso · toca para unirte':'Llamada finalizada'}</div></div>${live?`<a class="btn ${mine?'dark':'pri'} sm" href="${safeUrl(m.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Unirme</a>`:''}</div>` : esc(m.text);
+    const body = m.tipo==='rutina' ? chatRutinaHTML(m, mine) : m.tipo==='horarios' ? chatHorariosHTML(m, mine, p) : m.tipo==='cita' ? chatCitaHTML(m) : m.tipo==='video' ? `<div class="vcall">${ic('video')}<div class="grow"><b>Videollamada</b><div class="xs" style="opacity:.7">${live?'En curso · toca para unirte':'Llamada finalizada'}</div></div>${live?`<a class="btn ${mine?'dark':'pri'} sm" href="${safeUrl(m.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Unirme</a>`:''}</div>` : esc(m.text);
     return `${sep}<div class="bub ${mine?'me':'them'}" onclick="this.classList.toggle('sel')">${body}<time>${m.senderName&&!mine?esc(m.senderName)+' · ':''}${pad(d.getHours())}:${pad(d.getMinutes())}</time>${mine?`<button class="del" onclick="event.stopPropagation();delMsg(${q(keyOf(p))},${q(m.id)})" aria-label="Borrar">${ic('trash','s')}</button>`:''}</div>`; }).join('');
   c.scrollTop=c.scrollHeight; }
 function chatPane(p, title, sub, back, extra=''){ return `<div class="chat"><div class="chat-h">${back?`<button class="ibtn" onclick="${back}" aria-label="Volver">${ic('chevl')}</button>`:''}${title.av}<div class="grow"><div class="b trunc">${esc(title.name)}</div><div class="xs" style="color:var(--green);font-weight:600">${sub}</div></div>${extra}</div>
   <div class="chat-m" id="chat-m"><div class="empty" style="margin:auto">Cargando…</div></div>
-  <form class="chat-f" onsubmit="sendMsg(event,${q(keyOf(p))})"><input class="inp" id="chat-in" placeholder="Escribe un mensaje…" autocomplete="off"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`; }
+  <form class="chat-f" onsubmit="sendMsg(event,${q(keyOf(p))})">${S.role==='pro'?`<button type="button" class="ibtn" style="flex:none" onclick="sheetAdjuntar(${q(keyOf(p))})" aria-label="Enviar rutina u horarios">${ic('plus','s')}</button>`:''}<input class="inp" id="chat-in" placeholder="Escribe un mensaje…" autocomplete="off"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`; }
 /* Bandeja del profesional: un documento por conversación (profesional + persona), para avisarle de mensajes nuevos */
 const bandejaId = (proId, p) => `${proId}_${p.org||'sm'}_${normRut(p.rut)}`;
 function bandejaSet(p, m){ try{ const proId=miHilo(p); if(!proId) return; const pat=S.role==='pat';
@@ -1796,6 +1799,57 @@ function mensajesNuevosHTML(){ const L=noLeidos(); if(!L.length) return '<div id
   return `<div id="msgs-nuevos" class="stack" style="gap:8px"><div class="sec-t"><h2>Mensajes nuevos</h2><span class="badge acc">${L.length}</span></div>
   <div class="list">${L.slice(0,6).map(x=>{ const p=prof(x.key); return `<button class="li" onclick="pgo('mensajes',${q(x.key)})">${p?avatar(p,40):`<span class="ico">${ic('chat','s')}</span>`}<div class="grow" style="min-width:0"><div class="row between"><span class="b sm trunc">${esc(x.nombre)}</span><span class="xs muted">${relTs(x.ts)}</span></div><div class="sm muted trunc">${esc(x.texto)}</div></div><span style="width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none"></span></button>`; }).join('')}</div>
   ${'Notification' in window && Notification.permission!=='granted'?`<div class="aviso acc"><span class="ico">${ic('bell')}</span><div class="grow"><div class="b sm">Activa las notificaciones</div><div class="xs muted">Para que te avisemos aunque estés en otra pantalla.</div></div><button class="btn pri sm" onclick="pedirNotis()">Activar</button></div>`:''}</div>`; }
+/* ---- tarjetas en el chat: rutinas, horarios para elegir y confirmaciones de agenda ---- */
+const chatRutinaHTML = (m, mine) => `<div class="ccard"><div class="row" style="gap:8px"><span class="ico">${ic('dumbbell','s')}</span><div class="grow"><div class="xs" style="opacity:.75">${mine?'Enviaste una rutina':'Te envió una rutina'}</div><b>${esc(m.titulo||'Rutina')}</b><div class="xs" style="opacity:.75">${m.n||0} ejercicios${m.dias?` · ${esc(m.dias)}`:''}</div></div></div>${S.role==='pat'?`<button class="btn ${mine?'dark':'pri'} sm block" style="margin-top:8px" onclick="event.stopPropagation();S.planSeg='rutinas';go(perfilOf(me())==='rehabilitacion'?'plan':'entrenar')">Ver rutina</button>`:''}</div>`;
+function chatHorariosHTML(m, mine, p){ const el=m.elegida, pat=S.role==='pat';
+  return `<div class="ccard"><div class="row" style="gap:8px"><span class="ico">${ic('cal','s')}</span><div class="grow"><div class="xs" style="opacity:.75">${mine?'Propusiste horarios':'Horarios disponibles para ti'}</div><b>${esc(m.tipoSesion||'Sesión')}</b><div class="xs" style="opacity:.75">${esc(lugarLabel(m.lugar)||'')}</div></div></div>
+  <div class="stack" style="gap:6px;margin-top:8px">${(m.ops||[]).map((o,i)=>{ const d=parseISO(o.f), pas=citaTs({fecha:o.f, hora:o.h})<Date.now(); const on=el===i;
+    return `<button class="hopt ${on?'on':''}" ${pat && el==null && !pas?`onclick="event.stopPropagation();elegirHorario(${q(m.id)},${i})"`:'disabled'}><span>${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}</span><b>${esc(o.h)}</b>${on?ic('check','s'):''}</button>`; }).join('')}</div>
+  <div class="xs" style="opacity:.75;margin-top:6px">${el!=null?(pat?'Elegiste este horario. Tu profesional lo confirmará.':'Eligió este horario: está en tus solicitudes.'):(pat?'Toca el horario que te acomoda.':'Esperando que elija.')}</div></div>`; }
+const chatCitaHTML = m => `<div class="ccard"><div class="row" style="gap:8px"><span class="ico">${ic(m.estado==='cancelada'?'x':'check','s')}</span><div class="grow"><b>${esc(m.titulo||'Agenda')}</b><div class="xs" style="opacity:.8">${esc(m.detalle||'')}</div></div></div>${S.role==='pat'?`<button class="btn dark sm block" style="margin-top:8px" onclick="event.stopPropagation();go('agenda')">Ver mi agenda</button>`:''}</div>`;
+window.sheetAdjuntar = k => { const p=prof(k); if(!p) return;
+  sheet(`<h2 class="disp h2">Enviar a ${esc(first(p.nombre))}</h2><div class="stack" style="margin-top:14px">
+  <button class="li card" onclick="adjHorarios(${q(k)})"><span class="ico">${ic('cal','s')}</span><div class="grow"><div class="b">Proponer horarios</div><div class="xs muted">Elige una o varias horas; la persona toca la que le acomoda y te llega como solicitud.</div></div>${ic('chevr','s chev')}</button>
+  <button class="li card" onclick="adjRutina(${q(k)})"><span class="ico">${ic('dumbbell','s')}</span><div class="grow"><div class="b">Enviar una rutina</div><div class="xs muted">De tu biblioteca. Le queda asignada y la ve en el chat y en su Inicio.</div></div>${ic('chevr','s chev')}</button></div>`); };
+window.adjRutina = async k => { S.adjK=k; sheet(`<h2 class="disp h2">Enviar rutina</h2><div class="empty">Cargando…</div>`); await loadPlantillas(); await plBackfill(); adjRutinaRender(); };
+function adjRutinaRender(){ const t=(S.adjQ||'').toLowerCase(), L=(S.plantillas||[]).filter(x=>!t || String(x.titulo).toLowerCase().includes(t)).slice(0,40), el=$('#sheet .sheet'); if(!el) return;
+  el.innerHTML=`<div class="grab"></div><h2 class="disp h2">Enviar rutina</h2><div class="searchbox" style="margin-top:12px">${ic('search','s')}<input class="inp" id="adj-q" placeholder="Buscar rutina…" value="${esc(S.adjQ||'')}" oninput="S.adjQ=this.value;clearTimeout(window._adjT);window._adjT=setTimeout(()=>{adjRutinaRender();const i=$('#adj-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250)"></div>
+  <div class="list" style="margin-top:12px">${L.map(x=>`<button class="li" onclick="enviarRutinaChat(${q(x.id)})"><span class="ico" style="${x.destacada?'color:var(--yellow)':''}">${x.destacada?'★':ic('dumbbell','s')}</span><div class="grow" style="min-width:0"><div class="b sm trunc">${esc(x.titulo)}</div><div class="xs muted">${plResumen(x)}</div></div>${ic('send','s')}</button>`).join('')||'<div class="empty">No hay rutinas en la biblioteca. Créalas en la pestaña Rutinas.</div>'}</div>`; }
+window.adjRutinaRender = adjRutinaRender;
+window.enviarRutinaChat = async id => { const x=(S.plantillas||[]).find(y=>y.id===id), p=prof(S.adjK); if(!x||!p) return;
+  const nr={id:uid(), creador:'pro', pro:S.pro.nombre, desdeBiblioteca:id, titulo:x.titulo, fecha:todayISO(), tiempo:x.tiempo||'', ejercicios:plLimpia(x.ejercicios).map(e=>({...e, hecho:false})), completada:false};
+  p.rutinasAsignadas=p.rutinasAsignadas||[]; p.rutinasAsignadas.push(nr); addAviso(p,'rutina',`Nueva rutina cargada: ${x.titulo}`);
+  if(!(await save(p))) return; x.usos=(x.usos||1)+1; try{ S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',id), {usos:x.usos, ultimoUso:todayISO()}, {merge:true}); }catch(e){}
+  await postMsg(p, {tipo:'rutina', text:`Te envié la rutina "${x.titulo}"`, titulo:x.titulo, rid:nr.id, n:nr.ejercicios.length}); closeSheet(); toast('Rutina enviada por el chat'); };
+window.adjHorarios = k => { S.adjK=k; const a=agendaOf(S.pro.id)||myAgenda(), pls=placesOf(a), svcs=svcsAg(a), tipos=svcs.length?svcs.map(x=>x.nombre):(servAg(a)==='oral'?TIPOS_ORAL:TIPOS_CITA), p=prof(k);
+  const ult=(p.citas||[]).filter(c=>c.estado!=='cancelada').sort((x,y)=>citaTs(y)-citaTs(x))[0];
+  const sug=[]; if(hasSlots(a)) for(let i=0;i<14 && sug.length<12;i++){ const d=new Date(); d.setDate(d.getDate()+i); const f=iso(d); freeSlots(a,f,null,ult?.lugar||pls[0]?.code).filter(x=>x.h.endsWith(':00')).slice(0,3).forEach(x=>sug.length<12 && sug.push([f,x.h])); }
+  sheet(`<h2 class="disp h2">Proponer horarios</h2><p class="sm muted" style="margin-top:6px">${esc(first(p.nombre))} elige uno y te llega como solicitud. Tú la confirmas después.</p><div class="stack" style="margin-top:14px">
+  <div class="grid2"><label class="field"><span class="lbl">Tipo de sesión</span><select class="inp" id="ah-t">${tipos.map(t=>`<option ${ult&&ult.tipo===t?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+  <label class="field"><span class="lbl">Lugar</span><select class="inp" id="ah-l">${pls.map(pl=>`<option value="${esc(pl.code)}" ${ult&&ult.lugar===pl.code?'selected':''}>${esc(pl.label)}</option>`).join('')}</select></label></div>
+  ${sug.length?`<div><div class="lbl">Tus horas libres (toca para agregar)</div><div class="pills" style="flex-wrap:wrap;margin-top:6px">${sug.map(([f,h])=>{ const d=parseISO(f); return `<button class="pill" onclick="ahAdd('${f}','${h}');this.classList.add('on')">${DOW[d.getDay()]} ${d.getDate()} · ${h}</button>`; }).join('')}</div></div>`:''}
+  <div class="lbl">Horarios a proponer</div><div id="ah-rows" class="stack" style="gap:6px"></div>
+  <button class="btn sec block" onclick="ahAdd()">${ic('plus','s')} Agregar otro horario</button>
+  <button class="btn pri block" onclick="enviarHorarios()">${ic('send','s')} Enviar por el chat</button></div>`); if(!sug.length) ahAdd(); };
+window.ahAdd = (f, h) => { const box=$('#ah-rows'); if(!box) return; if(f && [...box.querySelectorAll('.ah-r')].some(r=>r.querySelector('.ah-f').value===f && r.querySelector('.ah-h').value===h)) return;
+  box.insertAdjacentHTML('beforeend', `<div class="row ah-r" style="gap:6px"><input class="inp ah-f" type="date" value="${f||''}" min="${todayISO()}"><input class="inp ah-h" type="time" value="${h||''}" step="900"><button class="ibtn red" onclick="this.closest('.ah-r').remove()">${ic('x','s')}</button></div>`); };
+window.enviarHorarios = async () => { const p=prof(S.adjK); const ops=[...document.querySelectorAll('#ah-rows .ah-r')].map(r=>({f:r.querySelector('.ah-f').value, h:r.querySelector('.ah-h').value})).filter(o=>o.f&&o.h).sort((a,b)=>(a.f+a.h).localeCompare(b.f+b.h));
+  if(!ops.length) return toast('Agrega al menos un horario','err'); const a=agendaOf(S.pro.id)||myAgenda();
+  addAviso(p,'horarios',`${S.pro.nombre} te propuso ${ops.length===1?'un horario':ops.length+' horarios'}. Elige el que te acomode en Mensajes.`); await save(p);
+  await postMsg(p, {tipo:'horarios', text:`Te propuse ${ops.length===1?'un horario':ops.length+' horarios'} para tu próxima sesión. Elige el que te acomode.`, ops, tipoSesion:val('ah-t'), lugar:val('ah-l'), proId:S.pro.id, pro:a?.nombre||S.pro.nombre, servicio:servAg(a)});
+  closeSheet(); toast('Horarios enviados'); };
+window.elegirHorario = async (mid, i) => { const p=me(), m=(S.chatMsgs||[]).find(x=>x.id===mid); if(!p||!m||m.elegida!=null) return; const o=m.ops[i], d=parseISO(o.f);
+  if(!confirm(`¿Te acomoda el ${fmtLong(d)} a las ${o.h}?`)) return;
+  const cen = String(m.lugar||'').startsWith('C:') ? centroById(m.lugar.slice(2)) : null, previa=(p.citas||[]).some(c=>c.lugar==='Domicilio' && (c.estado==='realizada' || c.pago?.estado==='pagado'));
+  const pago = m.servicio==='oral' ? {requerido:true, estado:'pendiente', link:agendaOf(m.proId)?.pagoLink||''} : (m.lugar==='Domicilio' && !previa) || m.lugar==='Online' ? {requerido:true, estado:'pendiente', link:agendaOf(m.proId)?.pagoLink||'', medio:'transferencia'} : null;
+  const c={id:uid(), servicio:m.servicio||'kine', tipo:m.tipoSesion||'Sesión', lugar:m.lugar, lugarNombre:lugarLabel(m.lugar), proId:m.proId, pro:m.pro, fecha:o.f, hora:o.h, bloque:'', direccion:m.lugar==='Domicilio'?(p.direccion||''):(cen?.direccion||''), motivo:'Horario elegido en el chat', nota:'', estado:'solicitada', creadaPor:'persona', creada:Date.now(), desdeChat:mid, pago};
+  p.citas=p.citas||[]; p.citas.push(c); marcarSeguimiento(p, true, 'Eligió un horario en el chat', 'la persona');
+  if(!(await save(p))) return;
+  try{ await S.fb.setDoc(S.fb.doc(chatColl(p), mid), {elegida:i, citaId:c.id}, {merge:true}); }catch(e){}
+  S.hilo=m.proId; await postMsg(p, {text:`Elijo el ${DOW[d.getDay()].toLowerCase()} ${d.getDate()} de ${MON[d.getMonth()].toLowerCase()} a las ${o.h} ✅`});
+  toast('¡Listo! Tu profesional confirmará la hora'); };
+/* confirmaciones y cambios de agenda también llegan al chat */
+function avisarCitaChat(p, c, titulo, detalle, estado){ try{ const S0=S.hilo; postMsg(p, {tipo:'cita', text:`${titulo}: ${detalle}`, titulo, detalle, estado:estado||c.estado, citaId:c.id}); }catch(e){} }
 async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
 window.sendMsg = async (e, k) => { e.preventDefault(); const t=val('chat-in'); if(!t) return; $('#chat-in').value=''; await postMsg(prof(k), {text:t}); };
 window.delMsg = async (k,id) => { if(!confirm('¿Eliminar este mensaje?')) return; try{ await S.fb.deleteDoc(S.fb.doc(chatColl(prof(k)), id)); }catch(e){} };
@@ -3556,7 +3610,9 @@ window.guardarCita = async id => {
   const when=`${fmtDate(f)} a las ${h} · ${lugarLabel(c)}${c.direccion&&c.lugar!=='Domicilio'?` (${c.direccion})`:''}`;
   (p.avisos||[]).forEach(x=>{ if(x.tipo==='cita') x.leido=true; });
   addAviso(p,'cita', wasReq?`¡Tu hora fue confirmada! ${c.tipo}, ${when}` : moved?`Tu sesión fue reprogramada: ${when}` : id?`Tu sesión fue actualizada: ${when}` : `Tienes una sesión de ${c.tipo}: ${when}`);
-  if(await save(p)){ closeSheet(); toast(wasReq?'Hora confirmada y avisada':'Sesión agendada y avisada'); keepScroll(render); } };
+  if(await save(p)){ closeSheet(); toast(wasReq?'Hora confirmada y avisada':'Sesión agendada y avisada');
+    if(c.proId===S.pro.id) avisarCitaChat(p, c, wasReq?'Hora confirmada':moved?'Sesión reprogramada':id?'Sesión actualizada':'Nueva sesión agendada', `${c.tipo} · ${fmtLong(parseISO(f))} a las ${h} · ${lugarLabel(c)}`, 'confirmada');
+    keepScroll(render); } };
 window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.citas.find(x=>x.id===id);
   if(est==='cancelada' && !confirm(c.estado==='solicitada'?'¿Rechazar esta solicitud? La persona recibirá un aviso.':'¿Cancelar esta sesión? La persona recibirá un aviso.')) return;
   const pagada = c.pago && c.pago.estado==='pagado' && c.estado==='confirmada';
@@ -3565,6 +3621,7 @@ window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.cit
       if(confirm(`La hora estaba pagada. Según las condiciones corresponde reembolsar el ${pc} %${mo?` ($${Math.round(mo*pc/100).toLocaleString('es-CL')})`:''}. ¿Registrar el reembolso?`)){ c.pago.estado='reembolsado'; c.pago.reembolso=Math.round(mo*pc/100); c.pago.reembolsoPct=pc; txt+=` Se reembolsará el ${pc} % de lo pagado${mo?` ($${c.pago.reembolso.toLocaleString('es-CL')})`:''}.`; } }
     addAviso(p,'cita', txt+' Escríbenos para reagendar.'); }
   if(!(await save(p))) return; closeSheet(); toast(est==='realizada'?'Marcada como realizada':'Cancelada');
+  if(est==='cancelada' && c.proId===S.pro.id) avisarCitaChat(p, c, c.hora?'Sesión cancelada':'Solicitud no confirmada', `${c.tipo||'Sesión'} · ${fmtDate(c.fecha)}${c.hora?` a las ${c.hora}`:''}. Escríbeme para reagendar.`, 'cancelada');
   if(est==='realizada' && isOdonto()){ S.proArg=k; if(isPending(p)) await habilitarOral(); sheetAtencion(); return; }
   if(est==='realizada' && isPending(p)){ S.proArg=k; sheetHabilitar(true); } else keepScroll(render); };
 

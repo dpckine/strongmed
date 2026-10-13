@@ -4113,16 +4113,24 @@ function vKinIA(){
     <form class="kin kbar" onsubmit="event.preventDefault();kiaSend(document.getElementById('kia-in').value)"><input class="inp" id="kia-in" placeholder="Escribe tu pregunta…" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`;
 }
 window.kiaSend = async txt => { const t=String(txt ?? document.getElementById('kia-in')?.value ?? '').trim(); if(!t) return; S.kia=S.kia||{msgs:[]}; S.kia.msgs.push({me:true, text:t}, {wait:true}); if(S.role==='pat') S.patTab='faq'; else S.proTab='faq'; render();
-  const [a]=await Promise.all([kiaAnswer(t), new Promise(r=>setTimeout(r,450))]); S.kia.msgs.pop(); S.kia.msgs.push(a); if(S.kia.msgs.length>40) S.kia.msgs=S.kia.msgs.slice(-40); render(); setTimeout(()=>$('#kia-in')?.focus(),50); };
+  const [a]=await Promise.all([kiaAnswer(t), new Promise(r=>setTimeout(r,450))]); S.kia.msgs.pop(); S.kia.msgs.push(a);
+  if(a && a.no && t.length>=6){ try{ const id=String(uid()); S.fb.setDoc(S.fb.doc(S.dbs.sm,'kia_preguntas',id), {id, texto:t.slice(0,300), ts:Date.now(), rol:S.role, org:(S.role==='pat'?me()?.org:S.pro?.org)||'sm'}).catch(()=>{}); }catch(e){} } if(S.kia.msgs.length>40) S.kia.msgs=S.kia.msgs.slice(-40); render(); setTimeout(()=>$('#kia-in')?.focus(),50); };
 function kiaPreview(){ return `<section class="card stack kiacard"><div class="row"><span class="ico">${ic('spark')}</span><div class="grow"><div class="b">Pregúntale a KIN IA</div><div class="xs muted">Series, descansos, cargas, pasos, ejercicios…</div></div></div>
   <form class="kin" onsubmit="event.preventDefault();const v=document.getElementById('kia-hoy').value.trim();v?kiaSend(v):go('faq')"><input class="inp" id="kia-hoy" placeholder="¿Cuántas series para hipertrofia?" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Preguntar">${ic('chevr','s')}</button></form>
   <button type="button" class="btn sec sm block" onclick="go('faq')">${ic('spark','s')} Abrir KIN IA en pantalla completa</button></section>`; }
+async function loadKiaPend(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'kia_preguntas')); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.kiaPend=a.sort((x,y)=>(y.ts||0)-(x.ts||0)); }catch(e){ S.kiaPend=[]; } }
+window.responderPend = id => { const x=(S.kiaPend||[]).find(y=>y.id===id); if(!x) return; S.kiaPendId=id; sheetFAQ(); setTimeout(()=>{ const p=$('#fq-p'); if(p) p.value=x.texto; $('#fq-r')?.focus(); },60); };
+window.descartarPend = async id => { if(await fsDel('kia_preguntas', id)){ S.kiaPend=(S.kiaPend||[]).filter(y=>y.id!==id); keepScroll(render); } };
 function kiaTrain(){
-  const qa=(S.faq||[]).filter(f=>f.tipo!=='texto'), tx=(S.faq||[]).filter(f=>f.tipo==='texto');
+  if(!S._kiaPendLoaded){ S._kiaPendLoaded=true; S.after.push(async()=>{ await loadKiaPend(); keepScroll(render); }); }
+  const qa=(S.faq||[]).filter(f=>f.tipo!=='texto'), tx=(S.faq||[]).filter(f=>f.tipo==='texto'), pend=S.kiaPend||[];
   return `<div class="stack"><div class="note">${ic('info','s')}<span>Todo lo que agregues aquí lo usa KIN IA para responder a las personas y profesionales de StrongMed y Kin At Home. Si no encuentra la información, responde: “${esc(KIA_NO)}”.</span></div>
-  <div class="grid2"><button class="btn pri" onclick="sheetFAQ()">${ic('plus','s')} Pregunta y respuesta</button><button class="btn sec" onclick="sheetApunte()">${ic('file','s')} Agregar apuntes</button></div>
+  <div class="xs muted">${ic('users','s')} Pueden entrenarla todos los profesionales de StrongMed y Kin At Home. Cada respuesta muestra quién la agregó.</div>
+  <div class="grid2"><button class="btn pri" onclick="S.kiaPendId=null;sheetFAQ()">${ic('plus','s')} Pregunta y respuesta</button><button class="btn sec" onclick="sheetApunte()">${ic('file','s')} Agregar apuntes</button></div>
+  ${pend.length?`<div class="sec-t"><h2>Preguntas sin respuesta</h2><span class="badge orange">${pend.length}</span></div><div class="xs muted" style="margin-top:-6px">Cosas que preguntaron y KIN IA no supo responder. Respóndelas y aprenderá.</div>
+  <div class="list">${pend.slice(0,25).map(x=>`<div class="li"><span class="ico orange">${ic('help','s')}</span><div class="grow"><div class="sm b">${esc(x.texto)}</div><div class="xs muted">${relTs(x.ts)} · ${x.rol==='pat'?'paciente':'profesional'}${x.org==='kah'?' · Kin At Home':''}</div></div><button class="btn pri sm" onclick="responderPend(${q(x.id)})">Responder</button><button class="ibtn" onclick="descartarPend(${q(x.id)})" aria-label="Descartar">${ic('x','s')}</button></div>`).join('')}</div>`:''}
   <div class="sec-t"><h2>Respuestas del equipo (${qa.length})</h2></div>
-  ${qa.length?`<div class="list">${qa.map(f=>`<details class="faq"><summary>${ic('help','s')}<span class="grow">${esc(f.pregunta)}</span>${ic('chevr','s')}</summary><div class="ans">${kiaHtml(f.respuesta)}${f.claves?`<div class="xs muted" style="margin-top:8px">Palabras clave: ${esc(f.claves)}</div>`:''}<div class="row" style="gap:8px;margin-top:12px"><button class="btn sec sm" onclick="sheetFAQ(${q(f.id)})">${ic('edit','s')} Editar</button><button class="btn danger sm" onclick="borrarFAQ(${q(f.id)})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no agregas respuestas propias.</div>`}
+  ${qa.length?`<div class="list">${qa.map(f=>`<details class="faq"><summary>${ic('help','s')}<span class="grow">${esc(f.pregunta)}</span>${ic('chevr','s')}</summary><div class="ans">${kiaHtml(f.respuesta)}${f.claves?`<div class="xs muted" style="margin-top:8px">Palabras clave: ${esc(f.claves)}</div>`:''}${f.autor?`<div class="xs muted" style="margin-top:4px">Agregada por ${esc(f.autor)}${f.fecha?` · ${fmtDate(f.fecha)}`:''}${f.editadoPor&&f.editadoPor!==f.autor?` · editada por ${esc(f.editadoPor)}`:''}</div>`:''}<div class="row" style="gap:8px;margin-top:12px"><button class="btn sec sm" onclick="sheetFAQ(${q(f.id)})">${ic('edit','s')} Editar</button><button class="btn danger sm" onclick="borrarFAQ(${q(f.id)})">${ic('trash','s')} Eliminar</button></div></div></details>`).join('')}</div>`:`<div class="card empty">Aún no agregas respuestas propias.</div>`}
   <div class="sec-t"><h2>Apuntes (${tx.length})</h2></div>
   ${tx.length?`<div class="list">${tx.map(f=>`<div class="li"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">${esc(f.pregunta)}</div><div class="xs muted">${String(f.respuesta||'').length.toLocaleString('es-CL')} caracteres · ${esc(f.autor||'')}</div></div><button class="ibtn" onclick="sheetApunte(${q(f.id)})">${ic('edit','s')}</button><button class="ibtn red" onclick="borrarFAQ(${q(f.id)})">${ic('trash','s')}</button></div>`).join('')}</div>`:`<div class="card empty">Pega aquí tus apuntes, guías o protocolos y KIN IA buscará en ellos.</div>`}
   <div class="sec-t"><h2>Base inicial (${KIA_BASE.length} temas)</h2></div><div class="pills" style="flex-wrap:wrap">${KIA_BASE.map(b=>`<span class="pill">${esc(b.t)}</span>`).join('')}</div></div>`;
@@ -4134,8 +4142,9 @@ window.sheetFAQ = id => { const f=S.faq.find(x=>String(x.id)===String(id))||{};
   <label class="field"><span class="lbl">Respuesta</span><textarea class="inp" id="fq-r" rows="7">${esc(f.respuesta||'')}</textarea></label>
   <button class="btn pri block" onclick="guardarFAQ(${q(f.id||'')})">Guardar</button></div>`); };
 window.guardarFAQ = async id => { const p=val('fq-p'), r=val('fq-r'); if(!p||!r) return toast('Completa pregunta y respuesta','err');
-  const doc={id:id||String(uid()), tipo:'qa', pregunta:p, claves:val('fq-k'), respuesta:r, orden:0, autor:S.pro.nombre, fecha:todayISO()};
-  if(await fsSet('faq', doc.id, doc)){ await loadFAQ(); closeSheet(); toast('KIN IA aprendió esta respuesta'); render(); } };
+  const prev=id?S.faq.find(x=>String(x.id)===String(id)):null;
+  const doc={id:id||String(uid()), tipo:'qa', pregunta:p, claves:val('fq-k'), respuesta:r, orden:0, autor:prev?.autor||S.pro.nombre, fecha:prev?.fecha||todayISO(), ...(prev?{editadoPor:S.pro.nombre, editado:todayISO()}:{})};
+  if(await fsSet('faq', doc.id, doc)){ if(S.kiaPendId){ await fsDel('kia_preguntas', S.kiaPendId); S.kiaPend=(S.kiaPend||[]).filter(y=>y.id!==S.kiaPendId); S.kiaPendId=null; } await loadFAQ(); closeSheet(); toast('KIN IA aprendió esta respuesta'); render(); } };
 window.sheetApunte = id => { const f=S.faq.find(x=>String(x.id)===String(id))||{};
   sheet(`<h2 class="disp h2">${f.id?'Editar':'Agregar'} apuntes</h2><p class="muted sm" style="margin-top:6px">Pega texto de tus guías, protocolos o apuntes. KIN IA responderá con las frases más relacionadas a cada pregunta.</p><div class="stack" style="margin-top:14px">
   <label class="field"><span class="lbl">Título</span><input class="inp" id="ap-t" value="${esc(f.pregunta||'')}" placeholder="Ej: Protocolo LCA fase 2"></label>
@@ -4144,7 +4153,8 @@ window.sheetApunte = id => { const f=S.faq.find(x=>String(x.id)===String(id))||{
   <button class="btn pri block" onclick="guardarApunte(${q(f.id||'')})">Guardar</button></div>`); };
 window.apunteTxt = e => { const fl=e.target.files[0]; if(!fl) return; const r=new FileReader(); r.onload=()=>{ $('#ap-x').value=String(r.result).slice(0,90000); if(!val('ap-t')) $('#ap-t').value=fl.name.replace(/\.txt$/i,''); }; r.readAsText(fl); };
 window.guardarApunte = async id => { const t=val('ap-t'), x=val('ap-x'); if(!t||x.length<30) return toast('Escribe un título y el texto','err');
-  const doc={id:id||String(uid()), tipo:'texto', pregunta:t, respuesta:x.slice(0,90000), autor:S.pro.nombre, fecha:todayISO()};
+  const prev=id?S.faq.find(y=>String(y.id)===String(id)):null;
+  const doc={id:id||String(uid()), tipo:'texto', pregunta:t, respuesta:x.slice(0,90000), autor:prev?.autor||S.pro.nombre, fecha:prev?.fecha||todayISO(), ...(prev?{editadoPor:S.pro.nombre, editado:todayISO()}:{})};
   if(await fsSet('faq', doc.id, doc)){ await loadFAQ(); closeSheet(); toast('Apuntes guardados'); render(); } };
 window.borrarFAQ = async id => { if(!confirm('¿Eliminar este contenido de KIN IA?')) return; if(await fsDel('faq', id)){ await loadFAQ(); render(); } };
 

@@ -1441,7 +1441,7 @@ function vPlan(p){
   return h+'</div>';
 }
 function misInformesHTML(p){ const inf=(p.informes||[]).filter(i=>i.enviado).slice().reverse(); if(!inf.length) return '';
-  return `<div class="sec-t"><h2>Mis informes</h2></div><div class="list">${inf.map(i=>`<div class="li"><span class="ico">${ic('file','s')}</span><button class="grow" style="text-align:left" onclick="verMiInforme(${q(i.id)})"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'kinesiológico'}</div><div class="xs muted">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</div></button><button class="btn pri sm" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} PDF</button></div>`).join('')}</div>`; }
+  return `<div class="sec-t"><h2>Mis informes</h2></div><div class="list">${inf.map(i=>`<div class="li"><span class="ico">${ic('file','s')}</span><button class="grow" style="text-align:left" onclick="verMiInforme(${q(i.id)})"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':i.servicio==='oral'?'odontológico':'kinesiológico'}${i.servicio==='oral'&&i.tipo==='alta'?' odontológica':''}</div><div class="xs muted">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</div></button><button class="btn pri sm" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} PDF</button></div>`).join('')}</div>`; }
 function fichasHTML(p){
   const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length).reverse();
   return escalasPendCard(p) + misInformesHTML(p) + tratAnterioresHTML(p,false) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).filter(r=>!String(r).includes('data-pro')).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
@@ -2162,7 +2162,7 @@ async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.b
 function shellPro(){
   const t=S.proTab, act=(t==='persona'||t==='evaluar'||t==='informe')?'personas':t;
   const views={reportes:vReportes, inicio:vProInicio, personas:vPersonas, nueva:vNueva, persona:vPersona, evaluar:vEvaluar, agenda:vAgendaPro, mensajes:vMensajes, mas:vMas, faq:vKinIA, biblioteca:vLib, profesionales:vProfesionales, ajustes:vAjustes, herramientas:vTools, rutinas:vRutinasPro, informe:vInforme, uso:vUso};
-  const od=isOdonto(); if(od){ Object.assign(views,{inicio:vOralInicio, nueva:vNuevaOral}); if(['herramientas','rutinas','faq','biblioteca','evaluar','informe','profesionales'].includes(t)) S.proTab='inicio'; }
+  const od=isOdonto(); if(od){ Object.assign(views,{inicio:vOralInicio, nueva:vNuevaOral}); if(['herramientas','rutinas','faq','biblioteca','evaluar','profesionales'].includes(t)) S.proTab='inicio'; }
   const body=(views[S.proTab]||vProInicio)();
   const nav=[['inicio','home','Inicio'],['personas','users',od?'Pacientes':'Personas'],['nueva','plus','Nueva'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']];
   const side= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['ajustes','sliders','Ajustes']]
@@ -2506,7 +2506,7 @@ function pClinico(p){
   <section class="card stack"><div class="row between"><span class="b">Tareas en casa</span><button class="btn ghost sm" onclick="nuevaTarea()">${ic('plus','s')} Tarea</button></div>
     ${ts.length?`<div class="stack" style="gap:6px">${ts.map(t=>`<div class="ex"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span><button class="ibtn red" onclick="borrarTarea(${q(t.id)})" aria-label="Eliminar">${ic('x','s')}</button></div>`).join('')}</div>`:'<div class="xs muted">Sin tareas asignadas.</div>'}</section>
   <div class="sec-t"><h2>Informes</h2><button class="btn ghost sm" onclick="pgo('informe',${q(k)})">${ic('plus','s')} Informe</button></div>
-  ${(p.informes||[]).length?`<div class="list">${p.informes.slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'de inicio'} · ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}${i.enviado?` · enviado al paciente ${fmtDate(i.enviadoFecha)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
+  ${(p.informes||[]).filter(i=>i.servicio!=='oral').length?`<div class="list">${p.informes.filter(i=>i.servicio!=='oral').slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(k)});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'de inicio'} · ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}${i.enviado?` · enviado al paciente ${fmtDate(i.enviadoFecha)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:''}
   ${escalasCard(p)}
   ${tratAnterioresHTML(p,true)}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
@@ -2602,7 +2602,7 @@ window.sheetPro = id => { const x=S.pros.find(y=>y.id===id)||{org:'sm', activo:t
 window.sheetAgendaBuiltin = id => { const ag=agendaOf(id);
   sheet(`<h2 class="disp h2">${esc(ag.nombre)}</h2><div class="stack" style="margin-top:16px">${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(id)})">Guardar</button></div>`); };
 const agendaFields = ag => `<label class="field"><span class="lbl">Mi nombre (como lo ven los pacientes y en los informes)</span><input class="inp" id="ag-n" value="${esc(ag.nombre||'')}" placeholder="Ej: David Ponce Caro"></label>
-  <label class="field"><span class="lbl">Título en la firma de informes</span><input class="inp" id="ag-tf" value="${esc(ag.tituloFirma??'Kinesiólogo')}" placeholder="Kinesiólogo · Klgo. · Dra. (o vacío)"></label>
+  <label class="field"><span class="lbl">Título en la firma de informes</span><input class="inp" id="ag-tf" value="${esc(ag.tituloFirma??(servAg(ag)==='oral'?'Cirujano dentista Dra.':'Kinesiólogo'))}" placeholder="Kinesiólogo · Klgo. · Dra. (o vacío)"></label>
   <label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
   <div class="grid2"><label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="ag-r" value="${esc(ag.rut||'')}"></label><label class="field"><span class="lbl">Link de pago</span><input class="inp" id="ag-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label></div>
   <label class="field"><span class="lbl">WhatsApp para pacientes (opcional)</span><input class="inp" id="ag-w" inputmode="tel" value="${esc(ag.whatsapp||'')}" placeholder="+56 9 …"></label>
@@ -3791,11 +3791,39 @@ window.tFC = () => { const e=+val('t4-e'), r=+val('t4-r'), o=$('#t4-o'); if(!e){
 
 /* ================= INFORME (solo profesionales, editable) ================= */
 const stripTags = s => String(s).replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-const firmaNombre = ag => { const t=(ag.tituloFirma??'Kinesiólogo').trim(), n=String(ag.nombre||S.pro.nombre||'').trim(); return t ? `${t} ${n.replace(/^(Klg[oa]\.|Kinesi[oó]log[oa]|Dra?\.)\s*/i,'')}` : n; };
+const firmaNombre = ag => { const t=(ag.tituloFirma??(servAg(ag)==='oral'||ag.id==='b-oral'||isOdonto()?'Cirujano dentista Dra.':'Kinesiólogo')).trim(), n=String(ag.nombre||S.pro.nombre||'').trim(); return t ? `${t} ${n.replace(/^(Klg[oa]\.|Kinesi[oó]log[oa]|Dra?\.)\s*/i,'')}` : n; };
 /* fechas de atención: sesiones registradas + citas realizadas */
 function fechasAtencion(p){ const ini=p.tratInicio||''; const set=new Set([...(p.sesionesRehab||[]).map(x=>toISO(x.fecha)), ...(p.citas||[]).filter(c=>c.estado==='realizada' && toISO(c.fecha)>=ini).map(c=>toISO(c.fecha))].filter(Boolean)); return [...set].sort(); }
 const fCL = d => { const x=parseISO(d); return `${String(x.getDate()).padStart(2,'0')}-${String(x.getMonth()+1).padStart(2,'0')}-${x.getFullYear()}`; };
 /* informe de alta / final (formato Sebastián) */
+/* ---- informes odontológicos ---- */
+function oralAtTabla(ats){ return ats.length ? `<table class="pres"><tr><th>Fecha</th><th>Tratamiento</th><th>Pieza / zona</th></tr>${ats.map(a=>`<tr><td>${esc(fCL(a.fecha))}</td><td>${esc(a.tratamiento||'')}</td><td>${esc(a.zona||'—')}</td></tr>`).join('')}</table>` : ''; }
+function informeOral(p){ const o=p.oral||{}, a=o.anamnesis||{}, pl=o.plan||{}, ats=(o.atenciones||[]).slice().sort((x,y)=>String(x.fecha).localeCompare(String(y.fecha))), ag=agendaOf(S.pro.id)||{}, E=s=>esc(s||''), pr=o.presupuesto;
+  return `<h1>INFORME ODONTOLÓGICO</h1>
+<h2>ANTECEDENTES DEL PACIENTE</h2>
+<table class="ap"><tr><td>Nombre</td><td>: ${E(p.nombre)}</td></tr><tr><td>RUT</td><td>: ${E(p.rut)}</td></tr><tr><td>Edad</td><td>: ${E(p.edad||'—')} años</td></tr><tr><td>Fecha informe</td><td>: ${new Date().toLocaleDateString('es-CL')}</td></tr></table>
+<p><b>Motivo de consulta:</b> ${E(a.motivo||'[Motivo de consulta]')}</p>
+${a.antecedentes?`<p><b>Antecedentes médicos:</b> ${E(a.antecedentes)}</p>`:''}${a.medicamentos?`<p><b>Medicamentos:</b> ${E(a.medicamentos)}</p>`:''}${a.alergias?`<p><b>Alergias:</b> ${E(a.alergias)}</p>`:''}${a.habitos?`<p><b>Hábitos:</b> ${E(a.habitos)}</p>`:''}
+<p><b>Examen clínico:</b> ${E(a.examen||'[Hallazgos del examen clínico]')}</p>
+<p><b>Diagnóstico:</b> ${E(a.diagnostico||'[Diagnóstico]')}</p>
+<p><b>Plan de tratamiento:</b> ${E(pl.tratamiento||'[Plan de tratamiento]')}${pl.detalle?`. ${E(pl.detalle)}`:''}${pl.sesiones?` Se proyectan ${E(pl.sesiones)} sesiones.`:''}</p>
+${ats.length?`<p><b>Atenciones realizadas a la fecha (${ats.length}):</b></p>${oralAtTabla(ats)}`:''}
+${pr&&(pr.items||[]).length?`<p><b>Presupuesto:</b> ${clp(presTotal(pr))}${pr.estado==='aceptado'?' (aceptado)':''}.</p>`:''}
+<p>[Observaciones y sugerencias.]</p>
+<p class="c"><b>Se extiende el presente informe a solicitud del/la paciente para los fines que estime conveniente.</b></p>
+<p class="sig"><b>${E(firmaNombre(ag))}</b><br><b>RUT: ${E(ag.rut||'—')}</b></p>`; }
+function informeOralAlta(p){ const o=p.oral||{}, a=o.anamnesis||{}, pl=o.plan||{}, ats=(o.atenciones||[]).slice().sort((x,y)=>String(x.fecha).localeCompare(String(y.fecha))), ag=agendaOf(S.pro.id)||{}, E=s=>esc(s||''), recs=(o.tareas||[]).filter(t=>t.tipo==='recomendacion');
+  return `<h1>INFORME DE ALTA ODONTOLÓGICA</h1>
+<h2>ANTECEDENTES DEL PACIENTE</h2>
+<table class="ap"><tr><td>Nombre</td><td>: ${E(p.nombre)}</td></tr><tr><td>RUT</td><td>: ${E(p.rut)}</td></tr><tr><td>Edad</td><td>: ${E(p.edad||'—')} años</td></tr><tr><td>Fecha alta</td><td>: ${new Date().toLocaleDateString('es-CL')}</td></tr></table>
+<p><b>Diagnóstico inicial:</b> ${E(a.diagnostico||a.motivo||'[Diagnóstico]')}</p>
+<p><b>Tratamiento:</b> ${E(pl.tratamiento||'[Tratamiento realizado]')}${o.tratInicio?`, iniciado el ${fCL(o.tratInicio)}`:''}.</p>
+${ats.length?`<p class="c"><b>Atenciones realizadas (${ats.length})</b></p>${oralAtTabla(ats)}`:''}
+<p><b>Estado al alta:</b> [Describe el estado bucal final del paciente.]</p>
+<p><b>Indicaciones y controles:</b> ${recs.length?E(recs.map(r=>r.texto).join('. '))+'. ':''}[Frecuencia de controles, higiene, indicaciones.]</p>
+<p>Paciente finaliza satisfactoriamente su tratamiento odontológico y se otorga el alta.</p>
+<p class="c"><b>Se extiende el presente informe a solicitud del/la paciente para los fines que estime conveniente.</b></p>
+<p class="sig"><b>${E(firmaNombre(ag))}</b><br><b>RUT: ${E(ag.rut||'—')}</b></p>`; }
 function informeAlta(p){
   const a=p.anamnesis||{}, evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), last=evs[evs.length-1], ed=last?.evalData||{}, ag=agendaOf(S.pro.id)||{};
   const E=s=>esc(s||''), fs=fechasAtencion(p), n=fs.length, half=Math.ceil(n/2), ss=p.sesionesRehab||[], ena=[...ss].reverse().find(x=>x.eva!==''&&x.eva!=null);
@@ -3842,27 +3870,28 @@ ${rehabPlan(p)?`<p><b>Se proyecta un plan inicial de ${rehabPlan(p)} sesiones.</
 }
 function vInforme(){
   const p=prof(S.proArg); if(!p) return `<div class="card empty">Persona no encontrada</div>`;
-  const saved=p.informes||[], cur=S.infId?saved.find(i=>i.id===S.infId):null;
+  const oral=isOdonto(), saved=(p.informes||[]).filter(i=>oral?i.servicio==='oral':i.servicio!=='oral'), cur=S.infId?saved.find(i=>i.id===S.infId):null;
   if(cur && cur.tipo) S.infTipo=cur.tipo; S.infTipo=S.infTipo||'inicio';
-  if(!S.infHtml) S.infHtml = cur ? cur.html : (S.infTipo==='alta' ? informeAlta(p) : informeDraft(p));
+  if(!S.infHtml) S.infHtml = cur ? cur.html : oral ? (S.infTipo==='alta' ? informeOralAlta(p) : informeOral(p)) : (S.infTipo==='alta' ? informeAlta(p) : informeDraft(p));
   const ag=agendaOf(S.pro.id)||{};
-  return `<header class="top"><button class="back" onclick="S.infHtml=null;S.infId=null;openPersona(${q(keyOf(p))},'clinico')">${ic('chevl','s')} ${esc(first(p.nombre))}</button><h1 class="disp h1" style="margin-top:4px">Informe</h1><p class="muted sm" style="margin-top:6px">Toca el texto para editarlo antes de descargarlo. Solo los profesionales pueden generar informes.</p></header>
+  return `<header class="top"><button class="back" onclick="S.infHtml=null;S.infId=null;openPersona(${q(keyOf(p))},${q(oral?'resumen':'clinico')})">${ic('chevl','s')} ${esc(first(p.nombre))}</button><h1 class="disp h1" style="margin-top:4px">Informe</h1><p class="muted sm" style="margin-top:6px">Toca el texto para editarlo antes de descargarlo. Solo los profesionales pueden generar informes.</p></header>
   <div class="stack"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri sm" onclick="descargarInforme()">${ic('download','s')} Descargar PDF</button><button class="btn sec sm" onclick="guardarInforme()">${ic('check','s')} Guardar borrador</button><button class="btn sec sm" onclick="enviarInforme()">${ic('send','s')} ${cur&&cur.enviado?'Actualizar envío':'Enviar al paciente'}</button><button class="btn ghost sm" onclick="if(confirm('¿Volver a generar el texto desde la ficha? Se pierden tus cambios no guardados.')){const p=prof(S.proArg);S.infHtml=S.infTipo==='alta'?informeAlta(p):informeDraft(p);render()}">Regenerar</button>
     <label class="row sm" style="gap:6px"><input type="checkbox" id="inf-kah" ${p.marca==='sm+kah'||p.org==='kah'?'checked':''} onchange="$('#inf-logos').innerHTML=infLogos()"> Logo Kin At Home</label></div>
-  ${!cur?`<div class="seg" style="max-width:420px"><button class="${S.infTipo!=='alta'?'on':''}" onclick="S.infTipo='inicio';S.infHtml=null;render()">Informe de inicio</button><button class="${S.infTipo==='alta'?'on':''}" onclick="S.infTipo='alta';S.infHtml=null;render()">Informe de alta / final</button></div>`:''}
+  ${!cur?`<div class="seg" style="max-width:420px"><button class="${S.infTipo!=='alta'?'on':''}" onclick="S.infTipo='inicio';S.infHtml=null;render()">${oral?'Informe odontológico':'Informe de inicio'}</button><button class="${S.infTipo==='alta'?'on':''}" onclick="S.infTipo='alta';S.infHtml=null;render()">Informe de alta / final</button></div>`:''}
   ${cur&&cur.enviado?`<div class="note">${ic('check','s')}<span>Enviado al paciente el ${fmtDate(cur.enviadoFecha)}. Puede descargarlo desde su app.</span></div>`:''}
   ${saved.length?`<div class="pills">${saved.slice().reverse().map(i=>`<button class="pill ${i.id===S.infId?'on':''}" onclick="S.infId=${i.id};S.infHtml=null;render()">${i.tipo==='alta'?'Alta':'Inicio'} · ${fmtDate(i.fecha)}${i.enviado?' ✓':''}</button>`).join('')}<button class="pill ${!S.infId?'on':''}" onclick="S.infId=null;S.infHtml=null;render()">+ Nuevo</button></div>`:''}
   <div class="a4wrap"><div class="a4"><div class="a4logos" id="inf-logos">${infLogos(p)}</div><div id="inf" class="a4body" contenteditable="true" oninput="S.infHtml=this.innerHTML">${S.infHtml}</div><div class="a4foot" contenteditable="true" id="inf-foot">${esc(ag.contacto||'StrongMed · Kinesiología y entrenamiento · Concepción, Chile')}</div></div></div></div>`;
 }
 const LOGO_KIDS = '<span class="kids"><i>K</i><i>I</i><i>D</i><i>S</i></span>';
-function infLogos(p){ p=p||prof(S.proArg); const k=$('#inf-kah') ? $('#inf-kah').checked : (p.marca==='sm+kah'||p.org==='kah');
+const logosOral = () => `<span class="lsm">${smIcon(58)}</span><span class="ltxt">Strong<span style="color:#7fb000">Med</span><br><small style="font-size:9px;letter-spacing:1px;color:#666;white-space:nowrap">Odontología general</small></span>`;
+function infLogos(p){ p=p||prof(S.proArg); if(isOdonto()) return logosOral(); const k=$('#inf-kah') ? $('#inf-kah').checked : (p.marca==='sm+kah'||p.org==='kah');
   return `<span class="lsm">${smIcon(58)}</span>${k?`<span class="lkah">${KAH_SVG}</span><span class="ltxt">StrongMed<br>× Kin At Home</span>`:'<span class="ltxt">Strong<span style="color:#7fb000">Med</span><br><small style="font-size:9px;letter-spacing:1px;color:#666;white-space:nowrap">Kinesiología · Entrenamiento</small></span>'}${p.kids?LOGO_KIDS:''}`; }
 window.infLogos = () => infLogos();
 function infUpsert(p){ p.informes=p.informes||[]; const html=$('#inf').innerHTML, logos=$('#inf-logos').innerHTML, pie=$('#inf-foot').innerHTML;
-  let i=S.infId?p.informes.find(x=>x.id===S.infId):null; if(i) Object.assign(i,{html, logos, pie, editado:todayISO()}); else { i={id:uid(), fecha:todayISO(), autor:S.pro.nombre, tipo:S.infTipo||'inicio', html, logos, pie}; p.informes.push(i); S.infId=i.id; } return i; }
+  let i=S.infId?p.informes.find(x=>x.id===S.infId):null; if(i) Object.assign(i,{html, logos, pie, editado:todayISO()}); else { i={id:uid(), fecha:todayISO(), autor:S.pro.nombre, tipo:S.infTipo||'inicio', html, logos, pie, ...(isOdonto()?{servicio:'oral'}:{})}; p.informes.push(i); S.infId=i.id; } return i; }
 window.guardarInforme = async () => { const p=prof(S.proArg); infUpsert(p); if(await save(p)){ toast('Informe guardado'); keepScroll(render); } };
 window.enviarInforme = async () => { const p=prof(S.proArg); if(/\[[^\]]{3,}\]/.test($('#inf').innerText) && !confirm('El informe todavía tiene textos de ejemplo entre corchetes [ ]. ¿Enviarlo igual?')) return; if(!confirm(`¿Enviar este informe a ${first(p.nombre)}? Podrá verlo y descargarlo desde su app.`)) return;
-  const i=infUpsert(p), nuevo=!i.enviado; i.enviado=true; i.enviadoFecha=todayISO(); if(nuevo) addAviso(p,'evaluacion',`${S.pro.nombre} te envió tu informe kinesiológico. Puedes descargarlo en Mis fichas.`);
+  const i=infUpsert(p), nuevo=!i.enviado; i.enviado=true; i.enviadoFecha=todayISO(); if(nuevo) addAviso(p,'evaluacion', isOdonto()?`${S.pro.nombre} te envió tu informe odontológico. Puedes descargarlo en Mi tratamiento.`:`${S.pro.nombre} te envió tu informe kinesiológico. Puedes descargarlo en Mis fichas.`);
   if(await save(p)){ toast('Informe enviado al paciente'); keepScroll(render); } };
 function informeVentana(titulo, logos, html, pie){ const w=window.open('','_blank'); if(!w) return toast('Permite ventanas emergentes para descargar el PDF','err');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap" rel="stylesheet"><style>${INF_CSS}
@@ -3870,7 +3899,7 @@ function informeVentana(titulo, logos, html, pie){ const w=window.open('','_blan
   w.document.close(); setTimeout(()=>w.print(), 700); }
 window.descargarMiInforme = id => { const p=me(), i=(p.informes||[]).find(x=>String(x.id)===String(id) && x.enviado); if(!i) return; informeVentana(`Informe ${p.nombre}`, i.logos||'', i.html, i.pie); };
 window.verMiInforme = id => { const p=me(), i=(p.informes||[]).find(x=>String(x.id)===String(id) && x.enviado); if(!i) return;
-  sheet(`<h2 class="disp h2">Informe ${i.tipo==='alta'?'de alta':'kinesiológico'}</h2><p class="muted sm" style="margin-top:4px">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</p>
+  sheet(`<h2 class="disp h2">Informe ${i.tipo==='alta'?'de alta':i.servicio==='oral'?'odontológico':'kinesiológico'}</h2><p class="muted sm" style="margin-top:4px">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</p>
   <div style="margin-top:12px;max-height:56vh;overflow:auto;border-radius:12px"><div class="a4" style="min-height:0;padding:22px 20px;font-size:12px"><div class="a4logos">${i.logos||''}</div><div class="a4body">${i.html}</div><div class="a4foot" style="position:static;margin-top:16px">${i.pie||''}</div></div></div>
   <button class="btn pri block" style="margin-top:14px" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} Descargar PDF</button>`); };
 window.descargarInforme = () => { const p=prof(S.proArg); informeVentana(`Informe ${p.nombre}`, $('#inf-logos').innerHTML, $('#inf').innerHTML, $('#inf-foot').innerHTML); };
@@ -3879,6 +3908,7 @@ const INF_CSS = `.a4{background:#fff;color:#111;width:100%;max-width:794px;min-h
 .a4logos .ltxt{font-family:'Barlow Condensed',Arial Narrow,sans-serif;font-weight:800;text-transform:uppercase;font-size:15px;line-height:1.05;color:#111}
 .a4body h1{text-align:center;font-size:18px;font-weight:800;margin:6px 0 18px;letter-spacing:.02em}.a4body h2{font-size:13.5px;font-weight:800;margin:10px 0 4px}
 .a4body table{font-size:inherit;border-collapse:collapse}.a4body table.ap td{padding:1px 0;vertical-align:top}.a4body table.ap td:first-child{width:140px}.a4body p{margin:0 0 10px;text-align:justify}.a4body ul{margin:0 0 10px 18px;padding:0}.a4body li{margin:1px 0}
+.a4body table.pres{width:100%;margin:6px 0 12px}.a4body table.pres th{background:#f1f5e6;font-size:12px;padding:6px 8px;border-bottom:1.5px solid #7fb000}.a4body table.pres td{padding:6px 8px;border-bottom:1px solid #e5e5e5}.a4body table.pres tr.tot td{border:0;padding:3px 8px}.a4body table.pres tr.big td{font-weight:800;font-size:15px;border-top:1.5px solid #111}
 .a4body table.fx{margin:4px auto 12px}.a4body table.fx td{padding:3px 10px;white-space:nowrap}
 .a4body .c{text-align:center}.a4body .sig{text-align:center;margin-top:28px}.a4foot{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:11.5px;color:#444}
 .kids{display:inline-flex;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;padding:3px 7px;border-radius:9px;background:#fff;border:1.5px solid #ddd;gap:1px}.kids i{font-style:normal}.kids i:nth-child(1){color:#ff5a4f}.kids i:nth-child(2){color:#ffb02e}.kids i:nth-child(3){color:#2fbf71}.kids i:nth-child(4){color:#3d8bff}`;
@@ -4150,7 +4180,8 @@ function vTratamiento(p){
   ${pl.tratamiento||pl.detalle?`<section class="card stack"><div class="b">Plan de tratamiento</div>${pl.detalle?`<p class="sm">${esc(pl.detalle)}</p>`:''}<div class="grid2"><div class="stat"><b>${oralHechas(p)}</b><span>Sesiones realizadas</span></div><div class="stat acc"><b>${oralPlan(p)?oralRest(p):'—'}</b><span>Sesiones restantes</span></div></div></section>`:''}
   ${oralPresupuestoPat(p)}
   <div class="sec-t"><h2>Tareas y recomendaciones</h2></div>${oralTareasList(p)}
-  <div class="sec-t"><h2>Registro de atenciones</h2></div>${oralAtencionesList(p)}</div>`;
+  <div class="sec-t"><h2>Registro de atenciones</h2></div>${oralAtencionesList(p)}
+  ${misInformesHTML({informes:(p.informes||[]).filter(i=>i.servicio==='oral')})}${oralTratAnteriores(p,false)}</div>`;
 }
 window.oralToggle = async id => { const p=me(), t=(p.oral?.tareas||[]).find(x=>x.id===id); if(!t) return; t.hecha=!t.hecha; await saveOral(p); keepScroll(render); };
 
@@ -4196,13 +4227,47 @@ function vPersonaOral(p, k){
   <div class="seg">${[['resumen','Resumen'],['anamnesis','Anamnesis'],['presupuesto','Presupuesto'],['atenciones','Atenciones'],['tareas','Tareas'],['agenda','Agenda']].map(([kk,l])=>`<button class="${seg===kk?'on':''}" onclick="S.pSeg='${kk}';render()">${l}</button>`).join('')}</div>
   ${body}</div>`;
 }
+const MOTIVOS_FIN_ORAL = ['Alta: tratamiento terminado','Derivación a especialista','Abandono / no volvió','Pausa','Otro'];
+function oralTratCard(p){ const o=oralOf(p), k=keyOf(p);
+  if(o.sinTratamiento) return `<section class="card stack"><div class="row"><span class="ico">${ic('check','s')}</span><div class="grow"><div class="b">Sin tratamiento activo</div><div class="xs muted">${(o.tratamientos||[]).length?`Último: ${esc(o.tratamientos[o.tratamientos.length-1].plan?.tratamiento||'tratamiento')} · ${esc(o.tratamientos[o.tratamientos.length-1].motivo||'')}`:''}</div></div></div>
+    <label class="field"><span class="lbl">Nuevo tratamiento</span><input class="inp" id="on-t" placeholder="Ej: Tratamiento periodontal"></label>
+    <div class="grid2"><label class="field"><span class="lbl">Sesiones (opcional)</span><input class="inp" id="on-s" inputmode="numeric"></label><span></span></div>
+    <div class="grid2"><button class="btn pri" onclick="nuevoTratOral()">${ic('plus','s')} Comenzar</button>${(o.tratamientos||[]).length?`<button class="btn sec" onclick="continuarTratOral()">Continuar el anterior</button>`:''}</div></section>`;
+  return `<section class="card stack"><div class="row"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="eyebrow">Tratamiento actual</div><div class="b">${esc(o.plan?.tratamiento||'Sin nombre')}</div><div class="xs muted">${o.tratInicio?`Desde ${fmtDate(o.tratInicio)} · `:''}${oralHechas(p)} ${oralHechas(p)===1?'atención':'atenciones'}${oralPlan(p)?` de ${oralPlan(p)}`:''}</div></div></div>
+    <div class="grid2"><button class="btn sec" onclick="S.infTipo='alta';S.infId=null;pgo('informe',${q(k)})">${ic('file','s')} Informe de alta</button><button class="btn pri" onclick="sheetFinOral()">${ic('check','s')} Dar de alta</button></div></section>`; }
+function oralTratAnteriores(p, pro){ const L=(p.oral?.tratamientos||[]).slice().reverse(); if(!L.length) return '';
+  return `<div class="sec-t"><h2>Tratamientos anteriores (${L.length})</h2></div><div class="list">${L.map(t=>`<details class="li" style="display:block"><summary class="row"><span class="ico">${ic('tooth','s')}</span><div class="grow"><div class="b sm">${esc(t.plan?.tratamiento||'Tratamiento')}</div><div class="xs muted">${t.inicio?fmtDate(t.inicio)+' → ':''}${fmtDate(t.fin)} · ${(t.atenciones||[]).length} atenciones · ${esc(t.motivo||'')}</div></div>${ic('chevr','s chev')}</summary>
+    <div class="stack" style="gap:4px;padding:10px 0 4px 48px">${(t.atenciones||[]).map(a=>`<div class="row between sm"><span class="trunc">${esc(a.tratamiento)}${a.zona?` · ${esc(a.zona)}`:''}</span><span class="muted">${fmtDate(a.fecha)}</span></div>`).join('')||'<div class="xs muted">Sin atenciones registradas</div>'}${t.nota&&pro?`<div class="xs muted">Nota: ${esc(t.nota)}</div>`:''}${t.presupuesto&&(t.presupuesto.items||[]).length?`<div class="xs muted">Presupuesto: ${clp(presTotal(t.presupuesto))}</div>`:''}</div></details>`).join('')}</div>`; }
+window.sheetFinOral = () => { const p=oralP(); sheet(`<h2 class="disp h2">Dar de alta</h2><p class="sm muted" style="margin-top:6px">El tratamiento de ${esc(first(p.nombre))} queda archivado con sus atenciones, tareas y presupuesto. Después puedes comenzar uno nuevo o continuarlo.</p>
+  <div class="note" style="margin-top:12px">${ic('info','s')}<span>¿Necesitas el informe de alta? Créalo <b>antes</b> de dar el alta: <button class="b acc-t" onclick="closeSheet();S.infTipo='alta';S.infId=null;pgo('informe',${q(keyOf(p))})">crear informe de alta</button>.</span></div>
+  <div class="stack" style="margin-top:12px"><label class="field"><span class="lbl">Motivo</span><select class="inp" id="fo-m">${MOTIVOS_FIN_ORAL.map(m=>`<option>${m}</option>`).join('')}</select></label>
+  <label class="field"><span class="lbl">Nota (opcional)</span><textarea class="inp" id="fo-n" placeholder="Estado final, controles sugeridos…"></textarea></label>
+  <label class="check"><input type="checkbox" id="fo-in" checked><span>Marcar como paciente <b>inactivo</b> (no se borra nada)</span></label>
+  <button class="btn pri block" onclick="finalizarTratOral()">${ic('check','s')} Dar de alta y archivar</button></div>`); };
+window.finalizarTratOral = async () => { const p=oralP(), o=oralOf(p); o.tratamientos=o.tratamientos||[];
+  o.tratamientos.push({id:String(uid()), plan:o.plan||{}, atenciones:o.atenciones||[], tareas:o.tareas||[], presupuesto:o.presupuesto||null, inicio:o.tratInicio||(o.atenciones[0]?.fecha)||'', fin:todayISO(), motivo:val('fo-m'), nota:val('fo-n'), pro:S.pro.nombre});
+  Object.assign(o,{plan:{}, atenciones:[], tareas:[], presupuesto:null, sinTratamiento:true, tratInicio:''});
+  addAviso(p,'evaluacion',`Tu tratamiento odontológico quedó finalizado (${val('fo-m').toLowerCase()}). Puedes verlo en Mi tratamiento.`);
+  if($('#fo-in')?.checked) marcarSeguimiento(p, false, val('fo-m'), S.pro.nombre);
+  if(await saveOral(p)){ await save(p); closeSheet(); toast('Alta registrada y tratamiento archivado'); keepScroll(render); } };
+window.nuevoTratOral = async () => { const t=val('on-t'); if(!t) return toast('Escribe el nombre del tratamiento','err'); const p=oralP(), o=oralOf(p);
+  Object.assign(o,{plan:{tratamiento:t, sesiones:+val('on-s')||''}, atenciones:[], tareas:[], presupuesto:null, sinTratamiento:false, tratInicio:todayISO()}); if(!o.proId) o.proId=S.pro.id;
+  marcarSeguimiento(p, true, 'Nuevo tratamiento', S.pro.nombre); addAviso(p,'evaluacion',`Comenzó un nuevo tratamiento odontológico: ${t}.`);
+  if(await saveOral(p)){ await save(p); toast('Nuevo tratamiento iniciado'); keepScroll(render); } };
+window.continuarTratOral = async () => { const p=oralP(), o=oralOf(p), t=(o.tratamientos||[]).pop(); if(!t) return;
+  if(!confirm(`¿Reabrir "${t.plan?.tratamiento||'el tratamiento anterior'}" y seguir sumando atenciones?`)){ o.tratamientos.push(t); return; }
+  Object.assign(o,{plan:t.plan||{}, atenciones:t.atenciones||[], tareas:t.tareas||[], presupuesto:t.presupuesto||null, tratInicio:t.inicio, sinTratamiento:false});
+  marcarSeguimiento(p, true, 'Tratamiento reabierto', S.pro.nombre); if(await saveOral(p)){ await save(p); toast('Tratamiento reabierto'); keepScroll(render); } };
 function oralResumen(p){ const o=p.oral||{}, pl=o.plan||{}, a=o.anamnesis||{};
-  return `${oralRing(p)}
-  <section class="card stack"><div class="b">Plan de tratamiento</div>
+  return `${oralTratCard(p)}${oralRing(p)}
+  ${o.sinTratamiento?'':`<section class="card stack"><div class="b">Plan de tratamiento</div>
     <label class="field"><span class="lbl">Tratamiento</span><input class="inp" id="op-t" value="${esc(pl.tratamiento||'')}" placeholder="Ej: Tratamiento de caries y limpieza"></label>
     <label class="field"><span class="lbl">Detalle para el paciente</span><textarea class="inp" id="op-d" placeholder="Lo que verá el paciente sobre su plan">${esc(pl.detalle||'')}</textarea></label>
     <div class="grid2"><label class="field"><span class="lbl">Sesiones del plan</span><input class="inp" id="op-s" inputmode="numeric" value="${esc(pl.sesiones||'')}"></label><div class="stat"><b>${oralHechas(p)}</b><span>Realizadas</span></div></div>
-    <button class="btn pri block" onclick="guardarPlanOral()">Guardar plan</button></section>
+    <button class="btn pri block" onclick="guardarPlanOral()">Guardar plan</button></section>`}
+  <div class="sec-t"><h2>Informes</h2><button class="btn ghost sm" onclick="S.infTipo='inicio';S.infId=null;pgo('informe',${q(keyOf(p))})">${ic('plus','s')} Informe</button></div>
+  ${(p.informes||[]).filter(i=>i.servicio==='oral').length?`<div class="list">${p.informes.filter(i=>i.servicio==='oral').slice().reverse().map(i=>`<button class="li" onclick="pgo('informe',${q(keyOf(p))});S.infId=${i.id};S.infHtml=null;render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':'odontológico'} · ${fmtDate(i.fecha)}</div><div class="xs muted">${esc(i.autor||'')}${i.enviado?` · enviado ${fmtDate(i.enviadoFecha)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="xs muted">Aún no hay informes.</div>`}
+  ${oralTratAnteriores(p,true)}
   ${a.motivo||a.diagnostico?`<section class="card stack"><div class="b">Anamnesis</div><dl class="kv">${ORAL_AN.filter(([k])=>a[k]).map(([k,l])=>`<dt>${l}</dt><dd>${esc(a[k])}</dd>`).join('')}</dl></section>`:''}
   <section class="card stack"><div class="b">Datos de contacto</div><dl class="kv"><dt>Teléfono</dt><dd>${esc(p.contacto||'—')}</dd><dt>Correo</dt><dd>${esc(p.email||'—')}</dd><dt>Clave de acceso</dt><dd>${esc(p.pin||'—')}</dd></dl></section>`; }
 function oralAnamnesisForm(p){ const a=(p.oral||{}).anamnesis||{};
@@ -4249,22 +4314,48 @@ function oralCardKine(p){ if(!tieneOral(p) && !p.compartido) return ''; const o=
 /* ---------- presupuesto ---------- */
 const PRES_EST = {borrador:['Borrador','mixto'], enviado:['Enviado al paciente','acc'], aceptado:['Aceptado','acc'], rechazado:['No aceptado','red']};
 const presOf = p => { const o=oralOf(p); o.presupuesto=o.presupuesto||{items:[], estado:'borrador'}; o.presupuesto.items=o.presupuesto.items||[]; return o.presupuesto; };
-const presTotal = pr => (pr?.items||[]).reduce((t,x)=>t+(+x.valor||0),0);
-function presTabla(pr){ return `<div class="list">${pr.items.map(x=>`<div class="li"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b sm">${esc(x.desc)}</div>${x.pieza?`<div class="xs muted">${esc(x.pieza)}</div>`:''}</div><b class="sm">${clp(x.valor)}</b>${S.role==='pro'&&pr.estado!=='aceptado'?`<button class="ibtn red" onclick="presDel(${q(x.id)})" aria-label="Quitar">${ic('trash','s')}</button>`:''}</div>`).join('')}</div>
-  <div class="row between card tight"><span class="b">Total</span><b class="h3">${clp(presTotal(pr))}</b></div>`; }
+function presCalc(pr){ const items=pr?.items||[], sub=items.reduce((t,x)=>t+(+x.valor||0),0), dItems=items.reduce((t,x)=>t+Math.round((+x.valor||0)*(+x.dcto||0)/100),0), base=sub-dItems, g=pr?.dcto, dGlobal=g&&+g.valor ? Math.min(base, g.tipo==='monto'?+g.valor:Math.round(base*(+g.valor)/100)) : 0;
+  return {sub, dItems, dGlobal, total:Math.max(0, base-dGlobal)}; }
+const presTotal = pr => presCalc(pr).total;
+const itemNeto = x => Math.round((+x.valor||0)*(1-(+x.dcto||0)/100));
+function presTabla(pr){ const c=presCalc(pr), g=pr.dcto;
+  return `<div class="list">${pr.items.map(x=>`<div class="li"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b sm">${esc(x.desc)}</div><div class="xs muted">${[x.pieza?esc(x.pieza):'', +x.dcto?`<span style="color:var(--green)">${x.dcto}% de descuento</span>`:''].filter(Boolean).join(' · ')}</div></div><div style="text-align:right">${+x.dcto?`<div class="xs muted" style="text-decoration:line-through">${clp(x.valor)}</div>`:''}<b class="sm">${clp(itemNeto(x))}</b></div>${S.role==='pro'&&pr.estado!=='aceptado'?`<button class="ibtn red" onclick="presDel(${q(x.id)})" aria-label="Quitar">${ic('trash','s')}</button>`:''}</div>`).join('')}</div>
+  <div class="card tight stack" style="gap:6px">${c.dItems||c.dGlobal?`<div class="row between sm"><span class="muted">Subtotal</span><span>${clp(c.sub)}</span></div>`:''}${c.dItems?`<div class="row between sm"><span class="muted">Descuentos por tratamiento</span><span style="color:var(--green)">−${clp(c.dItems)}</span></div>`:''}${c.dGlobal?`<div class="row between sm"><span class="muted">Descuento ${g.tipo==='monto'?'':`${g.valor}% `}${g.motivo?`(${esc(g.motivo)})`:''}</span><span style="color:var(--green)">−${clp(c.dGlobal)}</span></div>`:''}<div class="row between"><span class="b">Total</span><b class="h3">${clp(c.total)}</b></div></div>`; }
+function presupuestoHTML(p, pr){ const c=presCalc(pr), g=pr.dcto, ag=agendaOf(pr.proId||p.oral?.proId||S.pro?.id)||agendaOf('b-oral')||{}, E=s=>esc(s||'');
+  return `<h1>PRESUPUESTO ODONTOLÓGICO</h1>
+<table class="ap"><tr><td>Paciente</td><td>: ${E(p.nombre)}</td></tr><tr><td>RUT</td><td>: ${E(p.rut)}</td></tr><tr><td>Fecha</td><td>: ${fCL(pr.fecha||todayISO())}</td></tr><tr><td>Validez</td><td>: ${E(pr.validez||'30 días')}</td></tr>${pr.estado==='aceptado'?`<tr><td>Estado</td><td>: Aceptado el ${fCL(pr.aceptadoFecha)}</td></tr>`:''}</table>
+<table class="pres" style="width:100%;margin-top:14px"><tr><th style="text-align:left">Tratamiento</th><th>Pieza / zona</th><th style="text-align:right">Valor</th><th style="text-align:right">Desc.</th><th style="text-align:right">Total</th></tr>
+${pr.items.map(x=>`<tr><td>${E(x.desc)}</td><td style="text-align:center">${E(x.pieza||'—')}</td><td style="text-align:right">${clp(x.valor)}</td><td style="text-align:right">${+x.dcto?x.dcto+'%':'—'}</td><td style="text-align:right">${clp(itemNeto(x))}</td></tr>`).join('')}
+${c.dItems||c.dGlobal?`<tr class="tot"><td colspan="4" style="text-align:right">Subtotal</td><td style="text-align:right">${clp(c.sub-c.dItems)}</td></tr>`:''}
+${c.dGlobal?`<tr class="tot"><td colspan="4" style="text-align:right">Descuento${g.tipo==='monto'?'':` ${g.valor}%`}${g.motivo?` (${E(g.motivo)})`:''}</td><td style="text-align:right">−${clp(c.dGlobal)}</td></tr>`:''}
+<tr class="tot big"><td colspan="4" style="text-align:right">TOTAL</td><td style="text-align:right">${clp(c.total)}</td></tr></table>
+${pr.nota?`<p style="margin-top:14px"><b>Observaciones:</b> ${E(pr.nota)}</p>`:''}
+<p style="margin-top:10px;font-size:12px;color:#444">Valores sujetos a evaluación clínica. El presupuesto puede modificarse si cambian las condiciones del tratamiento.</p>
+<p class="sig"><b>${E(firmaNombre(ag))}</b><br><b>RUT: ${E(ag.rut||'—')}</b></p>`; }
+window.descargarPresupuesto = () => { const p=S.role==='pat'?me():oralP(), pr=p?.oral?.presupuesto; if(!pr||!(pr.items||[]).length) return toast('El presupuesto está vacío','err');
+  if(S.role==='pro' && $('#pr-n')) pr.nota=val('pr-n'); const ag=agendaOf(p.oral?.proId)||agendaOf('b-oral')||{};
+  informeVentana(`Presupuesto ${p.nombre}`, logosOral(), presupuestoHTML(p, pr), esc(ag.contacto||'StrongMed · Odontología general · Concepción, Chile')); };
 function oralPresupuestoPro(p){ const pr=presOf(p), [el,ec]=PRES_EST[pr.estado]||PRES_EST.borrador;
   return `<section class="card stack"><div class="row between"><div class="b">Presupuesto</div><span class="badge ${ec}">${el}${pr.aceptadoFecha&&pr.estado==='aceptado'?` · ${fmtDate(pr.aceptadoFecha)}`:''}</span></div>
     ${pr.estado!=='aceptado'?`<label class="field"><span class="lbl">Tratamiento</span><input class="inp" id="pr-d" placeholder="Ej: Obturación resina"></label>
     <div class="grid2"><label class="field"><span class="lbl">Pieza / zona</span><input class="inp" id="pr-p" placeholder="Ej: 3.6"></label><label class="field"><span class="lbl">Valor ($)</span><input class="inp" id="pr-v" inputmode="numeric" placeholder="Ej: 35000"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">Descuento en este tratamiento (%)</span><input class="inp" id="pr-dc" inputmode="numeric" placeholder="Opcional, ej: 10"></label><span></span></div>
     <button class="btn sec block" onclick="presAdd()">${ic('plus','s')} Agregar al presupuesto</button>`:''}</section>
   ${pr.items.length?presTabla(pr):`<div class="card empty">Agrega los tratamientos con su valor.</div>`}
+  ${pr.items.length&&pr.estado!=='aceptado'?`<section class="card stack"><div class="b">Descuento sobre el total</div>${pr.dcto?`<div class="row between sm"><span>${pr.dcto.tipo==='monto'?clp(pr.dcto.valor):pr.dcto.valor+'%'}${pr.dcto.motivo?` · ${esc(pr.dcto.motivo)}`:''}</span><button class="btn ghost sm" onclick="presDcto(true)">Quitar</button></div>`:''}
+    <div class="grid2"><select class="inp" id="pd-t"><option value="pct" ${pr.dcto?.tipo!=='monto'?'selected':''}>Porcentaje (%)</option><option value="monto" ${pr.dcto?.tipo==='monto'?'selected':''}>Monto ($)</option></select><input class="inp" id="pd-v" inputmode="numeric" placeholder="Ej: 10 o 15000" value="${esc(pr.dcto?.valor||'')}"></div>
+    <input class="inp" id="pd-m" placeholder="Motivo (opcional): convenio, pago al contado…" value="${esc(pr.dcto?.motivo||'')}"><button class="btn sec block" onclick="presDcto()">${pr.dcto?'Actualizar descuento':'Aplicar descuento'}</button></section>`:''}
   ${pr.items.length?`<label class="field"><span class="lbl">Nota para el paciente</span><textarea class="inp" id="pr-n" placeholder="Ej: valores válidos por 30 días; se puede pagar por sesión">${esc(pr.nota||'')}</textarea></label>
+  <button class="btn sec block" onclick="descargarPresupuesto()">${ic('download','s')} Descargar presupuesto (PDF)</button>
   <div class="grid2">${pr.estado==='aceptado'?`<button class="btn sec" onclick="presEstado('enviado')">Reabrir</button>`:`<button class="btn pri" onclick="presEstado('enviado')">${ic('send','s')} ${pr.estado==='enviado'?'Actualizar':'Enviar al paciente'}</button><button class="btn sec" onclick="presEstado('aceptado')">${ic('check','s')} Marcar aceptado</button>`}</div>`:''}`; }
 function oralPresupuestoPat(p){ const pr=p.oral?.presupuesto; if(!pr || !['enviado','aceptado'].includes(pr.estado) || !(pr.items||[]).length) return '';
   return `<div class="sec-t"><h2>Presupuesto</h2>${pr.estado==='aceptado'?`<span class="badge acc">${ic('check','s')} Aceptado</span>`:''}</div>${presTabla(pr)}${pr.nota?`<div class="note">${ic('info','s')}<span>${esc(pr.nota)}</span></div>`:''}
+  <button class="btn sec block" onclick="descargarPresupuesto()">${ic('download','s')} Descargar presupuesto (PDF)</button>
   ${pr.estado==='enviado'&&S.role==='pat'?`<button class="btn pri block" onclick="presAceptar()">${ic('check','s')} Acepto el presupuesto</button>`:''}`; }
 window.presAdd = async () => { const d=val('pr-d'), v=parseInt(String(val('pr-v')).replace(/\D/g,'')); if(!d || !(v>=0)) return toast('Indica el tratamiento y su valor','err');
-  const p=oralP(), pr=presOf(p); pr.items.push({id:String(uid()), desc:d, pieza:val('pr-p'), valor:v||0}); pr.fecha=todayISO(); if(await saveOral(p)) keepScroll(render); };
+  const dc=Math.min(100, Math.max(0, parseInt(val('pr-dc'))||0)); const p=oralP(), pr=presOf(p); pr.items.push({id:String(uid()), desc:d, pieza:val('pr-p'), valor:v||0, ...(dc?{dcto:dc}:{})}); pr.fecha=todayISO(); if(await saveOral(p)) keepScroll(render); };
+window.presDcto = async quitar => { const p=oralP(), pr=presOf(p); if(quitar){ delete pr.dcto; } else { const v=parseInt(String(val('pd-v')).replace(/\D/g,'')); if(!(v>0)) return toast('Indica el descuento','err'); const t=val('pd-t'); if(t==='pct' && v>100) return toast('El porcentaje no puede pasar de 100','err'); pr.dcto={tipo:t, valor:v, motivo:val('pd-m')}; }
+  if($('#pr-n')) pr.nota=val('pr-n'); pr.fecha=todayISO(); if(await saveOral(p)){ toast(quitar?'Descuento quitado':'Descuento aplicado'); keepScroll(render); } };
 window.presDel = async id => { const p=oralP(), pr=presOf(p); pr.items=pr.items.filter(x=>x.id!==id); if(await saveOral(p)) keepScroll(render); };
 window.presEstado = async est => { const p=oralP(), pr=presOf(p); if($('#pr-n')) pr.nota=val('pr-n'); pr.estado=est; pr.fecha=todayISO(); if(est==='aceptado') pr.aceptadoFecha=todayISO();
   if(est==='enviado') addAviso(p,'tarea',`Tu presupuesto de odontología está listo: ${clp(presTotal(pr))}. Revísalo en Mi tratamiento.`);

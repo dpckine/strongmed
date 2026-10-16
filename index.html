@@ -799,7 +799,7 @@ async function loadPersona(rut, src){
   if(!(await initFB())){ toast('Sin conexión con la base de datos','err'); return false; }
   const r=normRut(rut), F=S.fb, out=[];
   await Promise.all(['sm','kah'].map(async org=>{ try{ const sn=await getQ(src, F.query(F.collection(S.dbs[org],'evaluaciones'), F.where('rutN','==',r))); sn.forEach(d=>{ const x=d.data(); if(x&&x.rut){ x.org=x.org||org; out.push(x); } }); }catch(e){ console.warn(e); } }));
-  if(out.length){ S.all=out; await loadOralDoc(r, src); return true; }
+  if(out.length){ out.forEach(x=>{ if(x.fechaNac) x.edad=String(edadDe(x)); }); S.all=out; await loadOralDoc(r, src); return true; }
   if(src==='cache') return false;
   try{ const s=await F.getDoc(F.doc(S.dbs.sm,'ajustes','base')); if(s.exists() && s.data().rutN){ S.all=[]; return true; } }catch(e){}
   const ok=await loadDB(['sm','kah']); if(ok) S.all=S.all.filter(p=>normRut(p.rut)===r); return ok;
@@ -857,6 +857,7 @@ async function loadDB(orgs, src){
     for(const o of Object.keys(ORGS).filter(x=>x!==mine && !orgs.includes(x))){ try{ const sn=await S.fb.getDocs(S.fb.query(S.fb.collection(S.dbs[o],'evaluaciones'), S.fb.where('atiende','array-contains',mine)));
       sn.forEach(d=>{ const x=d.data(); if(x && x.rut){ x.org=x.org||o; all.push(x); } }); }catch(e){ console.warn('atención cruzada', e); } } }
   if(S.role==='pro'){ await loadOralDocs(src); all.forEach(oralAttach); }
+  all.forEach(x=>{ if(x.fechaNac) x.edad=String(edadDe(x)); });
   if(S.role==='pro' && S.pro && !isAdmin()){ const ok=new Set(); const m={}; all.forEach(p=>{ const k=keyOf(p); if(!m[k]||m[k].id<p.id) m[k]=p; }); Object.entries(m).forEach(([k,p])=>{ if(puedeVer(p)) ok.add(k); }); S.all=all.filter(p=>ok.has(keyOf(p))); }
   else S.all = all;
   if(S.role==='pro' && src!=='cache'){ migrarOral(); setTimeout(()=>{ try{ avisarCancelaciones(); }catch(e){} }, 800); setTimeout(()=>{ enviarSeguimientos().catch(()=>{}); }, 2500); } return true;
@@ -1225,7 +1226,7 @@ function vSignup(){
     <div><h1 class="disp h1">Crea tu cuenta</h1><p class="muted sm" style="margin-top:8px">Podrás escribirle a tu kine, registrar tus pasos, completar tu ficha y agendar una sesión. Tu profesional habilitará el resto de tu perfil.</p></div>
     <form class="stack" onsubmit="crearCuenta(event)">
       <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="su-n" required autocomplete="name"></label>
-      <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="su-r" required placeholder="18.500.200-K"></label><label class="field"><span class="lbl">Edad</span><input class="inp" id="su-e" inputmode="numeric"></label></div>
+      <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="su-r" required placeholder="18.500.200-K"></label><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="su-e" max="${todayISO()}"></label></div>
       <label class="field"><span class="lbl">Teléfono / WhatsApp *</span><input class="inp" id="su-t" required inputmode="tel" placeholder="+56 9…" autocomplete="tel"></label>
       <label class="field"><span class="lbl">Correo (opcional)</span><input class="inp" id="su-m" type="email" autocomplete="email"></label>
       <div><div class="lbl">¿Con quién te atiendes?</div><div class="grid2">
@@ -1244,7 +1245,7 @@ window.crearCuenta = async e => { e.preventDefault();
   const rut=val('su-r').replace(/\s+/g,''); await loadPersona(rut);
   const org=S.suOrg||'sm'; await entrarPaciente(rut, pin);
   if(people().some(p=>normRut(p.rut)===normRut(rut)) || await rutExiste(rut) || !(await registrarRut(org, rut, pin, true))){ b.disabled=false; b.textContent='Crear mi cuenta'; return toast('Ya existe una cuenta con ese RUT. Ingresa con tu PIN','err'); }
-  const p={id:Date.now(), org, marca: org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'persona', fecha:todayISO(), nombre:val('su-n'), rut, pin, contacto:val('su-t'), email:val('su-m'), edad:val('su-e'),
+  const p={id:Date.now(), org, marca: org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'persona', fecha:todayISO(), nombre:val('su-n'), rut, pin, contacto:val('su-t'), email:val('su-m'), ...nacDe(val('su-e')),
     perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:consentNuevo()};
   addAviso(p,'bienvenida','¡Bienvenido/a! Completa tu ficha inicial y agenda tu primera sesión.');
   if(!(await save(p))){ b.disabled=false; b.textContent='Crear mi cuenta'; return; }
@@ -1318,7 +1319,21 @@ function weekStrip(p, rehab=false){ const sd=stepDays(p), tr=new Set(sessions(p)
 
 const AV_ICON = {horarios:'cal', escala:'clip', rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
 function avisoAction(a){ return ({horarios:`go('chat')`, rutina:`goRutinas()`, cita:`go('agenda')`, tarea:`goTareas()`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
-function avisosHoy(p){
+const nacDe = v => v ? {fechaNac:v, edad:String(edadDe({fechaNac:v}))} : {};
+const esCumple = p => !!p.fechaNac && String(p.fechaNac).slice(5,10)===todayISO().slice(5,10);
+function cumpleHTML(p){
+  if(esCumple(p)){ const y=todayISO().slice(0,4);
+    if(S._cumpleCel!==todayISO()+S.me){ S._cumpleCel=todayISO()+S.me; S.after.push(()=>setTimeout(celebrar,300)); }
+    if(p.cumpleMsg!==y && !S._cumpleEnv){ S._cumpleEnv=true; S.after.push(async()=>{ try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {text:`¡Feliz cumpleaños, ${first(p.nombre)}! 🎂 StrongMed te desea un lindo día.`, auto:'cumple', hilo:hiloPrincipal(p), senderRole:'pro', senderName:'StrongMed', timestamp:Date.now()}); const q2=me(); q2.cumpleMsg=y; await save(q2); }catch(e){ console.warn('cumple', e); S._cumpleEnv=false; } }); }
+    return `<section class="hero" style="text-align:center"><div style="font-size:52px;line-height:1;position:relative;z-index:1">🎂</div><h2 class="disp h2" style="margin-top:10px;position:relative;z-index:1">¡Feliz cumpleaños, ${esc(first(p.nombre))}!</h2><p class="b" style="margin-top:6px;position:relative;z-index:1">StrongMed te desea un lindo día 🎉</p>${edadDe(p)?`<div class="sm b" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Hoy cumples ${edadDe(p)} años</div>`:''}</section>`; }
+  if(!p.fechaNac) return `<section class="card stack"><div class="row"><span class="ico">${ic('cal','s')}</span><div class="grow"><div class="b">¿Cuándo es tu cumpleaños?</div><div class="xs muted">Agrega tu fecha de nacimiento. Tu edad se actualizará sola en tu ficha.</div></div></div><div class="row" style="gap:8px"><input class="inp grow" type="date" id="nac-in" max="${todayISO()}"><button class="btn pri" onclick="guardarNac()">Guardar</button></div></section>`;
+  return ''; }
+window.guardarNac = async () => { const v=val('nac-in'); if(!v) return toast('Elige tu fecha de nacimiento','err'); const p=me(); Object.assign(p, nacDe(v)); if(await save(p)){ toast(esCumple(p)?'¡Feliz cumpleaños! 🎉':'Fecha guardada'); keepScroll(render); } };
+function cumplesProHTML(){ const L=people().filter(p=>esCumple(p) && !isPending(p) && enSeguimiento(p)); if(!L.length) return '';
+  const y=todayISO().slice(0,4); if(!S._cumplePro){ S._cumplePro=true; S.after.push(async()=>{ for(const p of L){ if(p.cumpleMsg===y) continue; try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {text:`¡Feliz cumpleaños, ${first(p.nombre)}! 🎂 StrongMed te desea un lindo día.`, auto:'cumple', hilo:hiloPrincipal(p), senderRole:'pro', senderName:'StrongMed', timestamp:Date.now()}); p.cumpleMsg=y; await save(p); }catch(e){ console.warn('cumple', e); } } }); }
+  return `<div class="sec-t"><h2>🎂 Cumpleaños de hoy</h2></div><div class="list">${L.map(p=>`<button class="li" onclick="openPersona(${q(keyOf(p))})"><span class="ico">🎂</span><div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">Cumple ${edadDe(p)} años · recibió el saludo automático en su chat</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`; }
+function avisosHoy(p){ return cumpleHTML(p)+_avisosHoy(p); }
+function _avisosHoy(p){
   let h=notisCard()+escalasPendCard(p);
   const v=p.videoActiva, vOn = videoOn(p); if(vOn) h+=`<div class="aviso red"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b">Tu kine te invita a una videollamada</div><div class="xs muted">${esc(v.pro||'')} · ${relTs(v.ts)}</div></div><a class="btn pri sm" href="${safeUrl(v.url)}" target="_blank" rel="noopener">Unirme</a></div>`;
   unreadAvisos(p).filter(a=>!(vOn && a.tipo==='video') && a.tipo!=='escala').slice(-3).reverse().forEach(a=>{ const act=avisoAction(a);
@@ -2278,7 +2293,7 @@ function vProInicio(){
   <div class="grid4"><button class="stat acc" onclick="S.filt='todos';S.segF='activos';pgo('personas')"><b>${act.length}</b><span>Personas activas${inact?` · ${inact} inactivas`:''}</span></button><button class="stat" onclick="S.filt='entrenamiento';pgo('personas')"><b>${cnt('entrenamiento')}</b><span>Entrenamiento</span></button><button class="stat" onclick="S.filt='rehabilitacion';pgo('personas')"><b>${cnt('rehabilitacion')}</b><span>Rehabilitación</span></button><button class="stat" onclick="S.filt='mixto';pgo('personas')"><b>${cnt('mixto')}</b><span>Mixto</span></button></div>
   ${pend.length?`<div class="sec-t"><h2>Cuentas nuevas por habilitar</h2><span class="badge mixto">${pend.length}</span></div><div class="list">${pend.map(personRow).join('')}</div>`:''}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes de hora</h2><span class="badge acc">${sol.length}</span></div><div class="list">${sol.slice(0,6).map(({c,p})=>`<div class="li">${citaHTML(c,{who:first(p.nombre), right:`<button class="btn pri sm" onclick="sheetCita(${q(keyOf(p))},${c.id})">Revisar</button>`})}</div>`).join('')}</div>`:''}
-  ${mensajesNuevosHTML()}${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
+  ${mensajesNuevosHTML()}${cumplesProHTML()}${cancelacionesHTML()}${recordatoriosHTML()}${respaldoCard()}
   <div class="cols2"><div class="stack"><div class="sec-t"><h2>Hoy en agenda</h2><button class="xs b acc-t" onclick="pgo('agenda')">Ver agenda</button></div>
     ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))},'agenda')">${citaHTML(c,{who:first(p.nombre)})}</button>`).join('')}</div>`:`<div class="card empty">Sin sesiones confirmadas para hoy.</div>`}
     <div class="sec-t"><h2>Requieren atención</h2><span class="badge ${al.length?'red':''}">${al.length}</span></div>
@@ -2308,7 +2323,7 @@ function vNueva(){
   <section class="card stack"><div class="eyebrow">1 · Datos personales</div>
     <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="np-nombre"></label>
     <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="np-rut" placeholder="18.500.200-K"></label><label class="field"><span class="lbl">PIN de acceso</span><input class="inp" id="np-pin" inputmode="numeric" maxlength="4" placeholder="Auto"></label></div>
-    <div class="grid2"><label class="field"><span class="lbl">Teléfono / WhatsApp *</span><input class="inp" id="np-tel" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Edad</span><input class="inp" id="np-edad" inputmode="numeric"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">Teléfono / WhatsApp *</span><input class="inp" id="np-tel" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="np-edad" max="${todayISO()}"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Ocupación</span><input class="inp" id="np-ocu"></label><label class="field"><span class="lbl">Deporte / actividad</span><input class="inp" id="np-dep"></label></div>
     <label class="field"><span class="lbl">Contacto de emergencia</span><input class="inp" id="np-eme" placeholder="Nombre / teléfono"></label>
     <label class="field"><span class="lbl">Logo que verá la persona</span><select class="inp" id="np-marca"><option value="sm" ${org!=='kah'?'selected':''}>Solo StrongMed</option><option value="sm+kah" ${org==='kah'?'selected':''}>StrongMed + Kin At Home</option></select></label></section>
@@ -2327,7 +2342,7 @@ window.crearPersona = async evaluar => {
   if(!nombre || !rut || !tel) return toast('Nombre, RUT y teléfono son obligatorios','err');
   const ex=prof(`${org}|${normRut(rut)}`); if(ex){ toast('Esa persona ya existe'); return openPersona(keyOf(ex)); }
   const pin = /^\d{4}$/.test(val('np-pin')) ? val('np-pin') : (rut.replace(/\D/g,'').slice(0,4) || String(1000+Math.floor(Math.random()*9000)));
-  const p={id:Date.now(), org, marca:val('np-marca')||'sm', estado:'activo', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:tel, edad:val('np-edad'), ocupacion:val('np-ocu'), deporte:val('np-dep'), emergencia:val('np-eme'),
+  const p={id:Date.now(), org, marca:val('np-marca')||'sm', estado:'activo', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:tel, ...nacDe(val('np-edad')), ocupacion:val('np-ocu'), deporte:val('np-dep'), emergencia:val('np-eme'),
     perfil:S.np.perfil, diagnostico:val('np-diag'), sesionesPlan:val('np-ses'), metaSemanal:val('np-meta'), klgo:evaluadores(org)[0],
     resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], checkins:[], citas:[], avisos:[], rmLog:[]};
   if(!(await save(p))) return;
@@ -2378,7 +2393,7 @@ function pResumen(p){
     <label class="field"><span class="lbl">Diagnóstico / motivo</span><input class="inp" id="pe-diag" value="${esc(p.diagnostico||'')}"></label>
     <div class="grid2"><label class="field"><span class="lbl">Sesiones planificadas</span><input class="inp" id="pe-ses" inputmode="numeric" value="${esc(p.sesionesPlan||'')}"></label><label class="field"><span class="lbl">Meta entrenos / semana</span><input class="inp" id="pe-meta" inputmode="numeric" value="${esc(p.metaSemanal||'')}"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Teléfono</span><input class="inp" id="pe-tel" value="${esc(p.contacto||'')}"></label><label class="field"><span class="lbl">PIN de acceso</span><input class="inp" id="pe-pin" inputmode="numeric" maxlength="4" value="${esc(p.pin||'')}"></label></div>
-    <div class="grid2"><label class="field"><span class="lbl">Edad</span><input class="inp" id="pe-edad" value="${esc(p.edad||'')}"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="pe-mail" value="${esc(p.email||'')}"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">Fecha de nacimiento${!p.fechaNac&&p.edad?` (hoy: ${esc(p.edad)} años)`:''}</span><input class="inp" type="date" id="pe-edad" max="${todayISO()}" value="${esc(p.fechaNac||'')}"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="pe-mail" value="${esc(p.email||'')}"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Ocupación</span><input class="inp" id="pe-ocu" value="${esc(p.ocupacion||'')}"></label><label class="field"><span class="lbl">Deporte / actividad</span><input class="inp" id="pe-dep" value="${esc(p.deporte||'')}"></label></div>
     <label class="field"><span class="lbl">Contacto de emergencia</span><input class="inp" id="pe-eme" value="${esc(p.emergencia||'')}"></label>
     <label class="field"><span class="lbl">Dirección (domicilio)</span><input class="inp" id="pe-dir" value="${esc(p.direccion||'')}"></label>
@@ -2397,7 +2412,7 @@ window.cambiarPerfil = async k => { const p=prof(S.proArg); if(!p) return; if(pe
   addAviso(p,'habilitado',`Tu plan ahora es: ${PERFIL_OPC.find(x=>x[0]===k)[1]}. Tu app se ajustó a este seguimiento.`);
   if(await save(p)){ closeSheet(); toast(`Ahora es ${PERFIL_OPC.find(x=>x[0]===k)[1].toLowerCase()}`); keepScroll(render); } };
 window.guardarDatos = async () => { const p=prof(S.proArg), pinIn=val('pe-pin'); if(pinIn!==String(p.pin||'') && !/^\d{4}$/.test(pinIn)) return toast('El PIN debe tener 4 dígitos','err'); const pin=pinIn||p.pin||'';
-  const upd={diagnostico:val('pe-diag'), sesionesPlan:val('pe-ses'), metaSemanal:val('pe-meta'), contacto:val('pe-tel'), pin, edad:val('pe-edad'), email:val('pe-mail'), ocupacion:val('pe-ocu'), deporte:val('pe-dep'), emergencia:val('pe-eme'), direccion:val('pe-dir'), kids:$('#pe-kids').checked, klgo:val('pe-k'), marca:val('pe-marca')};
+  const upd={diagnostico:val('pe-diag'), sesionesPlan:val('pe-ses'), metaSemanal:val('pe-meta'), contacto:val('pe-tel'), pin, ...nacDe(val('pe-edad')), email:val('pe-mail'), ocupacion:val('pe-ocu'), deporte:val('pe-dep'), emergencia:val('pe-eme'), direccion:val('pe-dir'), kids:$('#pe-kids').checked, klgo:val('pe-k'), marca:val('pe-marca')};
   if($('#pe-perfil')) upd.perfil=val('pe-perfil'); Object.assign(p,upd); if(await save(p)) toast('Cambios guardados'); keepScroll(render); };
 window.eliminarPersona = async () => { const p=prof(S.proArg); if(!confirm(`¿Eliminar definitivamente a ${p.nombre} y todo su historial? Esta acción no se puede deshacer.`)) return;
   try{ for(const it of evalsOf(keyOf(p))) await removeDoc(it); toast('Persona eliminada'); pgo('personas'); }catch(e){ toast('No se pudo eliminar','err'); } };
@@ -3491,7 +3506,7 @@ function vReservar(){
     <button type="button" class="pcard ${org==='kah'?'on':''}" onclick="rsOrg('kah')">${logoKAH()}<b>Kin At Home</b><small>Kine a domicilio</small></button></div>`}</div>
   <div class="card stack"><div class="eyebrow">2 · Tus datos</div>
     <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="rs-n" autocomplete="name"></label>
-    <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="rs-r" placeholder="12345678-9"></label><label class="field"><span class="lbl">Edad</span><input class="inp" id="rs-e" inputmode="numeric"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="rs-r" placeholder="12345678-9"></label><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="rs-e" max="${todayISO()}"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Teléfono *</span><input class="inp" id="rs-t" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="rs-m" type="email"></label></div></div>
   <div class="card stack"><div class="eyebrow">3 · Tu hora</div><div id="bk-dyn" class="stack">${S.agendas.length?bookingDyn():'<div class="empty">Cargando profesionales…</div>'}</div>${bkExtra()}</div>
   ${consentLabel('rs-ok')}
@@ -3509,7 +3524,7 @@ window.reservar = async () => {
   if(await rutExiste(rut)){ b.disabled=false; b.textContent='Solicitar hora'; toast('Ya tienes una cuenta con ese RUT. Ingresa para agendar.','err'); S.loginMode='pat'; return render(); }
   await loadPersona(rut);
   if(people().some(p=>normRut(p.rut)===normRut(rut))){ b.disabled=false; b.textContent='Solicitar hora'; toast('Ya tienes una cuenta con ese RUT. Ingresa para agendar.','err'); S.loginMode='pat'; return render(); }
-  const p={id:Date.now(), org:S.bk.org, marca:S.bk.org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'reserva', ...(S.bk.serv==='oral'?{servicio:'oral', oral:{proId:S.bk.proId, atenciones:[], tareas:[]}}:{}), fecha:todayISO(), nombre, rut, pin, contacto:tel, email:val('rs-m'), edad:val('rs-e'),
+  const p={id:Date.now(), org:S.bk.org, marca:S.bk.org==='kah'?'sm+kah':'sm', estado:'pendiente', creadoPor:'reserva', ...(S.bk.serv==='oral'?{servicio:'oral', oral:{proId:S.bk.proId, atenciones:[], tareas:[]}}:{}), fecha:todayISO(), nombre, rut, pin, contacto:tel, email:val('rs-m'), ...nacDe(val('rs-e')),
     perfil:'', resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], animo:[], citas:[], avisos:[], rmLog:[], saltos:[], consentimiento:consentNuevo()};
   if(+p.edad && +p.edad<10) p.kids=true;
   const c=buildCita(p); if(!c){ b.disabled=false; b.textContent='Solicitar hora'; return; }
@@ -4285,7 +4300,7 @@ function vNuevaOral(){
   <section class="card stack"><label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="no-n"></label>
     <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="no-r" placeholder="12345678-9"></label><label class="field"><span class="lbl">Clave (4 dígitos)</span><input class="inp" id="no-pin" inputmode="numeric" maxlength="4" placeholder="Primeros 4 del RUT"></label></div>
     <div class="grid2"><label class="field"><span class="lbl">Teléfono</span><input class="inp" id="no-t" inputmode="tel"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="no-m" type="email"></label></div>
-    <div class="grid2"><label class="field"><span class="lbl">Edad</span><input class="inp" id="no-e" inputmode="numeric"></label><label class="field"><span class="lbl">Sesiones del plan</span><input class="inp" id="no-s" inputmode="numeric" placeholder="Ej: 6"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="no-e" max="${todayISO()}"></label><label class="field"><span class="lbl">Sesiones del plan</span><input class="inp" id="no-s" inputmode="numeric" placeholder="Ej: 6"></label></div>
     <label class="field"><span class="lbl">Tratamiento</span><input class="inp" id="no-tr" placeholder="Ej: Tratamiento de caries y limpieza"></label>
     <button class="btn pri block" onclick="crearOral()">Crear paciente</button></section></div>`;
 }
@@ -4293,7 +4308,7 @@ window.crearOral = async () => { const nombre=val('no-n'), rut=fmtRut(val('no-r'
   let ex=false; try{ const r=await Promise.all(['sm','kah'].map(loadOrg)); ex=r.flat().some(p=>normRut(p.rut)===normRut(rut)); }catch(e){}
   if(ex){ toast('Ese RUT ya existe en la base de datos. Pide que te compartan a la persona o agenda su hora.','err'); return; }
   const pin=val('no-pin')||pinDeRut(rut)||'0000';
-  const p={id:Date.now(), org:'sm', marca:'sm', servicio:'oral', estado:'activo', perfil:'oral', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:val('no-t'), email:val('no-m'), edad:val('no-e'), klgo:S.pro.nombre,
+  const p={id:Date.now(), org:'sm', marca:'sm', servicio:'oral', estado:'activo', perfil:'oral', creadoPor:'pro', fecha:todayISO(), nombre, rut, pin, contacto:val('no-t'), email:val('no-m'), ...nacDe(val('no-e')), klgo:S.pro.nombre,
     oral:{proId:S.pro.id, plan:{tratamiento:val('no-tr'), sesiones:+val('no-s')||''}, atenciones:[], tareas:[]}, diarios:[], citas:[], avisos:[], consentimiento:null};
   addAviso(p,'bienvenida',`Bienvenido/a. Aquí verás tu tratamiento con ${S.pro.nombre}.`);
   if(await saveOral(p) && await save(p)){ toast(`${first(nombre)} creado · clave ${pin}`); openPersona(keyOf(p)); } };

@@ -1362,7 +1362,6 @@ function vHoy(p){
   h+=stepsCard(p);
   h+=proximaCitaCard(p);
   if(rh) h+=rehabCard(p);
-  h+=animoCard(p);
   const ts=tareas(p).filter(t=>!t.hecha);
   if(ts.length) h+=`<div class="sec-t"><h2>Tareas en casa</h2><button class="xs b acc-t" onclick="S.planSeg='rehab';go('plan')">Ver todas</button></div><div class="list">${ts.slice(0,3).map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`;
   const ln=(p.sesionesRehab||[]).slice(-1)[0];
@@ -1535,6 +1534,7 @@ function vEntrenar(p){
   if(!w){
     const pend=(p.rutinasAsignadas||[]).filter(r=>!r.completada).reverse();
     return `<header class="top">${perfilOf(p)==='rehabilitacion'?`<button class="back" onclick="go('hoy')">${ic('chevl','s')} Hoy</button>`:''}<div class="eyebrow">Entrenar</div><h1 class="disp h1" style="margin-top:6px">¿Qué hacemos hoy?</h1></header><div class="stack">
+      ${animoCard(p)}
       ${pend.length?`<div class="list">${pend.map(r=>`<button class="li" onclick="startWorkout(${r.id})"><span class="ico">${ic('dumbbell')}</span><div class="grow"><div class="b">${esc(r.titulo)}</div><div class="xs muted">${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Mi rutina':'De tu kine'}</div></div><span class="btn pri sm">Hacer rutina</span></button>`).join('')}</div>`:`<div class="card empty">No tienes rutinas pendientes.</div>`}
       <div class="grid2"><button class="btn sec" onclick="startWorkout(null)">${ic('plus','s')} Sesión libre</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div>
       ${gpsBtns()}

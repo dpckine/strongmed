@@ -220,6 +220,9 @@ button.stat{text-align:left}
 .tl-i.blue:before{background:var(--blue)}
 .tl-i .body{font-size:13.5px;color:var(--tx);margin-top:4px;line-height:1.5}
 .tl-i .body strong{font-weight:700}
+.ficha{display:grid;gap:12px;margin-top:6px}.ficha .fi{padding-bottom:12px;border-bottom:1px solid var(--line)}.ficha .fi:last-child{border-bottom:0;padding-bottom:0}
+.ficha .fl{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}.ficha .fv{font-size:15px;line-height:1.6;color:var(--tx);margin-top:4px;white-space:pre-line;overflow-wrap:anywhere}.ficha .fv strong,.ficha .fv b{font-weight:700}
+.seg button.lockd{opacity:.55}.seg button.lockd svg{width:14px;height:14px;vertical-align:-2px;margin-right:2px}
 
 /* chat */
 .wrap.chatmode{padding-bottom:0}
@@ -1285,18 +1288,19 @@ window.pedirNotis = async () => { if(!('Notification' in window)) return toast('
 function shellPat(){
   const p=me(); if(!p){ S.role=null; return vLogin(); }
   const per=perfilOf(p), pend=isPending(p), rehab=!pend && per==='rehabilitacion', oral=soloOral(p);
-  const views={hoy:vHoy, plan:vPlan, entrenar:vEntrenar, progreso:vProgreso, chat:vChatPat, perfil:vPerfil, agenda:vAgendaPat, faq:vKinIA, ficha:vAnamnesis, biblioteca:()=>vLib(), gps:vGps, oral:vTratamiento};
+  const views={hoy:vHoy, plan:vPlan, entrenar:vEntrenar, progreso:vProgreso, tareas:vTareas, chat:vChatPat, perfil:vPerfil, agenda:vAgendaPat, faq:vKinIA, ficha:vAnamnesis, biblioteca:()=>vLib(), gps:vGps, oral:vTratamiento};
   if(oral){ views.hoy = pend ? vHoyPend : vHoyOral; views.plan = vTratamiento; if(!['hoy','plan','agenda','chat','perfil','oral'].includes(S.patTab)) S.patTab='hoy'; if(pend && S.patTab==='plan') S.patTab='hoy'; }
-  if(pend && ['plan','entrenar','gps'].includes(S.patTab)) S.patTab='hoy';
+  if(pend && ['plan','entrenar','gps','tareas'].includes(S.patTab)) S.patTab='hoy';
+  if(!pend && !oral){ if(rehab && S.patTab==='progreso') S.patTab='tareas'; if(!rehab && S.patTab==='tareas') S.patTab='plan'; }
   const body=(views[S.patTab]||vHoy)(p);
   const tabs = oral ? (pend ? [['agenda','cal','Agenda'],['hoy','home','Hoy'],['chat','chat','Mensajes']] : [['agenda','cal','Agenda'],['plan','tooth','Tratamiento'],['hoy','home','Hoy'],['chat','chat','Mensajes']])
     : pend ? [['agenda','cal','Agenda'],['ficha','clip','Mi ficha'],['hoy','home','Hoy'],['progreso','steps','Pasos'],['chat','chat','Mensajes']]
-    : rehab ? [['agenda','cal','Agenda'],['plan','clip','Mi plan'],['hoy','home','Hoy'],['progreso','chart','Progreso'],['chat','chat','Mensajes']]
-    : [['entrenar','dumbbell','Entrenar'],['plan','clip','Plan'],['hoy','home','Hoy'],['progreso','chart','Progreso'],['chat','chat','Mensajes']];
+    : rehab ? [['agenda','cal','Agenda'],['plan','clip','Mi plan'],['hoy','home','Hoy'],['tareas','check','Tareas'],['chat','chat','Mensajes']]
+    : [['agenda','cal','Agenda'],['plan','clip','Mi plan'],['hoy','home','Hoy'],['progreso','chart','Progreso'],['chat','chat','Mensajes']];
   return `<div class="shell pat"><main class="wrap ${S.patTab==='chat'?'chatmode':''} fade">${body}</main>
   <div id="restbar" class="restbar hidden"></div>
   <nav class="tabbar">${tabs.map(([k,i,l])=> k==='hoy'
-    ? `<button class="tab fab ${S.patTab===k?'on':''}" onclick="go('hoy')"><span class="fabc">${ic(i)}${unreadAvisos(p).length?'<i class="live"></i>':''}</span><span>${l}</span></button>`
+    ? `<button class="tab fab ${S.patTab===k?'on':''}" onclick="go('hoy')"><span class="fabc">${ic(i)}${unreadAvisos(p).length||S.workout?'<i class="live"></i>':''}</span><span>${l}</span></button>`
     : `<button class="tab ${S.patTab===k?'on':''}" onclick="go('${k}')">${ic(i)}${k==='entrenar'&&S.workout?'<i class="live" style="position:relative;top:-28px;right:-12px;margin-bottom:-12px"></i>':''}<span>${l}</span></button>`).join('')}</nav></div>`;
 }
 const entrada = () => { const b=document.body; b.classList.remove('tabenter'); void b.offsetWidth; b.classList.add('tabenter'); clearTimeout(S._ent); S._ent=setTimeout(()=>b.classList.remove('tabenter'), 700); };
@@ -1313,7 +1317,7 @@ function weekStrip(p, rehab=false){ const sd=stepDays(p), tr=new Set(sessions(p)
   return `<section class="card tight"><div class="row between" style="padding:2px 4px 8px"><span class="eyebrow">Esta semana</span><span class="xs muted b">${rehab?`${n} sesiones · ● próxima hora`:`${n} de ${meta(p)} días activos`}</span></div><div class="week">${h}</div></section>`; }
 
 const AV_ICON = {horarios:'cal', escala:'clip', rutina:'dumbbell', cita:'cal', video:'video', habilitado:'shield', tarea:'task', evaluacion:'steth', bienvenida:'heart', faq:'help'};
-function avisoAction(a){ return ({horarios:`go('chat')`, rutina:`go('plan')`, cita:`go('agenda')`, tarea:`S.planSeg='rehab';go('plan')`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
+function avisoAction(a){ return ({horarios:`go('chat')`, rutina:`goRutinas()`, cita:`go('agenda')`, tarea:`goTareas()`, evaluacion:`S.planSeg='fichas';go('plan')`, video: a.url?`window.open(${q(a.url)},'_blank')`:`go('chat')`, faq:`go('faq')`})[a.tipo] || ''; }
 function avisosHoy(p){
   let h=notisCard()+escalasPendCard(p);
   const v=p.videoActiva, vOn = videoOn(p); if(vOn) h+=`<div class="aviso red"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b">Tu kine te invita a una videollamada</div><div class="xs muted">${esc(v.pro||'')} · ${relTs(v.ts)}</div></div><a class="btn pri sm" href="${safeUrl(v.url)}" target="_blank" rel="noopener">Unirme</a></div>`;
@@ -1342,7 +1346,7 @@ function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-a
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
   const per=perfilOf(p), tr=per!=='rehabilitacion', rh=per!=='entrenamiento', nr=nextRoutine(p), w=S.workout;
-  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${stepsCard(p)}${registrarCard()}${kineCard(p)}${animoCard(p)}${kiaPreview()}</div>`;
+  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${stepsCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
   let h=`${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">`;
   h+=avisosHoy(p);
   h+=weekStrip(p);
@@ -1356,14 +1360,14 @@ function vHoy(p){
       <div class="row between" style="margin-top:16px;position:relative;z-index:1"><span class="b sm">${ex.length} ejercicios${nr.tiempo?` · ${esc(nr.tiempo)} min`:''}</span><button class="btn dark sm" onclick="startWorkout(${nr.id})">${ic('play','s')} Hacer rutina</button></div>
       <div class="exl">${ex.slice(0,4).map(e=>`<div class="ex"><span class="cc ${e.hecho?'on':''}" style="border-color:rgba(0,0,0,.3)">${ic('check')}</span><span class="grow b sm trunc">${esc(e.ejercicio)}</span><span class="sm b" style="opacity:.7">${esc(e.series||3)}×${esc(e.reps||10)}</span></div>`).join('')}${ex.length>4?`<button class="sm b" style="opacity:.7;padding:4px 12px;text-align:left" onclick="go('plan')">+ ${ex.length-4} más</button>`:''}</div></section>`;
   } else if(tr){
-    h+=`<section class="card"><div class="eyebrow">Entrenamiento de hoy</div><h2 class="disp h2" style="margin-top:8px">Día libre</h2><p class="muted sm" style="margin:6px 0 14px">No tienes una rutina pendiente. Registra una sesión libre, otra actividad o crea tu propia rutina.</p><div class="grid2"><button class="btn pri" onclick="go('entrenar')">${ic('dumbbell','s')} Entrenar</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div><div style="margin-top:12px">${gpsBtns()}</div></section>`;
+    h+=`<section class="card"><div class="eyebrow">Entrenamiento de hoy</div><h2 class="disp h2" style="margin-top:8px">Día libre</h2><p class="muted sm" style="margin:6px 0 14px">No tienes una rutina pendiente. Registra una sesión libre, otra actividad o crea tu propia rutina.</p><div class="grid2"><button class="btn pri" onclick="startWorkout(null)">${ic('dumbbell','s')} Sesión libre</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div><div style="margin-top:12px">${gpsBtns()}</div></section>`;
   } else h+=`<div class="grid3 gpsbtns">${[['Trote','run'],['Caminata','steps'],['Bicicleta','bike']].map(([t,i])=>`<button class="gpsb" onclick="iniciarGps('${t}')"><span class="ico">${ic(i)}</span><b>${t}</b></button>`).join('')}</div>`;
   if(S.gps) h+=`<button class="aviso acc" style="width:100%;text-align:left" onclick="go('gps')"><span class="ico">${ic('run')}</span><div class="grow"><div class="b">${esc(S.gps.tipo)} en curso</div><div class="xs muted">Toca para volver al mapa</div></div>${ic('chevr','s')}</button>`;
   h+=stepsCard(p);
   h+=proximaCitaCard(p);
   if(rh) h+=rehabCard(p);
   const ts=tareas(p).filter(t=>!t.hecha);
-  if(ts.length) h+=`<div class="sec-t"><h2>Tareas en casa</h2><button class="xs b acc-t" onclick="S.planSeg='rehab';go('plan')">Ver todas</button></div><div class="list">${ts.slice(0,3).map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`;
+  if(ts.length) h+=`<div class="sec-t"><h2>Tareas en casa</h2><button class="xs b acc-t" onclick="goTareas()">Ver todas</button></div><div class="list">${ts.slice(0,3).map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc">${ic('check')}</span><span class="grow sm" style="white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`;
   const ln=(p.sesionesRehab||[]).slice(-1)[0];
   if(ln && ln.nota) h+=`<div class="sec-t"><h2>Nota de tu kine</h2></div><button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row" style="align-items:flex-start">${ic('steth')}<div class="grow"><div class="xs muted b">${fmtDate(ln.fecha)} · ${esc(ln.klgo||p.klgo||'Tu kinesiólogo')}</div><p class="sm" style="margin-top:4px">${esc(ln.nota)}</p></div></div></button>`;
   h+=kiaPreview();
@@ -1398,7 +1402,8 @@ function rehabCard(p){
     <div class="xs muted" style="margin-top:4px">${last?`Última sesión ${rel(toISO(last.fecha))}`:'Aún sin sesiones registradas'}</div>
     ${firstEva&&last&&last.eva!=null&&last.eva!==''?`<div class="row" style="gap:6px;margin-top:10px"><span class="badge">Dolor ${esc(firstEva.eva)}/10</span>${ic('chevr','s')}<span class="badge ${+last.eva<+firstEva.eva?'acc':'red'}">${esc(last.eva)}/10</span></div>`:''}</div></div></section>`;
 }
-window.toggleTarea = async id => { const p=me(); const ts=tareas(p); const t=ts.find(x=>x.id===id); if(!t) return; t.hecha=!t.hecha; p.tareasClinicas=ts; await save(p); keepScroll(render); };
+window.toggleTarea = id => { const p=me(), t=tareas(p).find(x=>x.id===id); if(t && !t.hecha && perfilOf(p)==='rehabilitacion') return wellnessAntes(()=>_toggleTarea(id), 'antes de registrar tu tarea'); return _toggleTarea(id); };
+const _toggleTarea = async id => { const p=me(); const ts=tareas(p); const t=ts.find(x=>x.id===id); if(!t) return; t.hecha=!t.hecha; p.tareasClinicas=ts; await save(p); keepScroll(render); };
 function faqPreview(){ if(!S.faq.length) return '';
   return `<div class="sec-t"><h2>Preguntas frecuentes</h2><button class="xs b acc-t" onclick="go('faq')">Ver todas</button></div><div class="list">${S.faq.slice(0,3).map(f=>`<details class="faq"><summary>${ic('help','s')}<span class="grow sm">${esc(f.pregunta)}</span>${ic('chevr','s')}</summary><div class="ans">${esc(f.respuesta)}</div></details>`).join('')}</div>`; }
 
@@ -1412,15 +1417,40 @@ function routineCard(r){
   ${r.completada?`<div class="donebar">${ic('check','s')} Completada</div>`:''}
   <div class="row" style="gap:8px;margin-top:12px"><button class="btn ${r.completada?'sec':'pri'} grow" onclick="startWorkout(${r.id})">${ic('play','s')} ${r.completada?'Repetir rutina':'Hacer rutina'}</button><button class="ibtn" onclick="shareRutina(${r.id})" aria-label="Compartir">${ic('upload','s')}</button><button class="ibtn red" onclick="borrarRutinaPat(${r.id})" aria-label="Eliminar">${ic('trash','s')}</button></div></article>`;
 }
+function fichaHTML(res, pro){ const rows=(res||[]).map(String).filter(r=>pro||!r.includes('data-pro')).map(r=>{
+    const m=r.match(/^([\s\S]*?)<strong>([\s\S]*?)<\/strong>\s*:?\s*([\s\S]*)$/);
+    if(m){ const lab=(stripTags(m[1])+' '+stripTags(m[2])).replace(/:\s*$/,'').trim(); const v=m[3].replace(/<\/span>\s*$/,'').trim(); return `<div class="fi"><div class="fl">${esc(lab)}</div><div class="fv">${v||'—'}</div></div>`; }
+    if(/class="badge/.test(r)) return `<div>${r}</div>`;
+    const t=stripTags(r).trim(); return t ? `<div class="fi"><div class="fv">${esc(t)}</div></div>` : ''; }).join('');
+  return `<div class="ficha">${rows}</div>`; }
+window.goTareas = () => { const p=me(); if(p && perfilOf(p)==='rehabilitacion') go('tareas'); else { S.planSeg='rehab'; go('plan'); } };
+window.goRutinas = () => { const p=me(); if(p && perfilOf(p)==='rehabilitacion') go('tareas'); else { S.planSeg='rutinas'; go('plan'); } };
+const autoRegCard = p => p.autoRegistro?`<section class="card row" style="gap:12px"><span class="ico">${ic('clip','s')}</span><div class="grow"><div class="b sm">Registro de sesiones presenciales</div><div class="xs muted">${presAprob(p).length} aprobadas${presPend(p).length?` · ${presPend(p).length} esperando aprobación`:''}. Al terminar tu entrenamiento en el centro, márcalo como sesión presencial.</div></div></section>`:'';
+const tareasListHTML = ts => ts.length?`<div class="list">${ts.map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="${t.hecha?'text-decoration:line-through;opacity:.55':''};white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`:`<div class="card empty">Sin tareas asignadas por ahora.</div>`;
+function sesionesRingCard(p){ const d=rehabDone(p), pl=rehabPlan(p), ss=p.sesionesRehab||[], last=ss[ss.length-1], f=pl-d;
+  return `<section class="card"><div class="row" style="gap:16px">${ring(pl? d/pl : (d?1:0), d, pl?`de ${pl}`:'sesiones', 104, 'blue')}
+    <div class="grow"><div class="eyebrow" style="color:var(--blue)">${esc(p.diagnostico||'Tu rehabilitación')}</div><div class="h3" style="margin-top:6px">${pl?`Llevas ${d} de ${pl} sesiones`:`Llevas ${d} ${d===1?'sesión':'sesiones'}`}</div>
+    <div class="sm b" style="margin-top:4px;color:var(--blue)">${pl?(f>0?`Te ${f===1?'falta 1 sesión':`faltan ${f} sesiones`}`:'¡Completaste tu plan!'):'Tu kine definirá cuántas sesiones necesitas'}</div>
+    <div class="xs muted" style="margin-top:4px">${last?`Última sesión ${rel(toISO(last.fecha))}`:'Aún sin sesiones registradas'}</div></div></div></section>`; }
+function dolorCard(p){ const ev=(p.sesionesRehab||[]).filter(s=>s.eva!==''&&s.eva!=null); if(!ev.length) return `<section class="card"><div class="b">Dolor por sesión</div><div class="xs muted" style="margin-top:4px">Tu kine registrará tu dolor (0–10) en cada sesión y aquí verás cómo baja.</div></section>`;
+  S.after.push(()=>chartEVA(p,'c-eva')); const a=ev[0], z=ev[ev.length-1];
+  return `<section class="card"><div class="row between"><span class="b">Dolor por sesión</span>${ev.length>1?`<span class="row" style="gap:6px"><span class="badge">${esc(a.eva)}/10</span>${ic('chevr','s')}<span class="badge ${+z.eva<+a.eva?'acc':+z.eva>+a.eva?'red':''}">${esc(z.eva)}/10</span></span>`:`<span class="xs muted">0–10</span>`}</div><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>`; }
 function vPlan(p){
-  const per=perfilOf(p); let seg=S.planSeg || (per==='rehabilitacion'?'rehab':'rutinas'); if(per==='entrenamiento' && seg==='rehab') seg='rutinas';
+  const per=perfilOf(p), canR=per!=='entrenamiento', canT=per!=='rehabilitacion';
+  let seg=S.planSeg || (canR?'rehab':'rutinas'); if(!['rehab','rutinas','fichas'].includes(seg)) seg=canR?'rehab':'rutinas';
+  S.after.push(loadLib);
+  if(seg==='fichas') return `<header class="top"><button class="back" onclick="S.planSeg=null;render()">${ic('chevl','s')} Mi plan</button><h1 class="disp h1" style="margin-top:6px">Mis fichas</h1></header><div class="stack">${fichasHTML(p)}</div>`;
   const rs=(p.rutinasAsignadas||[]).slice().reverse(), done=rs.filter(r=>r.completada);
   const pend=rs.filter(r=>!r.completada).sort((a,b)=>{ const k=r=>conDias(r)?(r.dias.includes(hoyDia())?0:Math.min(...r.dias.map(d=>(d-hoyDia()+7)%7))):99; return k(a)-k(b); });
-  S.after.push(loadLib);
   let h=`<header class="top"><div class="eyebrow">${PERFIL[per].label}</div><h1 class="disp h1" style="margin-top:6px">Mi plan</h1></header><div class="stack">`;
-  const segs = per==='mixto' ? [['rutinas','Rutinas'],['rehab','Rehabilitación'],['fichas','Fichas']] : per==='rehabilitacion' ? [['rehab','Rehabilitación'],['fichas','Mis fichas']] : [['rutinas','Rutinas'],['fichas','Mis fichas']];
-  h+=`<div class="seg">${segs.map(([k,l])=>`<button class="${seg===k?'on':''}" onclick="S.planSeg='${k}';render()">${l}</button>`).join('')}</div>`;
-  if(seg==='rutinas'){
+  h+=escalasPendCard(p);
+  h+=`<div class="seg">${[['rehab','Rehabilitación',canR],['rutinas','Entrenamiento',canT]].map(([k,l,ok])=>`<button class="${seg===k?'on':''} ${ok?'':'lockd'}" onclick="S.planSeg='${k}';render()">${ok?'':ic('lock','s')}${l}</button>`).join('')}</div>`;
+  const fichasBtn=`<button class="li" onclick="S.planSeg='fichas';render()"><span class="ico">${ic('file','s')}</span><div class="grow"><div class="b sm">Mis fichas, informes y cuestionarios</div><div class="xs muted">Evaluaciones, informes en PDF y cuestionario inicial</div></div>${ic('chevr','s chev')}</button>`;
+  if((seg==='rehab'&&!canR)||(seg==='rutinas'&&!canT)){
+    const r=seg==='rehab';
+    h+=`<section class="card center" style="padding:28px 20px"><span class="ico" style="margin:0 auto">${ic('lock')}</span><div class="h3" style="margin-top:12px">${r?'Rehabilitación':'Entrenamiento'} no está en tu plan</div><p class="sm muted" style="margin-top:6px">Tu plan actual es solo ${r?'entrenamiento':'rehabilitación'}. Si quieres sumar ${r?'rehabilitación':'entrenamiento'}, conversa con tu profesional y te lo habilita.</p><button class="btn pri" style="margin-top:14px" onclick="go('chat')">${ic('chat','s')} Escribir a mi profesional</button></section>`;
+  } else if(seg==='rutinas'){
+    h+=autoRegCard(p);
     h+=`<div class="grid2"><button class="btn sec" onclick="sheetMiRutina()">${ic('plus','s')} Crear rutina</button><button class="btn sec" onclick="go('biblioteca')">${ic('book','s')} Ejercicios</button></div>`;
     const sem=[1,2,3,4,5,6,7].map(d=>[d, pend.filter(r=>conDias(r)&&r.dias.includes(d))]);
     if(sem.some(([,l])=>l.length)) h+=`<section class="card"><div class="eyebrow">Tu semana</div><div class="stack" style="margin-top:10px">${sem.map(([d,l])=>`<div class="row between sm" style="${d===hoyDia()?'font-weight:800':''}"><span>${DIAS_L[d]}${d===hoyDia()?' · hoy':''}</span><span class="${l.length?'':'muted'}">${l.length?l.map(r=>esc(r.titulo)).join(' + '):'Descanso'}</span></div>`).join('')}</div></section>`;
@@ -1428,22 +1458,56 @@ function vPlan(p){
     h+=misRutinasHTML(p,true);
     h+=destacadasPatHTML();
     if(done.length) h+=`<details ${S.verHechas?'open':''} ontoggle="S.verHechas=this.open"><summary class="sec-t"><h2>Completadas (${done.length}) · puedes repetirlas</h2>${ic('chevr','s')}</summary><div class="stack" style="margin-top:10px">${done.slice(0,20).map(routineCard).join('')}</div></details>`;
-  } else if(seg==='rehab'){
-    h+=rehabCard(p);
-    const ts=tareas(p);
-    h+=`<div class="sec-t"><h2>Tareas en casa</h2></div>${ts.length?`<div class="list">${ts.map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="${t.hecha?'text-decoration:line-through;opacity:.55':''};white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`:`<div class="card empty">Sin tareas asignadas por ahora.</div>`}`;
-    if(per==='rehabilitacion' && pend.length) h+=`<div class="sec-t"><h2>Ejercicios asignados</h2></div>${pend.map(routineCard).join('')}`;
-    if(per==='rehabilitacion') h+=destacadasPatHTML();
+    if(!canR) h+=`<div class="list">${fichasBtn}</div>`;
+  } else {
+    h+=sesionesRingCard(p);
+    h+=dolorCard(p);
+    if(per==='mixto') h+=`<div class="sec-t"><h2>Tareas en casa</h2></div>${tareasListHTML(tareas(p))}`;
     const ss=(p.sesionesRehab||[]).slice().reverse();
-    h+=`<div class="sec-t"><h2>Registro clínico de sesiones</h2></div><div class="card">${ss.length?`<div class="tl">${ss.map((s,i)=>`<div class="tl-i blue"><div class="row between"><span class="b sm">Sesión ${ss.length-i}</span><span class="xs muted">${fmtDate(s.fecha)}${s.eva!==''&&s.eva!=null?` · dolor ${esc(s.eva)}/10`:''}</span></div>${s.klgo?`<div class="xs muted">${esc(s.klgo)}</div>`:''}${s.nota?`<div class="body muted">${esc(s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Tus sesiones aparecerán aquí.</div>'}</div>`;
-  } else h+=fichasHTML(p);
+    h+=`<div class="sec-t"><h2>Registro de sesiones</h2></div><div class="card">${ss.length?`<div class="tl">${ss.map((s,i)=>`<div class="tl-i blue"><div class="row between"><span class="b sm">Sesión ${ss.length-i}</span><span class="xs muted">${fmtDate(s.fecha)}${s.eva!==''&&s.eva!=null?` · dolor ${esc(s.eva)}/10`:''}</span></div>${s.klgo?`<div class="xs muted">${esc(s.klgo)}</div>`:''}${s.nota?`<div class="sm" style="margin-top:4px;line-height:1.5;white-space:pre-line">${esc(s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Tus sesiones aparecerán aquí.</div>'}</div>`;
+    const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), ek=evs.filter(e=>e.evalTipo!=='funcional'), le=(ek.length?ek:evs).slice(-1)[0];
+    h+=`<div class="sec-t"><h2>Ficha clínica</h2>${le?`<span class="xs muted">${fmtDate(le.fecha)}${le.klgo?` · ${esc(le.klgo)}`:''}</span>`:''}</div>`;
+    h+= le ? `<section class="card">${fichaHTML(le.resultados)}</section>` : p.diagnostico ? `<section class="card"><div class="ficha"><div class="fi"><div class="fl">Diagnóstico</div><div class="fv">${esc(p.diagnostico)}</div></div></div></section>` : `<div class="card empty">Tu kine completará tu ficha en la evaluación.</div>`;
+    h+=`<div class="list">${fichasBtn}</div>`;
+  }
   return h+'</div>';
+}
+function vTareas(p){
+  const iso=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  const all=(p.rutinasAsignadas||[]), pend=all.filter(r=>!r.completada).slice().reverse(), ts=tareas(p), hoy=todayISO();
+  const diarios=(p.diarios||[]), hizo=f=>diarios.some(d=>toISO(d.fecha)===f), hizoR=(r,f)=>diarios.some(d=>toISO(d.fecha)===f && d.rutinaId===r.id) || (f===hoy && hechaHoy(r));
+  const mon=new Date(); mon.setDate(mon.getDate()-(hoyDia()-1));
+  const dias=[1,2,3,4,5,6,7].map(d=>{ const x=new Date(mon); x.setDate(mon.getDate()+d-1); const f=iso(x), asig=pend.filter(r=>conDias(r)&&r.dias.includes(d));
+    const st = asig.length ? (asig.some(r=>hizoR(r,f))||hizo(f) ? 'ok' : f<hoy ? 'no' : f===hoy ? 'hoy' : 'fut') : (hizo(f)?'extra':'libre'); return {d,f,asig,st}; });
+  const nAs=dias.filter(x=>x.asig.length && x.f<=hoy).length, nOk=dias.filter(x=>x.asig.length && x.st==='ok').length;
+  const col={ok:'var(--green)', no:'var(--red)', hoy:'var(--acc)', fut:'var(--line2)', extra:'var(--green)', libre:'transparent'};
+  const sym={ok:'✓', no:'✕', hoy:'•', fut:'', extra:'✓', libre:''};
+  const semana=`<section class="card"><div class="row between"><span class="b">Tu semana</span><span class="xs muted">${nAs?`${nOk} de ${nAs} días cumplidos`:'Sin días asignados aún'}</span></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px">${dias.map(x=>`<div class="center"><div class="xs ${x.d===hoyDia()?'b':'muted'}">${DIAS_C[x.d]}</div><div style="margin:6px auto 0;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;border:2px solid ${x.asig.length||x.st==='extra'?col[x.st]:'var(--line)'};background:${x.st==='ok'||x.st==='extra'?col[x.st]:'transparent'};color:${x.st==='ok'||x.st==='extra'?'#000':x.st==='no'?'var(--red)':'var(--tx)'}">${sym[x.st]}</div></div>`).join('')}</div>
+    <div class="xs muted" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap"><span>✓ realizada</span><span style="color:var(--red)">✕ no realizada</span><span>○ día asignado</span></div>
+    ${pend.some(conDias)?`<div class="stack" style="margin-top:12px">${pend.filter(conDias).map(r=>`<div class="row between sm"><span class="trunc">${esc(r.titulo)}</span>${diaTag(r)}</div>`).join('')}</div>`:''}</section>`;
+  const an=(p.animo||[]).find(a=>a.fecha===hoy), hoyR=pend.filter(r=>conDias(r)&&r.dias.includes(hoyDia())), tHechas=ts.filter(t=>t.hecha).length, dHoy=diarios.filter(d=>toISO(d.fecha)===hoy);
+  const resumen=`<section class="card stack"><div class="row between"><span class="b">Resumen de hoy</span><span class="xs muted">${fmtLong(new Date())}</span></div>
+    <div class="row between sm"><span>Cómo te sientes</span><span class="b">${an?`${ANIMO[an.v-1][0]} ${ANIMO[an.v-1][1]}`:'<span class="muted">Sin registrar</span>'}</span></div>
+    ${hoyR.map(r=>`<div class="row between sm"><span class="trunc">${esc(r.titulo)}</span><span class="b" style="color:${hizoR(r,hoy)?'var(--green)':'var(--mu)'}">${hizoR(r,hoy)?'✓ Hecha':'Pendiente'}</span></div>`).join('')}
+    ${!hoyR.length?`<div class="row between sm"><span>Rutina</span><span class="b ${dHoy.length?'':'muted'}" style="${dHoy.length?'color:var(--green)':''}">${dHoy.length?`✓ ${dHoy.length} registrada${dHoy.length>1?'s':''}`:'Sin registro hoy'}</span></div>`:''}
+    ${ts.length?`<div class="row between sm"><span>Tareas en casa</span><span class="b">${tHechas} de ${ts.length}</span></div>`:''}</section>`;
+  return `<header class="top"><div class="eyebrow">Rutinas y ejercicios en casa</div><h1 class="disp h1" style="margin-top:6px">Mis tareas</h1></header><div class="stack">
+    ${S.workout?`<button class="aviso acc" style="width:100%;text-align:left" onclick="go('entrenar')"><span class="ico">${ic('dumbbell')}</span><div class="grow"><div class="b">${esc(S.workout.titulo)} en curso</div><div class="xs muted">Toca para continuar</div></div>${ic('chevr','s')}</button>`:''}
+    ${autoRegCard(p)}
+    <div class="sec-t"><h2>Rutinas asignadas</h2></div>
+    ${pend.length ? pend.map(routineCard).join('') : `<div class="card empty">Tu kine te enviará tus ejercicios aquí.</div>`}
+    <div class="sec-t"><h2>Tareas en casa</h2></div>${tareasListHTML(ts)}
+    ${resumen}
+    ${semana}
+    ${destacadasPatHTML()}
+    ${animoCardChart(p,'Cómo te has sentido')}</div>`;
 }
 function misInformesHTML(p){ const inf=(p.informes||[]).filter(i=>i.enviado).slice().reverse(); if(!inf.length) return '';
   return `<div class="sec-t"><h2>Mis informes</h2></div><div class="list">${inf.map(i=>`<div class="li"><span class="ico">${ic('file','s')}</span><button class="grow" style="text-align:left" onclick="verMiInforme(${q(i.id)})"><div class="b sm">Informe ${i.tipo==='alta'?'de alta':i.servicio==='oral'?'odontológico':'kinesiológico'}${i.servicio==='oral'&&i.tipo==='alta'?' odontológica':''}</div><div class="xs muted">${fmtDate(i.enviadoFecha||i.fecha)} · ${esc(i.autor||'')}</div></button><button class="btn pri sm" onclick="descargarMiInforme(${q(i.id)})">${ic('download','s')} PDF</button></div>`).join('')}</div>`; }
 function fichasHTML(p){
   const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length).reverse();
-  return escalasPendCard(p) + misInformesHTML(p) + tratAnterioresHTML(p,false) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${(e.resultados||[]).filter(r=>!String(r).includes('data-pro')).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
+  return escalasPendCard(p) + misInformesHTML(p) + tratAnterioresHTML(p,false) + (evs.length ? `<div class="card"><div class="tl">${evs.map(e=>`<div class="tl-i"><div class="row between"><span class="b sm">${fmtDate(e.fecha)}</span><span class="xs muted">${esc(e.klgo||'')}</span></div><div class="body">${fichaHTML(e.resultados)}</div></div>`).join('')}</div></div>` : `<div class="card empty">Aún no tienes evaluaciones registradas.</div>`)
     + `<button class="btn sec block" onclick="go('ficha')">${ic('clip','s')} ${p.anamnesis?'Actualizar':'Completar'} mi cuestionario inicial</button>`;
 }
 window.toggleEj = async (rid,i) => { const p=me(); const r=(p.rutinasAsignadas||[]).find(x=>x.id===rid); if(!r) return; r.ejercicios[i].hecho=!r.ejercicios[i].hecho; await save(p); keepScroll(render); };
@@ -1489,7 +1553,8 @@ const woKey = () => 'sm_wo_'+S.me;
 function persistWo(){ try{ S.workout ? localStorage.setItem(woKey(), JSON.stringify(S.workout)) : localStorage.removeItem(woKey()); }catch(e){} }
 function restoreWorkout(){ try{ const w=JSON.parse(localStorage.getItem(woKey())); if(w && Date.now()-w.start < 6*3600e3) S.workout=w; }catch(e){} }
 function parseRest(s){ if(!s) return 90; s=String(s).toLowerCase().replace(',','.'); const n=parseFloat(s); if(isNaN(n)) return 90; return (/min|'/.test(s) || n<=5) ? Math.round(n*60) : Math.round(n); }
-window.startWorkout = rid => { const p=me();
+window.startWorkout = rid => { if(S.workout) return _startWorkout(rid); wellnessAntes(()=>_startWorkout(rid), rid?'antes de tu rutina':'antes de entrenar'); };
+const _startWorkout = rid => { const p=me();
   if(S.workout && !confirm('Tienes una rutina en curso. ¿Quieres reemplazarla?')) { go('entrenar'); return; }
   let titulo='Sesión libre', ex=[];
   const r=rid ? ((p.rutinasAsignadas||[]).find(x=>x.id===rid) || (p.misRutinas||[]).find(x=>x.id===rid)) : null;
@@ -1527,14 +1592,14 @@ function ofrecerImport(){ const o=rutinaImportada(); if(!o) return; history.repl
   sheet(`<h2 class="disp h2">Rutina compartida</h2><p class="muted sm" style="margin-top:6px">${esc(o.d||'Alguien')} te compartió <b>${esc(o.t)}</b>.</p><div class="list" style="margin-top:12px">${o.e.map(e=>`<div class="li"><span class="grow sm">${esc(e[0])}</span><span class="sm b muted">${esc(e[1])} × ${esc(e[2]||'—')}${e[3]?` · ${esc(e[3])} kg`:''}</span></div>`).join('')}</div>
   <button class="btn pri block" style="margin-top:12px" onclick='importarRutina(${esc(JSON.stringify(o))})'>Guardar en mis rutinas</button>`); }
 window.importarRutina = async o => { const p=me(); p.misRutinas=p.misRutinas||[]; p.misRutinas.push({id:uid(), titulo:o.t, de:o.d||'', creada:todayISO(), veces:0, ejercicios:o.e.map(e=>({ejercicio:e[0], series:e[1], reps:e[2], kg:e[3], exId:e[4]||''}))});
-  if(await save(p)){ closeSheet(); toast('Rutina guardada en Entrenar'); go('entrenar'); } };
-function registrarCard(){ return `<section class="card stack"><div><div class="eyebrow">Registrar entrenamiento</div><p class="xs muted" style="margin-top:4px">Anota una sesión de gimnasio, otra actividad o sal con GPS.</p></div><div class="grid2"><button class="btn sec" onclick="go('entrenar')">${ic('dumbbell','s')} Entrenamiento</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div>${gpsBtns()}</section>`; }
+  if(await save(p)){ closeSheet(); toast('Rutina guardada en Mi plan'); S.planSeg='rutinas'; go('plan'); } };
+function registrarCard(){ return `<section class="card stack"><div><div class="eyebrow">Registrar entrenamiento</div><p class="xs muted" style="margin-top:4px">Anota una sesión de gimnasio, otra actividad o sal con GPS.</p></div><div class="grid2"><button class="btn sec" onclick="startWorkout(null)">${ic('dumbbell','s')} Entrenamiento</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div>${gpsBtns()}</section>`; }
 function vEntrenar(p){
   const w=S.workout; S.after.push(loadLib);
-  if(!w){
+  if(!w){ if(perfilOf(p)==='rehabilitacion'){ S.patTab='tareas'; return vTareas(p); } S.patTab='plan'; S.planSeg='rutinas'; return vPlan(p); }
+  if(false){
     const pend=(p.rutinasAsignadas||[]).filter(r=>!r.completada).reverse();
     return `<header class="top">${perfilOf(p)==='rehabilitacion'?`<button class="back" onclick="go('hoy')">${ic('chevl','s')} Hoy</button>`:''}<div class="eyebrow">Entrenar</div><h1 class="disp h1" style="margin-top:6px">¿Qué hacemos hoy?</h1></header><div class="stack">
-      ${animoCard(p)}
       ${pend.length?`<div class="list">${pend.map(r=>`<button class="li" onclick="startWorkout(${r.id})"><span class="ico">${ic('dumbbell')}</span><div class="grow"><div class="b">${esc(r.titulo)}</div><div class="xs muted">${(r.ejercicios||[]).length} ejercicios · ${r.creador==='user'?'Mi rutina':'De tu kine'}</div></div><span class="btn pri sm">Hacer rutina</span></button>`).join('')}</div>`:`<div class="card empty">No tienes rutinas pendientes.</div>`}
       <div class="grid2"><button class="btn sec" onclick="startWorkout(null)">${ic('plus','s')} Sesión libre</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div>
       ${gpsBtns()}
@@ -1597,7 +1662,7 @@ window.saveWorkout = async () => {
   const pres=!!$('#fw-pres')?.checked, cHoy=(p.citas||[]).find(c=>c.estado==='confirmada' && toISO(c.fecha)===todayISO() && !esOralCita(c));
   p.diarios.push({id:nid, fecha:todayISO(), duracion:Math.max(1,Math.round((Date.now()-w.start)/60000)), pasos:val('fw-p')||0, rpe:S.rpe, sueno:val('fw-s'), ejercicios:ej, nombreSesion:w.titulo, comentarios:val('fw-n'), rutinaId:w.rid, ...(pres?{presencial:{estado:'pendiente', enviado:Date.now(), proId:cHoy?.proId||''}}:{})});
   if(w.rid){ const r=(p.rutinasAsignadas||[]).find(x=>x.id===w.rid); if(r){ if(conDias(r)){ r.ultima=todayISO(); r.veces=(r.veces||0)+1; (r.ejercicios||[]).forEach(e=>e.hecho=false); } else { r.completada=true; (r.ejercicios||[]).forEach(e=>e.hecho=true); } } const m=(p.misRutinas||[]).find(x=>x.id===w.rid); if(m){ m.veces=(m.veces||0)+1; m.ultima=todayISO(); } }
-  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast(pres?'Entrenamiento guardado y enviado a tu profesional 💪':'Entrenamiento guardado 💪'); S.patTab='progreso'; render(); scrollTo({top:0}); const logros=await revisarObjetivos(p); if(!logros.length) compartir(nid);
+  await save(p); S.workout=null; S.rest=null; persistWo(); closeSheet(); celebrar(); toast(pres?'Entrenamiento guardado y enviado a tu profesional 💪':'Entrenamiento guardado 💪'); S.patTab=perfilOf(p)==='rehabilitacion'?'tareas':'progreso'; render(); scrollTo({top:0}); const logros=await revisarObjetivos(p); if(!logros.length) compartir(nid);
 };
 
 /* ---- Progreso ---- */
@@ -1955,9 +2020,9 @@ function vLib(){
   const pro=S.role==='pro';
   S.after.push(async()=>{ if(!S.lib){ await loadLib(); keepScroll(render); } });
   if(!S.lib) return `<header class="top"><h1 class="disp h1">Ejercicios</h1></header><div class="card empty">Cargando biblioteca…</div>`;
-  if(!S.lib.length) return `<header class="top">${!pro?`<button class="back" onclick="go('entrenar')">${ic('chevl','s')} Entrenar</button>`:''}<h1 class="disp h1">Ejercicios</h1></header><div class="card stack"><div class="b">Biblioteca no disponible</div><p class="sm muted">Sube la carpeta <b>data/</b> (con ejercicios.json) y las carpetas <b>images/</b> y <b>videos/</b> junto a index.html.</p></div>`;
+  if(!S.lib.length) return `<header class="top">${!pro?`<button class="back" onclick="goRutinas()">${ic('chevl','s')} Mi plan</button>`:''}<h1 class="disp h1">Ejercicios</h1></header><div class="card stack"><div class="b">Biblioteca no disponible</div><p class="sm muted">Sube la carpeta <b>data/</b> (con ejercicios.json) y las carpetas <b>images/</b> y <b>videos/</b> junto a index.html.</p></div>`;
   const cats=[...new Set(S.lib.map(x=>x.c))].sort();
-  return `<header class="top">${!pro?`<button class="back" onclick="go('entrenar')">${ic('chevl','s')} Entrenar</button>`:''}<div class="eyebrow">${S.lib.length} ejercicios con demostración</div><h1 class="disp h1" style="margin-top:6px">Ejercicios</h1></header><div class="stack">
+  return `<header class="top">${!pro?`<button class="back" onclick="goRutinas()">${ic('chevl','s')} Mi plan</button>`:''}<div class="eyebrow">${S.lib.length} ejercicios con demostración</div><h1 class="disp h1" style="margin-top:6px">Ejercicios</h1></header><div class="stack">
   <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar: sentadilla, bíceps, banda…" value="${esc(S.libQ)}" oninput="S.libQ=this.value;$('#libg').innerHTML=libGrid()"></div>
   <div class="pills"><button class="pill ${S.libC==='★'?'on':''}" onclick="S.libC='★';render()">★ Más usados</button><button class="pill ${!S.libC?'on':''}" onclick="S.libC='';render()">Todos</button>${cats.map(c=>`<button class="pill ${S.libC===c?'on':''}" onclick="S.libC=${q(c)};render()">${esc(c)}</button>`).join('')}</div>
   <div id="libg">${libGrid()}</div><p class="xs muted center">Animaciones StrongMed × Kin At Home</p></div>`;
@@ -2511,7 +2576,7 @@ function pClinico(p){
   ${tratAnterioresHTML(p,true)}
   <div class="sec-t"><h2>Historial clínico</h2><button class="btn ghost sm" onclick="S.evMode='kinesica';pgo('evaluar',${q(k)})">${ic('plus','s')} Evaluación</button></div>
   <section class="card">${tl.length?`<div class="tl">${tl.map(x=> x.k==='pres' ? `<div class="tl-i"><div class="b sm">Sesión presencial de entrenamiento ${x.d.presencial.n||''}</div><div class="xs muted">${fmtDate(x.d.fecha)} · registrada por la persona · aprobada por ${esc(x.d.presencial.por||'')}</div><div class="body muted">${esc((x.d.ejercicios||[]).map(e=>e.ejercicio).join(', '))}${x.d.rpe?` · RPE ${esc(x.d.rpe)}`:''}${x.d.presencial.nota?` · ${esc(x.d.presencial.nota)}`:''}</div></div>` : x.k==='eval'
-    ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div>${ce.indexOf(x.e.id)>0?`<button class="ibtn" style="width:30px;height:30px" onclick="compararEval(${x.e.id})" aria-label="Comparar con la anterior" title="Comparar con la anterior">${ic('chart','s')}</button>`:''}<button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${(x.e.resultados||[]).map(r=>`<div style="margin-top:4px">${r}</div>`).join('')}</div></div>`
+    ? `<div class="tl-i"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Evaluación${x.e.evalTipo?` ${x.e.evalTipo==='funcional'?'funcional':'kinésica'}`:''}</div><div class="xs muted">${fmtDate(x.e.fecha)} · ${esc(x.e.klgo||'')}</div></div>${ce.indexOf(x.e.id)>0?`<button class="ibtn" style="width:30px;height:30px" onclick="compararEval(${x.e.id})" aria-label="Comparar con la anterior" title="Comparar con la anterior">${ic('chart','s')}</button>`:''}<button class="ibtn" style="width:30px;height:30px" onclick="editarEval(${x.e.id})" aria-label="Editar">${ic('edit','s')}</button></div><div class="body">${fichaHTML(x.e.resultados,true)}</div></div>`
     : `<div class="tl-i blue"><div class="row between" style="gap:8px"><div class="grow"><div class="b sm">Sesión ${x.n}${x.s.eva!==''&&x.s.eva!=null?` · EVA ${esc(x.s.eva)}/10`:''}</div><div class="xs muted">${fmtDate(x.s.fecha)}${x.s.klgo?` · ${esc(x.s.klgo)}`:''}</div></div><button class="ibtn" style="width:30px;height:30px" onclick="editarSesion(${x.s.id})" aria-label="Editar">${ic('edit','s')}</button></div>${x.s.tolerancia?`<div class="xs b" style="margin-top:2px;color:var(--blue)">${esc(x.s.tolerancia)}</div>`:''}${x.s.nota?`<div class="body muted">${esc(x.s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Sin registros clínicos todavía.</div>'}</section>`;
 }
 function sesionForm(s, pre){ const hasEva = s.eva!==''&&s.eva!=null;
@@ -3713,18 +3778,22 @@ const WL = [
   {k:'estres', t:'Estrés', lo:'Muy alto', hi:'Muy bajo'},
   {k:'dolor', t:'Dolor o molestia muscular', lo:'Mucho', hi:'Nada'}
 ];
-function animoCard(p){ const t=(p.animo||[]).find(a=>a.fecha===todayISO()); if(!S.wl || S.wl.fecha!==todayISO() || S.wl._k!==S.me) S.wl={...(t||{}), fecha:todayISO(), _k:S.me};
-  const w=S.wl, open=!t || S.wlEdit;
+function animoCard(p, pre){ const t=(p.animo||[]).find(a=>a.fecha===todayISO()); if(!S.wl || S.wl.fecha!==todayISO() || S.wl._k!==S.me) S.wl={...(t||{}), fecha:todayISO(), _k:S.me};
+  const w=S.wl, open=pre || !t || S.wlEdit;
   const scale=m=>`<div><div class="sm b" style="margin-bottom:6px">${m.t}</div><div class="scale">${[1,2,3,4,5].map(v=>`<button style="--c:${SC[v-1]}" class="${w[m.k]===v?'on':''}" onclick="wlSet('${m.k}',${v})">${v}</button>`).join('')}</div><div class="scale-l"><span>${m.lo}</span><span>${m.hi}</span></div></div>`;
-  return `<section class="card stack" id="wl-card"><div class="row"><span class="ico blue">${ic('heart')}</span><div class="grow"><div class="b">¿Cómo te sientes hoy?</div><div class="xs muted">${t&&!S.wlEdit?'Registro de hoy guardado. Tu kine ya lo puede ver.':'Tu registro diario de bienestar. Tu kine ve cómo vas.'}</div></div>${t&&!S.wlEdit?`<button class="btn ghost sm" onclick="S.wlEdit=true;keepScroll(render)">Editar</button>`:''}</div>
+  return `<section class="card stack" id="wl-card"><div class="row"><span class="ico blue">${ic('heart')}</span><div class="grow"><div class="b">¿Cómo te sientes hoy?</div><div class="xs muted">${pre?'Tu wellness antes de empezar. Tu kine lo usa para ajustar tu carga.':t&&!S.wlEdit?'Registro de hoy guardado. Tu kine ya lo puede ver.':'Tu registro diario de bienestar. Tu kine ve cómo vas.'}</div></div>${t&&!S.wlEdit&&!pre?`<button class="btn ghost sm" onclick="S.wlEdit=true;keepScroll(render)">Editar</button>`:''}</div>
   <div class="mood">${ANIMO.map(([e,l],i)=>`<button class="${w.v===i+1?'on':''}" style="--c:${SC[i]}" ${open?`onclick="wlSet('v',${i+1})"`:''}><span>${e}</span><small>${l}</small></button>`).join('')}</div>
   ${open ? `${WL.map(scale).join('')}
     <div class="grid2"><label class="field"><span class="lbl">Horas de sueño</span><input class="inp" id="wl-h" inputmode="decimal" placeholder="7.5" value="${esc(w.hrs||'')}"></label><label class="field"><span class="lbl">Agua (litros)</span><input class="inp" id="wl-a" inputmode="decimal" placeholder="2" value="${esc(w.agua||'')}"></label></div>
-    <button class="btn pri block" onclick="guardarWellness()" ${w.v?'':'disabled'}>Guardar mi día</button>`
+    <button class="btn pri block" onclick="guardarWellness()" ${w.v?'':'disabled'}>${pre?`${ic('play','s')} Guardar y comenzar`:'Guardar mi día'}</button>`
   : `<div class="ci-sum">${WL.filter(m=>t[m.k]).map(m=>`<span><i style="--c:${SC[t[m.k]-1]}"></i>${m.t.split(' ')[0]} ${t[m.k]}/5</span>`).join('')}${t.hrs?`<span>😴 ${esc(t.hrs)} h</span>`:''}${t.agua?`<span>💧 ${esc(t.agua)} L</span>`:''}</div>`}</section>`; }
-window.wlSet = (k,v) => { S.wl[k]=v; const y=scrollY; const c=$('#wl-card'); if(c){ const tmp=document.createElement('div'); const hv=val('wl-h'), av=val('wl-a'); if(hv) S.wl.hrs=hv; if(av) S.wl.agua=av; tmp.innerHTML=animoCard(me()); c.replaceWith(tmp.firstElementChild); } scrollTo({top:y}); };
+window.wlSet = (k,v) => { S.wl[k]=v; const y=scrollY; const c=$('#wl-card'); if(c){ const tmp=document.createElement('div'); const hv=val('wl-h'), av=val('wl-a'); if(hv) S.wl.hrs=hv; if(av) S.wl.agua=av; tmp.innerHTML=animoCard(me(), !!S.wlNext); c.replaceWith(tmp.firstElementChild); } scrollTo({top:y}); };
 window.guardarWellness = async () => { const p=me(), w={...S.wl, hrs:val('wl-h'), agua:val('wl-a'), ts:Date.now()}; delete w._k; if(!w.v) return toast('Elige cómo te sientes','err');
-  p.animo=(p.animo||[]).filter(a=>a.fecha!==todayISO()); p.animo.push(w); S.wlEdit=false; await save(p); toast(`Registrado: ${ANIMO[w.v-1][1]}`); keepScroll(render); };
+  p.animo=(p.animo||[]).filter(a=>a.fecha!==todayISO()); p.animo.push(w); S.wlEdit=false; await save(p); toast(`Registrado: ${ANIMO[w.v-1][1]}`); if(S.wlNext){ const fn=S.wlNext; S.wlNext=null; closeSheet(); fn(); } else keepScroll(render); };
+window.wellnessAntes = (fn, que) => { const p=me(); if(!p || (p.animo||[]).some(a=>a.fecha===todayISO()) || S.wlOmit===todayISO()+S.me) return fn();
+  S.wlNext=fn; S.wlEdit=false; S.wl=null;
+  sheet(`<div class="eyebrow">Wellness previo · ${esc(que||'antes de empezar')}</div><div style="margin-top:12px">${animoCard(p,true)}</div><button class="btn ghost block" style="margin-top:10px" onclick="omitirWellness()">Omitir por hoy</button>`); };
+window.omitirWellness = () => { const fn=S.wlNext; S.wlNext=null; S.wlOmit=todayISO()+S.me; closeSheet(); if(fn) fn(); };
 window.guardarAnimo = async v => { S.wl={fecha:todayISO(), v}; const p=me(); p.animo=(p.animo||[]).filter(a=>a.fecha!==todayISO()); p.animo.push({fecha:todayISO(), v, ts:Date.now()}); await save(p); keepScroll(render); };
 const wlIndex = a => { const v=WL.map(m=>+a[m.k]).filter(Boolean); return v.length ? +(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1) : null; };
 function chartAnimo(p,id){ const a=animoList(p).slice(-30); const ds=[{label:'Cómo se siente', data:a.map(x=>x.v), borderColor:cssv('--blue'), backgroundColor:'rgba(90,162,255,.14)', fill:true, tension:.3, borderWidth:2.5, pointRadius:3, pointBackgroundColor:a.map(x=>SC[x.v-1])}];
@@ -4038,7 +4107,8 @@ function vGps(p){
 }
 window.gpsPausa = () => { const g=S.gps; g.acc=gpsElapsed(g); g.paused=true; g.since=null; persistGps(); keepAwake(false); render(); };
 window.gpsReanudar = () => { const g=S.gps; g.paused=false; g.since=Date.now(); if(gpsWatch==null) watchGps(); persistGps(); keepAwake(true); render(); };
-window.gpsDescartar = () => { if(!confirm('¿Descartar esta actividad? No se guardará.')) return; stopGps(); S.gps=null; persistGps(); go('entrenar'); };
+['sheetActividad','iniciarGps'].forEach(n=>{ const f=window[n]; window[n]=(...a)=>{ const p=me(); if(p && S.role==='pat' && perfilOf(p)==='rehabilitacion') return wellnessAntes(()=>f(...a), 'antes de registrar'); return f(...a); }; });
+window.gpsDescartar = () => { if(!confirm('¿Descartar esta actividad? No se guardará.')) return; stopGps(); S.gps=null; persistGps(); go('hoy'); };
 function stopGps(){ if(gpsWatch!=null) navigator.geolocation.clearWatch(gpsWatch); gpsWatch=null; keepAwake(false); gpsMap=null; }
 function simplify(pts, max=400){ const ll=pts.map(p=>[+p[0].toFixed(5), +p[1].toFixed(5)]); if(ll.length<=max) return ll; const k=Math.ceil(ll.length/max); return ll.filter((_,i)=>i%k===0 || i===ll.length-1); }
 window.gpsTerminar = () => { const g=S.gps; if(!g.paused){ g.acc=gpsElapsed(g); g.paused=true; g.since=null; } persistGps();
@@ -4049,7 +4119,7 @@ window.gpsTerminar = () => { const g=S.gps; if(!g.paused){ g.acc=gpsElapsed(g); 
 window.guardarGps = async () => { if(!S.rpe) return toast('Elige el esfuerzo (RPE)','err'); const g=S.gps, p=me(), ms=g.acc, T=GPS_T[g.tipo];
   const d={id:uid(), fecha:todayISO(), tipoActividad:g.tipo, nombreSesion:g.tipo, gps:true, duracion:Math.max(1,Math.round(ms/60000)), segundos:Math.round(ms/1000), distancia:+(g.dist/1000).toFixed(2), ritmo:T.pace?fmtPace(ms,g.dist):'', velocidad:fmtSpeed(ms,g.dist), rpe:S.rpe, comentarios:val('gp-n'), ruta:simplify(g.pts), ejercicios:[], pasos:0};
   p.diarios=p.diarios||[]; p.diarios.push(d); if(T.zancada) sumarPasosHoy(p, g.dist/T.zancada);
-  stopGps(); S.gps=null; persistGps(); await save(p); closeSheet(); toast(`${g.tipo} guardado`); S.patTab='progreso'; render(); compartir(d.id); };
+  stopGps(); S.gps=null; persistGps(); await save(p); closeSheet(); toast(`${g.tipo} guardado`); S.patTab=perfilOf(p)==='rehabilitacion'?'tareas':'progreso'; render(); compartir(d.id); };
 
 /* ruta en miniatura (sin internet) */
 function routePath(ruta, w, h, padd=10){ if(!ruta||ruta.length<2) return null; const lat0=ruta[0][0]*Math.PI/180, xs=ruta.map(p=>p[1]*Math.cos(lat0)), ys=ruta.map(p=>-p[0]);
@@ -4745,7 +4815,7 @@ async function boot(){
   localStorage.removeItem('sm_session'); S.role=null; render();
 }
 boot();
-window.__t = {storyBlob, checkLlamada, notificar, vigilarChat, USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
+window.__t = {save, tareas, storyBlob, checkLlamada, notificar, vigilarChat, USO, diaPT, msHastaRenovar, people, prof, evalsOf, me, loadLib, libFind, keyOf, agendaOf, freeSlots};
 
 </script>
 </body>

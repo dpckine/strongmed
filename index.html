@@ -1429,7 +1429,7 @@ const autoRegCard = p => p.autoRegistro?`<section class="card row" style="gap:12
 const tareasListHTML = ts => ts.length?`<div class="list">${ts.map(t=>`<button class="li" onclick="toggleTarea(${q(t.id)})"><span class="cc ${t.hecha?'on':''}">${ic('check')}</span><span class="grow sm" style="${t.hecha?'text-decoration:line-through;opacity:.55':''};white-space:pre-line">${esc(t.texto)}</span></button>`).join('')}</div>`:`<div class="card empty">Sin tareas asignadas por ahora.</div>`;
 function sesionesRingCard(p){ const d=rehabDone(p), pl=rehabPlan(p), ss=p.sesionesRehab||[], last=ss[ss.length-1], f=pl-d;
   return `<section class="card"><div class="row" style="gap:16px">${ring(pl? d/pl : (d?1:0), d, pl?`de ${pl}`:'sesiones', 104, 'blue')}
-    <div class="grow"><div class="eyebrow" style="color:var(--blue)">${esc(p.diagnostico||'Tu rehabilitación')}</div><div class="h3" style="margin-top:6px">${pl?`Llevas ${d} de ${pl} sesiones`:`Llevas ${d} ${d===1?'sesión':'sesiones'}`}</div>
+    <div class="grow"><div class="eyebrow" style="color:var(--blue)">${(p.tratamientos||[]).length?'Plan actual':'Tu rehabilitación'}</div><div class="h3" style="margin-top:6px">${pl?`Llevas ${d} de ${pl} sesiones`:`Llevas ${d} ${d===1?'sesión':'sesiones'}`}</div>
     <div class="sm b" style="margin-top:4px;color:var(--blue)">${pl?(f>0?`Te ${f===1?'falta 1 sesión':`faltan ${f} sesiones`}`:'¡Completaste tu plan!'):'Tu kine definirá cuántas sesiones necesitas'}</div>
     <div class="xs muted" style="margin-top:4px">${last?`Última sesión ${rel(toISO(last.fecha))}`:'Aún sin sesiones registradas'}</div></div></div></section>`; }
 function dolorCard(p){ const ev=(p.sesionesRehab||[]).filter(s=>s.eva!==''&&s.eva!=null); if(!ev.length) return `<section class="card"><div class="b">Dolor por sesión</div><div class="xs muted" style="margin-top:4px">Tu kine registrará tu dolor (0–10) en cada sesión y aquí verás cómo baja.</div></section>`;
@@ -1468,10 +1468,23 @@ function vPlan(p){
     const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), ek=evs.filter(e=>e.evalTipo!=='funcional'), le=(ek.length?ek:evs).slice(-1)[0];
     h+=`<div class="sec-t"><h2>Ficha clínica</h2>${le?`<span class="xs muted">${fmtDate(le.fecha)}${le.klgo?` · ${esc(le.klgo)}`:''}</span>`:''}</div>`;
     h+= le ? `<section class="card">${fichaHTML(le.resultados)}</section>` : p.diagnostico ? `<section class="card"><div class="ficha"><div class="fi"><div class="fl">Diagnóstico</div><div class="fv">${esc(p.diagnostico)}</div></div></div></section>` : `<div class="card empty">Tu kine completará tu ficha en la evaluación.</div>`;
+    h+=planesAntCard(p);
     h+=`<div class="list">${fichasBtn}</div>`;
   }
   return h+'</div>';
 }
+function planesAntCard(p){ const ts=(p.tratamientos||[]); if(!ts.length) return ''; const t=ts[ts.length-1], n=(t.sesionesRehab||[]).length;
+  return `<div class="sec-t"><h2>${ts.length>1?'Planes anteriores':'Plan anterior'}</h2><span class="badge">${ts.length}</span></div>
+  <button class="card row" style="gap:14px;width:100%;text-align:left" onclick="verPlanesAnt()">${ring(t.sesionesPlan?n/+t.sesionesPlan:1, n, t.sesionesPlan?`de ${esc(t.sesionesPlan)}`:'ses.', 64, 'blue')}
+    <div class="grow"><div class="b">${ts.length>1?`${ts.length} planes finalizados`:'Plan finalizado'}</div><div class="xs muted" style="margin-top:2px">${ts.length>1?'El último: ':''}${fmtDate(t.inicio)} – ${fmtDate(t.fin)}</div><span class="badge ${/^Alta/.test(t.motivo)?'acc':''}" style="margin-top:6px">${esc(t.motivo||'Finalizado')}</span></div>${ic('chevr','s chev')}</button>`; }
+window.verPlanesAnt = () => { const p=me(), ts=(p.tratamientos||[]).slice().reverse(); if(!ts.length) return;
+  sheet(`<h2 class="disp h2">${ts.length>1?'Planes anteriores':'Plan anterior'}</h2><div class="stack" style="margin-top:14px">${ts.map((t,i)=>{ const ss=t.sesionesRehab||[], ev=ss.filter(x=>x.eva!==''&&x.eva!=null), a=ev[0], z=ev[ev.length-1];
+    return `<section class="card stack"><div class="row" style="gap:14px">${ring(t.sesionesPlan?ss.length/+t.sesionesPlan:1, ss.length, t.sesionesPlan?`de ${esc(t.sesionesPlan)}`:'sesiones', 84, 'blue')}<div class="grow"><div class="b">${fmtDate(t.inicio)} – ${fmtDate(t.fin)}</div><div class="xs muted" style="margin-top:2px">${ss.length} ${ss.length===1?'sesión':'sesiones'}${t.klgo?` · ${esc(t.klgo)}`:''}</div><span class="badge ${/^Alta/.test(t.motivo)?'acc':''}" style="margin-top:6px">${esc(t.motivo||'Finalizado')}</span></div></div>
+    ${ev.length>1?`<div><div class="row between"><span class="b sm">Dolor por sesión</span><span class="row" style="gap:6px"><span class="badge">${esc(a.eva)}/10</span>${ic('chevr','s')}<span class="badge ${+z.eva<+a.eva?'acc':''}">${esc(z.eva)}/10</span></span></div><div class="chart" style="margin-top:8px;height:160px"><canvas id="c-eva-ant${i}"></canvas></div></div>`:''}
+    ${t.nota?`<div class="ficha"><div class="fi"><div class="fl">Nota de cierre</div><div class="fv">${esc(t.nota)}</div></div></div>`:''}
+    ${t.diagnostico?`<details><summary class="sm b acc-t">Ver diagnóstico e historia</summary><div class="ficha"><div class="fi"><div class="fv">${esc(t.diagnostico)}</div></div></div></details>`:''}
+    ${ss.length?`<details><summary class="sm b acc-t">Ver las ${ss.length} sesiones</summary><div class="list" style="margin-top:8px">${ss.map((x,j)=>`<div class="li" style="padding:8px 10px"><span class="xs b" style="width:64px">Sesión ${j+1}</span><span class="grow xs muted">${fmtDate(x.fecha)}${x.eva!==''&&x.eva!=null?` · Dolor ${esc(x.eva)}/10`:''}</span></div>`).join('')}</div></details>`:''}</section>`; }).join('')}</div>`);
+  setTimeout(()=>ts.forEach((t,i)=>{ if(document.getElementById('c-eva-ant'+i)) chartEVA(t,'c-eva-ant'+i); }),60); };
 function vTareas(p){
   const iso=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
   const all=(p.rutinasAsignadas||[]), pend=all.filter(r=>!r.completada).slice().reverse(), ts=tareas(p), hoy=todayISO();

@@ -3387,8 +3387,8 @@ const svcsLugar = (a, l) => svcsAg(a).filter(x=>x.mod?.[modOf(l)]?.on);
 const clpTxt = n => +n ? '$'+(+n).toLocaleString('es-CL') : '';
 const SVC_SUGERIDOS = { kine:[['Evaluación kinésica','Primera evaluación y plan de tratamiento',60],['Sesión kinésica','Rehabilitación y kinesiología',45],['Entrenamiento personalizado','Fuerza y acondicionamiento',60],['Recovery','Masoterapia, movilidad y recuperación',45]],
   oral:[['Evaluación odontológica','Incluye evaluación, limpieza y presupuesto',45],['Control','Control de tratamiento',30],['Limpieza','Destartraje y profilaxis',45],['Tratamientos','Según evaluación clínica',60]] };
-const inBlock = (h,b) => b==='AM' ? (h>='08:00' && h<'12:00') : (h>='13:00' && h<'19:00');
-const BLOQ = {AM:'08:00 a 12:00', PM:'13:00 a 19:00'};
+const inBlock = (h,b) => b==='AM' ? h<'12:00' : h>='12:00';
+const BLOQ = {AM:'antes de las 12:00', PM:'desde las 12:00'};
 const SITIOS = ['FISIOMET','MDkine','Kin At Home','Domicilio particular','Otro'];
 const HALF = (()=>{ const a=[]; for(let h=7;h<=21;h++) for(const m of ['00','30']) a.push(`${pad(h)}:${m}`); return a; })();
 const BUILTIN_AGENDAS = [
@@ -3425,13 +3425,13 @@ function agendasVisibles(){ if(!S.pro) return []; if(isAdmin()) return S.agendas
 const canEditAgenda = a => isAdmin() || (a && S.pro && a.id===S.pro.id);
 const fmtRut = r => { const s=String(r||'').replace(/[^0-9kK]/g,'').toUpperCase(); return s.length>1 ? `${s.slice(0,-1)}-${s.slice(-1)}` : s; };
 const pinDeRut = r => String(r||'').replace(/\D/g,'').slice(0,4);
-const horaTxt = c => c.hora ? c.hora : c.bloque ? `${c.bloque==='AM'?'Mañana':'Tarde'} (${BLOQ[c.bloque]}) · hora por confirmar` : '--:--';
+const horaTxt = c => c.hora ? c.hora : c.bloque ? `${c.bloque==='AM'?'Mañana':'Tarde/noche'} (${BLOQ[c.bloque]}) · hora por confirmar` : '--:--';
 const pagoPend = c => c.pago && c.pago.requerido && c.pago.estado!=='pagado';
 const pagoEfe = c => !!(c.pago && c.pago.medio==='efectivo' && c.pago.estado!=='pagado' && c.pago.estado!=='reembolsado');
 const pagoTag = c => pagoPend(c)?' · pago pendiente':pagoEfe(c)?' · paga en efectivo':'';
 
 /* ---- formulario de reserva (persona, con o sin cuenta) ---- */
-function bkDays(){ const out=[], d=new Date(); for(let i=0;i<21;i++){ const x=new Date(d); x.setDate(d.getDate()+i); out.push(iso(x)); } return out; }
+function bkDays(){ const out=[], d=new Date(); for(let i=0;i<8;i++){ const x=new Date(d); x.setDate(d.getDate()+i); out.push(iso(x)); } return out; }
 function bkInit(org, serv='kine', ambos=false, cont=null){ S.bk={org, serv, ambos, cont, tipo:cont?cont.tipos[0]:'Evaluación', lugar:null, proId:null, fecha:null, bloque:null}; }
 const esTipoKine = t => /kin[eé]s|rehab/i.test(t||''), esTipoEnt = t => /entren/i.test(t||'');
 /* persona que ya está en tratamiento o entrenando: agenda la continuación, no una evaluación nueva */

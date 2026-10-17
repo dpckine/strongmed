@@ -51,5 +51,5 @@ module.exports = async (req, res) => {
     await tr.sendMail({ from: `"StrongMed" <${process.env.GMAIL_USER}>`, to: b.to, subject: `${t[0]} · ${b.fecha || ''}${b.hora ? ' ' + b.hora : ''}`.trim(), html: html(b, t, r),
       ...(r && (b.tipo === 'conf' || b.tipo === 'cambio') ? { icalEvent: { filename: 'sesion.ics', method: 'PUBLISH', content: ics(b, r) } } : {}) });
     return res.status(200).json({ ok: true });
-  } catch (err) { console.error(err); return res.status(500).json({ ok: false }); }
+  } catch (err) { console.error(err); return res.status(500).json({ ok: false, error: String(err && (err.response || err.message) || err).slice(0, 200) }); }
 };

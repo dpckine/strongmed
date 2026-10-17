@@ -1950,7 +1950,8 @@ async function correoCita(p, c, tipo){ if(!p || !c || !okMail(p.email)) return f
   const body={to:String(p.email).trim(), tipo, nombre:p.nombre, marca:p.marca||'', sesion:c.tipo||'Sesión', pro:c.pro||'', fechaISO:fi, fecha:fi?fmtLong(parseISO(fi)):'', hora:c.hora||'', dur:sv?.dur||60,
     lugar:lugarLabel(c)||c.lugarNombre||'', direccion:c.direccion||'', link:c.link||'', precio:c.precio?(isNaN(+c.precio)?String(c.precio):'$'+(+c.precio).toLocaleString('es-CL')):'', pago, codigo:String(c.id).slice(-6).toUpperCase(),
     ...((tipo==='pre'||tipo==='conf') && p.pin ? {usuario:fmtRut(p.rut), clave:String(p.pin)} : {})};
-  try{ const r=await fetch(MAIL_API, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}); return r.ok; }catch(e){ return false; } }
+  try{ const r=await fetch(MAIL_API, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}); if(!r.ok){ let j={}; try{ j=await r.json(); }catch(e){} S.mailErr=`${r.status} ${j.error||''}`; if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); } return r.ok; }catch(e){ S.mailErr=String(e.message||e); if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); return false; } }
+window.correoPrueba = async () => { const to=prompt('¿A qué correo envío la prueba?', 'dpc.klgo@gmail.com'); if(!to) return; toast('Enviando…'); const ok=await correoCita({nombre:S.pro.nombre, email:to, rut:'11.111.111-1', pin:'1234', marca:'sm'}, {id:Date.now(), tipo:'Sesión de prueba', pro:S.pro.nombre, fecha:todayISO(), hora:'10:00', lugar:'Centro', estado:'confirmada'}, 'conf'); if(ok) toast('Correo de prueba enviado a '+to); };
 function avisarCitaChat(p, c, titulo, detalle, estado){ try{ const S0=S.hilo; postMsg(p, {tipo:'cita', text:`${titulo}: ${detalle}`, titulo, detalle, estado:estado||c.estado, citaId:c.id}); }catch(e){} }
 async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
 window.sendMsg = async (e, k) => { e.preventDefault(); const t=val('chat-in'); if(!t) return; $('#chat-in').value=''; await postMsg(prof(k), {text:t}); };
@@ -2761,6 +2762,7 @@ function vAjustes(){ const ag=myAgenda();
   <div class="sec-t"><h2>Mi perfil profesional</h2></div><section class="card stack"><div class="row"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b">${esc(ag.nombre)}</div><div class="xs muted">Usuario: ${esc(S.pro.usuario)}</div></div></div>
     ${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(ag.id)})">Guardar</button></section>
   ${isOdonto()?'':`<div class="sec-t"><h2>Seguimiento automático</h2></div>${seguimientoAutoHTML()}`}
+  <div class="sec-t"><h2>Correos automáticos</h2></div><button class="btn sec block" onclick="correoPrueba()">${ic('upload','s')} Enviar correo de prueba</button>
   <div class="sec-t"><h2>Seguridad</h2></div>${seguridadCard()}<button class="btn sec block" onclick="sheetClave()">${ic('lock','s')} Cambiar mi contraseña</button>
   <div class="sec-t"><h2>Apariencia</h2></div>${appearanceHTML()}
   <div class="sec-t"><h2>Datos</h2></div>${isAdmin()?respaldoAjustesHTML():''}<div class="list"><button class="li" onclick="exportDB()"><span class="ico">${ic('download','s')}</span><span class="grow">Descargar respaldo (.json)</span></button>

@@ -1942,6 +1942,15 @@ window.elegirHorario = async (mid, i) => { const p=me(), m=(S.chatMsgs||[]).find
   S.hilo=m.proId; await postMsg(p, {text:`Elijo el ${DOW[d.getDay()].toLowerCase()} ${d.getDate()} de ${MON[d.getMonth()].toLowerCase()} a las ${o.h} ✅`});
   toast('¡Listo! Tu profesional confirmará la hora'); };
 /* confirmaciones y cambios de agenda también llegan al chat */
+const MAIL_API='https://strongmed.vercel.app/api/correo';
+const okMail = m => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(m||'').trim());
+async function correoCita(p, c, tipo){ if(!p || !c || !okMail(p.email)) return false;
+  const ag=agendaOf(c.proId)||{}, sv=(ag.servicios||[]).find(x=>x.id===c.servId), pg=c.pago||{}, fi=toISO(c.fecha);
+  const pago = pg.estado==='pagado'?'Pagado' : pg.medio==='efectivo'?'Efectivo el día de la sesión' : pg.requerido?'Pago previo pendiente (transferencia o link)' : c.lugar==='Centro'?'Se paga en la sesión':'';
+  const body={to:String(p.email).trim(), tipo, nombre:p.nombre, marca:p.marca||'', sesion:c.tipo||'Sesión', pro:c.pro||'', fechaISO:fi, fecha:fi?fmtLong(parseISO(fi)):'', hora:c.hora||'', dur:sv?.dur||60,
+    lugar:lugarLabel(c)||c.lugarNombre||'', direccion:c.direccion||'', link:c.link||'', precio:c.precio?(isNaN(+c.precio)?String(c.precio):'$'+(+c.precio).toLocaleString('es-CL')):'', pago, codigo:String(c.id).slice(-6).toUpperCase(),
+    ...((tipo==='pre'||tipo==='conf') && p.pin ? {usuario:fmtRut(p.rut), clave:String(p.pin)} : {})};
+  try{ const r=await fetch(MAIL_API, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}); return r.ok; }catch(e){ return false; } }
 function avisarCitaChat(p, c, titulo, detalle, estado){ try{ const S0=S.hilo; postMsg(p, {tipo:'cita', text:`${titulo}: ${detalle}`, titulo, detalle, estado:estado||c.estado, citaId:c.id}); }catch(e){} }
 async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
 window.sendMsg = async (e, k) => { e.preventDefault(); const t=val('chat-in'); if(!t) return; $('#chat-in').value=''; await postMsg(prof(k), {text:t}); };
@@ -3465,6 +3474,7 @@ window.bkSet = (k,v) => { const sc=$('#bk-days')?.scrollLeft||0; S.bk[k]=v; if(k
   const el=$('#bk-dyn'); if(el) el.innerHTML=bookingDyn(); const dd=$('#bk-days'); if(dd) dd.scrollLeft=sc;
   const da=$('#bk-dir'); if(da) da.classList.toggle('hidden', S.bk.lugar!=='Domicilio'); };
 const bkExtra = (p={}) => `<label class="field ${S.bk.lugar==='Domicilio'?'':'hidden'}" id="bk-dir"><span class="lbl">Dirección de la atención *</span><input class="inp" id="bk-dir-i" value="${esc(p.direccion||'')}" placeholder="Calle, número, comuna"></label>
+  ${S.role==='pat' && me() && !okMail(me().email) ? `<label class="field"><span class="lbl">Tu correo <small class="muted">(para enviarte el comprobante)</small></span><input class="inp" id="bk-mail" type="email" inputmode="email" placeholder="tu@correo.cl"></label>` : ''}
   <label class="field"><span class="lbl">${S.bk?.cont?'Comentario para tu profesional (opcional)':'Motivo de consulta *'}</span><textarea class="inp" id="bk-mot" placeholder="${S.bk?.cont?'Ej: me ha molestado menos la rodilla esta semana':'Ej: dolor lumbar hace 2 semanas, control respiratorio…'}"></textarea></label>
   <label class="field"><span class="lbl">Otra disponibilidad o comentario</span><input class="inp" id="bk-nota" placeholder="Ej: también puedo el jueves después de las 18:00"></label>`;
 function buildCita(p){
@@ -3507,7 +3517,7 @@ function vReservar(){
   <div class="card stack"><div class="eyebrow">2 · Tus datos</div>
     <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="rs-n" autocomplete="name"></label>
     <div class="grid2"><label class="field"><span class="lbl">RUT *</span><input class="inp" id="rs-r" placeholder="12345678-9"></label><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="rs-e" max="${todayISO()}"></label></div>
-    <div class="grid2"><label class="field"><span class="lbl">Teléfono *</span><input class="inp" id="rs-t" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Correo</span><input class="inp" id="rs-m" type="email"></label></div></div>
+    <div class="grid2"><label class="field"><span class="lbl">Teléfono *</span><input class="inp" id="rs-t" inputmode="tel" placeholder="+56 9…"></label><label class="field"><span class="lbl">Correo * <small class="muted">(te llega el comprobante)</small></span><input class="inp" id="rs-m" type="email" inputmode="email" placeholder="tu@correo.cl"></label></div></div>
   <div class="card stack"><div class="eyebrow">3 · Tu hora</div><div id="bk-dyn" class="stack">${S.agendas.length?bookingDyn():'<div class="empty">Cargando profesionales…</div>'}</div>${bkExtra()}</div>
   ${consentLabel('rs-ok')}
   <button class="btn pri block" id="rs-btn" onclick="reservar()">Solicitar hora</button>
@@ -3518,7 +3528,7 @@ window.rsOrg = o => { const k={}; RS_IDS.forEach(i=>k[i]=val(i)); S.bk.org=o; S.
 window.rsServ = v => { const k={}; RS_IDS.forEach(i=>k[i]=val(i)); S.bk.serv=v; S.bk.proId=null; if(v==='oral') S.bk.org='sm'; render(); Object.entries(k).forEach(([i,v])=>{ const e=document.getElementById(i); if(e&&v) e.value=v; }); };
 window.reservar = async () => {
   const nombre=val('rs-n'), rut=fmtRut(val('rs-r')), tel=val('rs-t');
-  if(!nombre||rut.length<3||!tel) return toast('Completa nombre, RUT y teléfono','err'); if(!$('#rs-ok').checked) return toast('Debes aceptar el consentimiento informado','err');
+  if(!nombre||rut.length<3||!tel) return toast('Completa nombre, RUT y teléfono','err'); if(!okMail(val('rs-m'))) return toast('Escribe un correo válido para enviarte el comprobante','err'); if(!$('#rs-ok').checked) return toast('Debes aceptar el consentimiento informado','err');
   const b=$('#rs-btn'); b.disabled=true; b.textContent='Enviando…';
   const pin=pinDeRut(rut)||'0000'; await entrarPaciente(rut, pin);
   if(await rutExiste(rut)){ b.disabled=false; b.textContent='Solicitar hora'; toast('Ya tienes una cuenta con ese RUT. Ingresa para agendar.','err'); S.loginMode='pat'; return render(); }
@@ -3533,6 +3543,7 @@ window.reservar = async () => {
   addAviso(p,'cita','Recibimos tu solicitud. Te avisaremos cuando tu hora esté confirmada.');
   if(!(await save(p))){ b.disabled=false; b.textContent='Solicitar hora'; return; }
   S.voucher={key:keyOf(p), citaId:c.id}; S.loginMode='voucher'; render(); scrollTo({top:0});
+  correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); });
 };
 /* comprobante tipo boleta: con datos de acceso solo en la reserva sin cuenta */
 function voucherHTML(p, c, acceso){ const st=c.estado==='confirmada'?['acc','check','Confirmada']:c.estado==='realizada'?['acc','check','Realizada']:c.estado==='cancelada'?['red','x','Cancelada']:['mixto','clock','Por confirmar'];
@@ -3561,8 +3572,8 @@ window.sheetSolicitar = async (serv) => { const p=me(), cont=bkCont(p); bkInit(p
   sheet(`<h2 class="disp h2">${cont?(cont.per==='entrenamiento'?'Agendar entrenamiento':'Agendar sesión'):'Solicitar una hora'}</h2><p class="muted sm" style="margin-top:6px">Elige el día y si prefieres mañana o tarde. Tu profesional confirmará la hora.</p>
   <div class="stack" style="margin-top:16px"><div id="bk-dyn" class="stack">${bookingDyn()}</div>${bkExtra(p)}<button class="btn pri block" onclick="solicitarCita()">Enviar solicitud</button></div>`);
   const m=$('#bk-mot'); if(m && p.motivoConsulta && isPending(p)) m.value=p.motivoConsulta; };
-window.solicitarCita = async () => { const p=me(), c=buildCita(p); if(!c) return; p.citas=p.citas||[]; p.citas.push(c); if(c.lugar==='Domicilio' && c.direccion && !p.direccion) p.direccion=c.direccion;
-  if(await save(p)){ go('agenda'); verComprobante(c.id); } };
+window.solicitarCita = async () => { const p=me(), mi=$('#bk-mail'); if(mi && mi.value.trim()){ if(!okMail(mi.value)) return toast('Revisa tu correo','err'); p.email=mi.value.trim(); } const c=buildCita(p); if(!c) return; p.citas=p.citas||[]; p.citas.push(c); if(c.lugar==='Domicilio' && c.direccion && !p.direccion) p.direccion=c.direccion;
+  if(await save(p)){ go('agenda'); verComprobante(c.id); correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); }); } };
 
 /* ================= AGENDA PROFESIONAL ================= */
 function vAgendaPro(){
@@ -3733,6 +3744,7 @@ window.guardarCita = async id => {
   (p.avisos||[]).forEach(x=>{ if(x.tipo==='cita') x.leido=true; });
   addAviso(p,'cita', wasReq?`¡Tu hora fue confirmada! ${c.tipo}, ${when}` : moved?`Tu sesión fue reprogramada: ${when}` : id?`Tu sesión fue actualizada: ${when}` : `Tienes una sesión de ${c.tipo}: ${when}`);
   if(await save(p)){ closeSheet(); toast(wasReq?'Hora confirmada y avisada':'Sesión agendada y avisada');
+    correoCita(p, c, moved&&!wasReq?'cambio':(wasReq||!id)?'conf':'cambio').then(ok=>{ if(ok) toast('Comprobante enviado a '+p.email); });
     if(c.proId===S.pro.id) avisarCitaChat(p, c, wasReq?'Hora confirmada':moved?'Sesión reprogramada':id?'Sesión actualizada':'Nueva sesión agendada', `${c.tipo} · ${fmtLong(parseISO(f))} a las ${h} · ${lugarLabel(c)}`, 'confirmada');
     keepScroll(render); } };
 window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.citas.find(x=>x.id===id);
@@ -3743,6 +3755,7 @@ window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.cit
       if(confirm(`La hora estaba pagada. Según las condiciones corresponde reembolsar el ${pc} %${mo?` ($${Math.round(mo*pc/100).toLocaleString('es-CL')})`:''}. ¿Registrar el reembolso?`)){ c.pago.estado='reembolsado'; c.pago.reembolso=Math.round(mo*pc/100); c.pago.reembolsoPct=pc; txt+=` Se reembolsará el ${pc} % de lo pagado${mo?` ($${c.pago.reembolso.toLocaleString('es-CL')})`:''}.`; } }
     addAviso(p,'cita', txt+' Escríbenos para reagendar.'); }
   if(!(await save(p))) return; closeSheet(); toast(est==='realizada'?'Marcada como realizada':'Cancelada');
+  if(est==='cancelada') correoCita(p, c, 'cancel');
   if(est==='cancelada' && c.proId===S.pro.id) avisarCitaChat(p, c, c.hora?'Sesión cancelada':'Solicitud no confirmada', `${c.tipo||'Sesión'} · ${fmtDate(c.fecha)}${c.hora?` a las ${c.hora}`:''}. Escríbeme para reagendar.`, 'cancelada');
   if(est==='realizada' && isOdonto()){ S.proArg=k; if(isPending(p)) await habilitarOral(); sheetAtencion(); return; }
   if(est==='realizada' && isPending(p)){ S.proArg=k; sheetHabilitar(true); } else keepScroll(render); };

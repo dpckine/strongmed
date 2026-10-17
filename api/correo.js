@@ -1,9 +1,9 @@
 // Envía comprobantes de agenda por correo (Gmail). Variables en Vercel: GMAIL_USER, GMAIL_PASS (contraseña de aplicación).
 // © 2026 StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados
 const nodemailer = require('nodemailer');
-const ORIGENES = ['https://strongmed.vercel.app', 'https://dpckine.github.io'];
+const { fb, cors, limite, ipDe, quien } = require('./_base');
+const ORIGENES = ['https://strongmed.vercel.app', 'https://dpckine.github.io', 'capacitor://localhost', 'https://localhost'];
 const APP = 'https://strongmed.vercel.app';
-const hits = new Map();
 const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const T = {
   pre:    ['Recibimos tu solicitud de hora', 'Por confirmar', '#f5a524', 'Tu solicitud quedó registrada. Te avisaremos por correo y en la app cuando tu hora esté confirmada.'],
@@ -36,13 +36,18 @@ function html(b, t, r) {
   </div></div><p style="text-align:center;color:#9ca3af;font-size:11px;margin-top:14px">© 2026 StrongMed × Kin At Home by Klgo. David Ponce · Este correo se envió porque agendaste una hora.</p></div></body></html>`; }
 module.exports = async (req, res) => {
   const o = req.headers.origin || ''; if (!ORIGENES.includes(o)) return res.status(403).json({ ok: false });
-  res.setHeader('Access-Control-Allow-Origin', o); res.setHeader('Vary', 'Origin');
-  if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'POST'); res.setHeader('Access-Control-Allow-Headers', 'content-type'); return res.status(204).end(); }
+  if (!cors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).end();
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0] || 'x', now = Date.now(), h = (hits.get(ip) || []).filter(x => now - x < 3600e3);
-  if (h.length >= 30) return res.status(429).json({ ok: false }); h.push(now); hits.set(ip, h);
   let b = req.body || {}; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = {}; } }
   const t = T[b.tipo]; if (!t || !/^[^@\s]{1,64}@[^@\s]{1,190}\.[a-z]{2,}$/i.test(b.to || '')) return res.status(400).json({ ok: false });
+  // Profesional con sesión verificada: todos los tipos. Persona o sin sesión: solo el comprobante de reserva y pocos por hora.
+  // (Mientras no exista FIREBASE_SA en Vercel se mantiene el modo anterior: cualquier tipo, 30 por hora por IP.)
+  if (!fb()) { if (!limite('mail-ip:' + ipDe(req), 30)) return res.status(429).json({ ok: false }); }
+  else {
+    const yo = await quien(req).catch(() => null), pro = yo && yo.tipo === 'pro';
+    if (!pro && b.tipo !== 'pre') return res.status(403).json({ ok: false });
+    if (!limite(pro ? 'mail-pro:' + yo.id : 'mail-ip:' + ipDe(req), pro ? 80 : 8)) return res.status(429).json({ ok: false });
+  }
   for (const k of Object.keys(b)) if (typeof b[k] === 'string') b[k] = b[k].slice(0, 300);
   if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) return res.status(503).json({ ok: false, error: 'correo no configurado' });
   const r = rango(b.fechaISO, b.hora, b.dur);

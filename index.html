@@ -940,7 +940,7 @@ function prevPerf(p, name){ const n=String(name).toLowerCase(); const ds=session
 const citaTs = c => { const s=toISO(c.fecha); if(!s) return 0; const d=parseISO(s); const [h,m]=String(c.hora||(c.bloque==='PM'?'15:00':'09:00')).split(':').map(Number); d.setHours(h||0,m||0); return d.getTime(); };
 const proximasCitas = p => (p.citas||[]).filter(c=>c.estado!=='cancelada' && c.estado!=='realizada' && citaTs(c) >= Date.now()-3600e3).sort((a,b)=>citaTs(a)-citaTs(b));
 const unreadAvisos = p => (p.avisos||[]).filter(a=>!a.leido);
-function addAviso(p, tipo, texto, extra={}){ p.avisos=p.avisos||[]; p.avisos.push({id:uid(), tipo, texto, ts:Date.now(), leido:false, ...extra}); if(p.avisos.length>60) p.avisos=p.avisos.slice(-60); }
+function addAviso(p, tipo, texto, extra={}){ p.avisos=p.avisos||[]; p.avisos.push({id:uid(), tipo, texto, ts:Date.now(), leido:false, ...extra}); if(p.avisos.length>60) p.avisos=p.avisos.slice(-60); if(S.role==='pro') avisarPush({rut:normRut(p.rut)}, TIT_AVISO[tipo]||'StrongMed', texto, ({rutina:'plan', cita:'agenda', tarea:'plan', evaluacion:'plan'})[tipo]||'hoy', 'av-'+tipo); }
 function alertsOf(p){
   const a=[], an=lastAnimo(p), per=perfilOf(p);
   if(isPending(p)) a.push({t: hasConfirmed(p)?'Hora confirmada · falta su primera sesión':'Cuenta nueva por habilitar', c:'orange'});
@@ -1149,7 +1149,7 @@ async function entrar(auth, email, pass){ // inicia sesión o crea la cuenta la 
       catch(e2){ const c2=e2.code||''; if(/email-already-in-use/.test(c2)) return AUTH_MAL; if(/operation-not-allowed|configuration-not-found|admin-restricted/.test(c2)){ S.authOff=true; return null; } if(/weak-password/.test(c2)) return AUTH_MAL; console.warn(e2); return null; } }
     if(/too-many-requests/.test(c)){ toast('Demasiados intentos. Espera unos minutos.','err'); return AUTH_MAL; }
     console.warn(e); return null; } }
-async function salirAuth(){ if(!S.AU || !S.auth) return; for(const a of Object.values(S.auth)){ try{ if(a.currentUser) await S.AU.signOut(a); }catch(e){} } }
+async function salirAuth(){ await quitarPush(); if(!S.AU || !S.auth) return; for(const a of Object.values(S.auth)){ try{ if(a.currentUser) await S.AU.signOut(a); }catch(e){} } }
 const authActiva = () => !!(S.auth && (S.auth.sm.currentUser || S.auth.kah.currentUser));
 /* personas */
 async function entrarPaciente(rut, pin){ const r=normRut(rut), p=patPin(pin); if(!p || !(await initFB())) return null;
@@ -1256,7 +1256,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); }
+function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
 window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} try{ bandejaUnsub && bandejaUnsub(); bandejaUnsub=null; S.bandeja=[]; }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
@@ -1951,10 +1951,10 @@ async function correoCita(p, c, tipo){ if(!p || !c || !okMail(p.email)) return f
   const body={to:String(p.email).trim(), tipo, nombre:p.nombre, marca:p.marca||'', sesion:c.tipo||'Sesión', pro:c.pro||'', fechaISO:fi, fecha:fi?fmtLong(parseISO(fi)):'', hora:c.hora||'', dur:sv?.dur||60,
     lugar:lugarLabel(c)||c.lugarNombre||'', direccion:c.direccion||'', link:c.link||'', precio:c.precio?(isNaN(+c.precio)?String(c.precio):'$'+(+c.precio).toLocaleString('es-CL')):'', pago, codigo:String(c.id).slice(-6).toUpperCase(),
     ...((tipo==='pre'||tipo==='conf') && p.pin ? {usuario:fmtRut(p.rut), clave:String(p.pin)} : {})};
-  try{ const r=await fetch(MAIL_API, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}); if(!r.ok){ let j={}; try{ j=await r.json(); }catch(e){} S.mailErr=`${r.status} ${j.error||''}`; if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); } return r.ok; }catch(e){ S.mailErr=String(e.message||e); if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); return false; } }
+  try{ const r=await fetch(MAIL_API, {method:'POST', headers:await cabAuth(), body:JSON.stringify(body)}); if(!r.ok){ let j={}; try{ j=await r.json(); }catch(e){} S.mailErr=`${r.status} ${j.error||''}`; if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); } return r.ok; }catch(e){ S.mailErr=String(e.message||e); if(S.role==='pro') toast('No se pudo enviar el correo: '+S.mailErr,'err'); return false; } }
 window.correoPrueba = async () => { const to=prompt('¿A qué correo envío la prueba?', 'strongmed.equipo@gmail.com'); if(!to) return; toast('Enviando…'); const ok=await correoCita({nombre:S.pro.nombre, email:to, rut:'11.111.111-1', pin:'1234', marca:'sm'}, {id:Date.now(), tipo:'Sesión de prueba', pro:S.pro.nombre, fecha:todayISO(), hora:'10:00', lugar:'Centro', estado:'confirmada'}, 'conf'); if(ok) toast('Correo de prueba enviado a '+to); };
 function avisarCitaChat(p, c, titulo, detalle, estado){ try{ const S0=S.hilo; postMsg(p, {tipo:'cita', text:`${titulo}: ${detalle}`, titulo, detalle, estado:estado||c.estado, citaId:c.id}); }catch(e){} }
-async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
+async function postMsg(p, m){ bandejaSet(p, m); try{ await S.fb.setDoc(S.fb.doc(chatColl(p)), {...m, hilo:miHilo(p), senderRole:S.role, senderName:S.role==='pro'?S.pro.nombre:first(p.nombre), timestamp:Date.now()}); pushMsg(p, m); return true; }catch(err){ console.error(err); toast('No se pudo enviar','err'); return false; } }
 window.sendMsg = async (e, k) => { e.preventDefault(); const t=val('chat-in'); if(!t) return; $('#chat-in').value=''; await postMsg(prof(k), {text:t}); };
 window.delMsg = async (k,id) => { if(!confirm('¿Eliminar este mensaje?')) return; try{ await S.fb.deleteDoc(S.fb.doc(chatColl(prof(k)), id)); }catch(e){} };
 function vChatPat(p){ S.after.push(()=>chatListen(p));
@@ -2259,7 +2259,7 @@ window.loginPro = async e => { e.preventDefault(); const u=val('l-user').toLower
   if(!pro){ await salirAuth(); b.disabled=false; b.innerHTML=`Entrar al panel ${ic('chevr')}`; return toast('Usuario o contraseña incorrectos','err'); }
   await iniciarPro(pro); };
 async function iniciarPro(pro, rapido){ S.pro={...pro}; delete S.pro.h; if(pro.builtin){ try{ Object.assign(S.pro, JSON.parse(localStorage.getItem('sm_pro_'+pro.usuario))||{}); }catch(x){} }
-  S.role='pro';
+  S.role='pro'; setTimeout(suscribirPush, 2500);
   if(rapido && await loadDB(null,'cache')){ S.proTab='inicio'; render(); vigilarBandeja(); S._lastSync=Date.now(); await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(S.role==='pro') softRender(); return; }
   await loadPros(); await Promise.all([loadDB(), loadFAQ(), loadAgendas(), loadJornadas(), isAdmin()?usoConfig():0]); if(isAdmin() && S.pros.some(x=>x.clave)) borrarClavesAntiguas(); S.proTab='inicio'; render(); vigilarBandeja(); }
 
@@ -3546,7 +3546,7 @@ window.reservar = async () => {
   addAviso(p,'cita','Recibimos tu solicitud. Te avisaremos cuando tu hora esté confirmada.');
   if(!(await save(p))){ b.disabled=false; b.textContent='Solicitar hora'; return; }
   S.voucher={key:keyOf(p), citaId:c.id}; S.loginMode='voucher'; render(); scrollTo({top:0});
-  correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); });
+  correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); }); avisarPush({pro:c.proId}, 'Nueva solicitud de hora', `${first(p.nombre)} · ${c.tipo||'Sesión'} · ${fmtDate(c.fecha)}`, 'agenda', 'sol-'+c.id);
 };
 /* comprobante tipo boleta: con datos de acceso solo en la reserva sin cuenta */
 function voucherHTML(p, c, acceso){ const st=c.estado==='confirmada'?['acc','check','Confirmada']:c.estado==='realizada'?['acc','check','Realizada']:c.estado==='cancelada'?['red','x','Cancelada']:['mixto','clock','Por confirmar'];
@@ -3576,7 +3576,7 @@ window.sheetSolicitar = async (serv) => { const p=me(), cont=bkCont(p); bkInit(p
   <div class="stack" style="margin-top:16px"><div id="bk-dyn" class="stack">${bookingDyn()}</div>${bkExtra(p)}<button class="btn pri block" onclick="solicitarCita()">Enviar solicitud</button></div>`);
   const m=$('#bk-mot'); if(m && p.motivoConsulta && isPending(p)) m.value=p.motivoConsulta; };
 window.solicitarCita = async () => { const p=me(), mi=$('#bk-mail'); if(mi && mi.value.trim()){ if(!okMail(mi.value)) return toast('Revisa tu correo','err'); p.email=mi.value.trim(); } const c=buildCita(p); if(!c) return; p.citas=p.citas||[]; p.citas.push(c); if(c.lugar==='Domicilio' && c.direccion && !p.direccion) p.direccion=c.direccion;
-  if(await save(p)){ go('agenda'); verComprobante(c.id); correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); }); } };
+  if(await save(p)){ go('agenda'); verComprobante(c.id); correoCita(p, c, 'pre').then(ok=>{ if(ok) toast('Te enviamos el comprobante a '+p.email); }); avisarPush({pro:c.proId}, 'Nueva solicitud de hora', `${first(p.nombre)} · ${c.tipo||'Sesión'} · ${fmtDate(c.fecha)}`, 'agenda', 'sol-'+c.id); } };
 
 /* ================= AGENDA PROFESIONAL ================= */
 function vAgendaPro(){
@@ -3747,7 +3747,7 @@ window.guardarCita = async id => {
   (p.avisos||[]).forEach(x=>{ if(x.tipo==='cita') x.leido=true; });
   addAviso(p,'cita', wasReq?`¡Tu hora fue confirmada! ${c.tipo}, ${when}` : moved?`Tu sesión fue reprogramada: ${when}` : id?`Tu sesión fue actualizada: ${when}` : `Tienes una sesión de ${c.tipo}: ${when}`);
   if(await save(p)){ closeSheet(); toast(wasReq?'Hora confirmada y avisada':'Sesión agendada y avisada');
-    correoCita(p, c, moved&&!wasReq?'cambio':(wasReq||!id)?'conf':'cambio').then(ok=>{ if(ok) toast('Comprobante enviado a '+p.email); });
+    correoCita(p, c, moved&&!wasReq?'cambio':(wasReq||!id)?'conf':'cambio').then(ok=>{ if(ok) toast('Comprobante enviado a '+p.email); }); apiPush({accion:'rec', citaId:String(c.id), rut:normRut(p.rut), fecha:f, hora:h, texto:`${c.tipo||'Sesión'} mañana a las ${h} · ${lugarLabel(c)}`});
     if(c.proId===S.pro.id) avisarCitaChat(p, c, wasReq?'Hora confirmada':moved?'Sesión reprogramada':id?'Sesión actualizada':'Nueva sesión agendada', `${c.tipo} · ${fmtLong(parseISO(f))} a las ${h} · ${lugarLabel(c)}`, 'confirmada');
     keepScroll(render); } };
 window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.citas.find(x=>x.id===id);
@@ -3758,7 +3758,7 @@ window.estadoCita = async (id, est) => { const k=val('ci-p'), p=prof(k), c=p.cit
       if(confirm(`La hora estaba pagada. Según las condiciones corresponde reembolsar el ${pc} %${mo?` ($${Math.round(mo*pc/100).toLocaleString('es-CL')})`:''}. ¿Registrar el reembolso?`)){ c.pago.estado='reembolsado'; c.pago.reembolso=Math.round(mo*pc/100); c.pago.reembolsoPct=pc; txt+=` Se reembolsará el ${pc} % de lo pagado${mo?` ($${c.pago.reembolso.toLocaleString('es-CL')})`:''}.`; } }
     addAviso(p,'cita', txt+' Escríbenos para reagendar.'); }
   if(!(await save(p))) return; closeSheet(); toast(est==='realizada'?'Marcada como realizada':'Cancelada');
-  if(est==='cancelada') correoCita(p, c, 'cancel');
+  if(est==='cancelada'){ correoCita(p, c, 'cancel'); apiPush({accion:'recQuitar', citaId:String(c.id)}); }
   if(est==='cancelada' && c.proId===S.pro.id) avisarCitaChat(p, c, c.hora?'Sesión cancelada':'Solicitud no confirmada', `${c.tipo||'Sesión'} · ${fmtDate(c.fecha)}${c.hora?` a las ${c.hora}`:''}. Escríbeme para reagendar.`, 'cancelada');
   if(est==='realizada' && isOdonto()){ S.proArg=k; if(isPending(p)) await habilitarOral(); sheetAtencion(); return; }
   if(est==='realizada' && isPending(p)){ S.proArg=k; sheetHabilitar(true); } else keepScroll(render); };
@@ -4702,15 +4702,32 @@ async function notificar(title, body, opt={}){
     if('serviceWorker' in navigator){ const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1500))]); if(reg && reg.showNotification){ await reg.showNotification(title, o); return true; } }
     new Notification(title, o); return true; }catch(e){ console.warn('notificación', e); return false; } }
 window.notificar = notificar;
+/* ---- avisos con la app cerrada (Web Push): el servidor (/api/push) verifica la sesión de Firebase antes de enviar ---- */
+const PUSH_API='https://strongmed.vercel.app/api/push';
+async function tokenSM(){ try{ const u=S.auth && S.auth.sm && S.auth.sm.currentUser; return u ? await u.getIdToken() : null; }catch(e){ return null; } }
+async function cabAuth(){ const t=await tokenSM(); return {'content-type':'application/json', ...(t?{authorization:'Bearer '+t}:{})}; }
+async function apiPush(body){ const t=await tokenSM(); if(!t) return null; try{ const r=await fetch(PUSH_API, {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer '+t}, body:JSON.stringify(body)}); return r.ok ? await r.json() : null; }catch(e){ return null; } }
+const b64u = s => { const b=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
+async function suscribirPush(){ try{
+  if(!S.role || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || Notification.permission!=='granted') return false;
+  const reg=await navigator.serviceWorker.ready; let sub=await reg.pushManager.getSubscription();
+  if(!sub){ const r=await fetch(PUSH_API); if(!r.ok) return false; const j=await r.json(); sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(j.publicKey)}); }
+  return !!(await apiPush({accion:'sub', sub:sub.toJSON()})); }catch(e){ console.warn('push', e); return false; } }
+window.suscribirPush = suscribirPush;
+async function quitarPush(){ try{ if(!('serviceWorker' in navigator)) return; const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1000))]); const s=reg && reg.pushManager && await reg.pushManager.getSubscription(); if(s){ await apiPush({accion:'quitar', endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){} }
+function avisarPush(a, title, body, tab, tag){ if(!a || !S.role) return; apiPush({accion:'enviar', a, title, body, tab, tag}); }
+const TIT_AVISO = {rutina:'Tienes una rutina nueva', cita:'Novedades en tu agenda', tarea:'Tienes una tarea nueva', evaluacion:'Nueva evaluación', video:'Videollamada'};
+function pushMsg(p, m){ try{ if(S.role==='pro') avisarPush({rut:normRut(p.rut)}, `Mensaje de ${S.pro.nombre}`, m.tipo==='cita' ? (m.titulo||'Novedades en tu agenda') : 'Tienes un mensaje nuevo', m.tipo==='cita'?'agenda':'chat', m.tipo==='cita'?'cita-'+m.citaId:'chat');
+  else { const h=miHilo(p); if(h) avisarPush({pro:h}, `Mensaje de ${first(p.nombre)}`, 'Tienes un mensaje nuevo', 'mensajes', 'chat-'+normRut(p.rut)); } }catch(e){} }
 /* pedir permiso con una explicación (Android/Chrome lo exige tras un toque) */
 async function pedirPermisoNotis(){ if(!('Notification' in window)){ toast(isIOS() && !isStandalone() ? 'En iPhone primero instala la app (Compartir → Agregar a inicio) para recibir notificaciones' : 'Este navegador no permite notificaciones','err'); return; }
-  const r=await Notification.requestPermission(); if(r==='granted'){ toast('Notificaciones activadas'); notificar('StrongMed', 'Listo: aquí te avisaremos de tus sesiones, rutinas, mensajes y videollamadas.'); } else toast('No se activaron. Puedes activarlas en los ajustes del navegador.','err'); render(); }
+  const r=await Notification.requestPermission(); if(r==='granted'){ toast('Notificaciones activadas'); suscribirPush(); notificar('StrongMed', 'Listo: aquí te avisaremos de tus sesiones, rutinas, mensajes y videollamadas.'); } else toast('No se activaron. Puedes activarlas en los ajustes del navegador.','err'); render(); }
 window.pedirNotis = pedirPermisoNotis;
 const notisPendiente = () => 'Notification' in window && Notification.permission==='default';
 function notisCard(){ if(!notisPendiente() && !(isIOS() && !isStandalone() && !('Notification' in window))) return '';
   return `<section class="aviso acc"><span class="ico">${ic('bell')}</span><div class="grow"><div class="b">Activa las notificaciones</div><div class="xs muted">${isIOS() && !isStandalone() ? 'En iPhone primero instala la app: Compartir → Agregar a pantalla de inicio.' : 'Te avisamos de citas, rutinas nuevas, mensajes y videollamadas.'}</div></div>${'Notification' in window?`<button class="btn pri sm" onclick="pedirNotis()">Activar</button>`:''}</section>`; }
 /* el service worker avisa cuando tocan una notificación */
-if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e=>{ const d=e.data||{}; if(d.tipo==='abrir'){ if(d.accion==='contestar') contestarLlamada(); else if(d.accion==='rechazar') rechazarLlamada(); else if(S.role==='pat' && d.tab) go(d.tab); } });
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e=>{ const d=e.data||{}; if(d.tipo==='abrir'){ if(d.accion==='contestar') contestarLlamada(); else if(d.accion==='rechazar') rechazarLlamada(); else if(S.role==='pat' && d.tab) go(d.tab); else if(S.role==='pro' && d.tab) pgo(d.tab); } if(d.tipo==='resuscribir') suscribirPush(); });
 
 /* ---- mensajes nuevos del profesional ---- */
 let chatNotiUnsub=null;

@@ -1,5 +1,6 @@
 {
   "name": "strongmed",
   "private": true,
-  "dependencies": { "nodemailer": "^6.9.14" }
+  "engines": { "node": ">=18" },
+  "dependencies": { "nodemailer": "^6.9.14", "firebase-admin": "^12.7.0", "web-push": "^3.6.7" }
 }

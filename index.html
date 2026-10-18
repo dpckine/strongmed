@@ -1256,7 +1256,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto() && !saludOn()) setTimeout(()=>pedAutoStart(false), 1200); setTimeout(autoSalud, 1800); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
+function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto() && !saludOn()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
 window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} try{ bandejaUnsub && bandejaUnsub(); bandejaUnsub=null; S.bandeja=[]; }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
@@ -1362,7 +1362,7 @@ function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-a
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
   const per=perfilOf(p), tr=per!=='rehabilitacion', rh=per!=='entrenamiento', nr=nextRoutine(p), w=S.workout;
-  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${stepsCard(p)}${vitalesCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
+  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
   let h=`${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">`;
   h+=avisosHoy(p);
   h+=weekStrip(p);
@@ -1379,7 +1379,6 @@ function vHoy(p){
     h+=`<section class="card"><div class="eyebrow">Entrenamiento de hoy</div><h2 class="disp h2" style="margin-top:8px">Día libre</h2><p class="muted sm" style="margin:6px 0 14px">No tienes una rutina pendiente. Registra una sesión libre, otra actividad o crea tu propia rutina.</p><div class="grid2"><button class="btn pri" onclick="startWorkout(null)">${ic('dumbbell','s')} Sesión libre</button><button class="btn sec" onclick="sheetActividad()">${ic('run','s')} Otra actividad</button></div><div style="margin-top:12px">${gpsBtns()}</div></section>`;
   } else h+=`<div class="grid3 gpsbtns">${[['Trote','run'],['Caminata','steps'],['Bicicleta','bike']].map(([t,i])=>`<button class="gpsb" onclick="iniciarGps('${t}')"><span class="ico">${ic(i)}</span><b>${t}</b></button>`).join('')}</div>`;
   if(S.gps) h+=`<button class="aviso acc" style="width:100%;text-align:left" onclick="go('gps')"><span class="ico">${ic('run')}</span><div class="grow"><div class="b">${esc(S.gps.tipo)} en curso</div><div class="xs muted">Toca para volver al mapa</div></div>${ic('chevr','s')}</button>`;
-  h+=stepsCard(p);
   h+=proximaCitaCard(p);
   if(rh) h+=rehabCard(p);
   const ts=tareas(p).filter(t=>!t.hecha);
@@ -1406,7 +1405,6 @@ function vHoyPend(p){
     h+= an ? '' : `<section class="hero"><div class="eyebrow">Paso 1</div><h2 class="disp h2" style="margin-top:8px">Completa tu ficha inicial</h2><p class="sm" style="margin-top:8px;opacity:.75;position:relative;z-index:1">Son 2 minutos. Ayuda a tu kine a preparar tu primera sesión.</p><button class="btn dark sm" style="margin-top:14px;position:relative;z-index:1" onclick="go('ficha')">Completar ahora ${ic('chevr','s')}</button></section>`;
     if(!sol) h+=`<button class="big-link" onclick="sheetSolicitar()">${ic('cal','s')} Agendar una hora</button>`;
   }
-  if(!oral) h+=stepsCard(p);
   h+=kineCard(p);
   if(!oral) h+=kiaPreview();
   return h+'</div>';
@@ -1703,11 +1701,11 @@ function pasosCard(p){ S.after.push(()=>chartPasos(p,'c-pasos'));
   return `<section class="card"><div class="row between"><span class="b">Pasos diarios</span><span class="xs muted">últimos 14 registros</span></div><div class="chart" style="margin-top:10px;height:170px"><canvas id="c-pasos"></canvas></div>
     <div class="row" style="margin-top:12px;gap:8px"><input class="inp" id="pp-steps" inputmode="numeric" placeholder="Pasos de hoy"><button class="btn pri" onclick="savePasos()">Guardar</button></div></section>`; }
 function vProgreso(p){
-  if(isPending(p)) return `<header class="top"><div class="eyebrow">Actividad diaria</div><h1 class="disp h1" style="margin-top:6px">Mis pasos</h1></header><div class="stack">${stepsCard(p)}${vitalesCard(p)}${pasosCard(p)}<div class="note">${ic('info','s')}<span>Cuando tu profesional habilite tu perfil verás aquí tu evolución completa.</span></div></div>`;
+  if(isPending(p)) return `<header class="top"><div class="eyebrow">Actividad diaria</div><h1 class="disp h1" style="margin-top:6px">Mis pasos</h1></header><div class="stack">${stepsCard(p)}${pasosCard(p)}<div class="note">${ic('info','s')}<span>Cuando tu profesional habilite tu perfil verás aquí tu evolución completa.</span></div></div>`;
   const per=perfilOf(p), rh=per!=='entrenamiento', ss=sessions(p).slice().sort((a,b)=>toISO(b.fecha).localeCompare(toISO(a.fecha)));
   S.after.push(()=>{ if(rh) chartEVA(p,'c-eva'); });
   if(per==='rehabilitacion') return `<header class="top"><div class="eyebrow">Tu evolución</div><h1 class="disp h1" style="margin-top:6px">Progreso</h1></header><div class="stack">${rehabCard(p)}
-    <section class="card"><div class="row between"><span class="b">Dolor por sesión (EVA)</span><span class="xs muted">0–10</span></div><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>${animoCardChart(p,'Cómo te has sentido')}${pasosCard(p)}</div>`;
+    <section class="card"><div class="row between"><span class="b">Dolor por sesión (EVA)</span><span class="xs muted">0–10</span></div><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>${animoCardChart(p,'Cómo te has sentido')}${stepsCard(p)}${pasosCard(p)}</div>`;
   return `<header class="top"><div class="eyebrow">Tu evolución</div><h1 class="disp h1" style="margin-top:6px">Progreso</h1></header><div class="stack">
   <div class="grid4"><div class="stat acc"><b>${ss.length}</b><span>Sesiones totales</span></div><div class="stat"><b>${sessWeek(p)}<small class="muted" style="font-size:18px">/${meta(p)}</small></b><span>Esta semana</span></div><div class="stat"><b>${weekStreak(p)}</b><span>Semanas seguidas</span></div>${rh?`<div class="stat"><b>${rehabDone(p)}${rehabPlan(p)?`<small class="muted" style="font-size:18px">/${rehabPlan(p)}</small>`:''}</b><span>Sesiones kine</span></div>`:`<div class="stat"><b>${rpeAvg(p)}</b><span>RPE medio</span></div>`}</div>
   <section class="card"><div class="row between"><span class="b">Adherencia 30 días</span><span class="b acc-t">${adherence(p)}%</span></div><div class="bar" style="margin:10px 0 6px"><i style="width:${adherence(p)}%"></i></div><div class="xs muted">${sess30(p)} sesiones · meta de ${meta(p)} por semana</div><div style="margin-top:16px">${heatmap(p)}</div></section>
@@ -1716,6 +1714,7 @@ function vProgreso(p){
   ${rmCard(p)}
   ${saltoCard(p)}
   ${rh?`<section class="card"><div class="row between"><span class="b">Dolor por sesión (EVA)</span><span class="xs muted">0–10</span></div><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>`:''}
+  ${stepsCard(p)}
   ${pasosCard(p)}
   <div class="sec-t"><h2>Historial</h2><button class="xs b acc-t" onclick="sheetActividad()">+ Otra actividad</button></div>
   ${historialList(ss.slice(0,25))}</div>`;
@@ -4060,7 +4059,7 @@ async function sincSalud(forzar){ const H=healthP(), p=me(); if(!H || !p || S.ro
     if(['hoy','progreso'].includes(S.patTab)) softRender(); return true; }
   return false; }
 window.sincSalud = sincSalud;
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState!=='visible' || S.role!=='pat') return; if(healthP()) sincSalud(); else sincAtajo(); });
+// La app web no lee apps de salud (solo el contador de pasos propio); ya no se sincroniza al volver a la app.
 /* Conexión automática: en la app Android pide el permiso de Health Connect la primera vez; en la app web ofrece una sola vez
    instalar la app Android (Android) o el Atajo de Salud (iPhone), y siempre trae lo que haya enviado el Atajo. */
 const esAndroid = () => /Android/i.test(navigator.userAgent);
@@ -4096,13 +4095,6 @@ async function sincAtajo(forzar){ const p=me(); if(!p || !S.fb || S.role!=='pat'
     if(cambio){ await save(p); if(['hoy','progreso'].includes(S.patTab)) softRender(); } return cambio; }
   catch(e){ console.warn('salud atajo', e); return false; } }
 const horaCorta = ts => new Date(ts).toLocaleString('es-CL', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-function saludAviso(p){
-  if(healthP()) return saludOn()
-    ? `<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conectado a tu app de salud</div><div class="xs muted">Pasos, pulso, presión y saturación se leen solos al abrir StrongMed${p.salud&&p.salud.sinc?` · ${horaCorta(p.salud.sinc)}`:''}.</div></div><button class="btn sec sm" onclick="sincSalud(true).then(()=>{ toast('Datos actualizados'); keepScroll(render); })">Actualizar</button></div><button class="btn ghost sm block" onclick="desconectarSalud()">Dejar de leer la app de salud</button>`
-    : `<button class="btn pri sm block" onclick="conectarSalud()">${ic('steps','s')} Conectar con mi app de salud</button><div class="xs muted">Lee tus pasos, pulso, presión y saturación desde Health Connect (Samsung Health, Google Fit, Fitbit, relojes…). Solo lectura.</div>`;
-  if(esAndroid()) return `<a class="btn sec sm block" href="${APK_URL}">${ic('steps','s')} Instalar la app StrongMed y leer mi app de salud</a>`;
-  if(esIOS() && ATAJO_URL) return `<button class="btn sec sm block" onclick="conectarAtajo()">${ic('steps','s')} Conectar Salud de iPhone</button>`;
-  return `<div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día.</div>`; }
 function vitalesCard(p){ const s=p.salud||{}; if(!s.fc && !s.fcr && !s.pa && !s.spo2) return '';
   const it=(titulo,x,valor,u)=> x ? `<div class="stat"><b>${valor}<small class="muted" style="font-size:13px"> ${u}</small></b><span>${titulo} · ${horaCorta(x.ts)}</span></div>` : '';
   return `<section class="card"><div class="row between"><span class="b">Datos de la app de salud</span><span class="xs muted">${s.sinc?'Leído '+horaCorta(s.sinc):''}</span></div>
@@ -4127,8 +4119,7 @@ function stepsCard(p){
     <div class="week7">${week}</div></div></div>
     ${ped&&S.ped.auto?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conteo automático activo</div><div class="xs muted">Cuenta mientras la app esté abierta y se guarda solo cada minuto.</div></div><button class="btn sec sm" onclick="pedAutoOff()">Desactivar</button></div>`
      :ped?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Contando pasos…</div><div class="xs muted">Mantén la app abierta y el teléfono contigo. <b id="ped-n">${S.ped.count}</b> pasos</div></div><button class="btn pri sm" onclick="pararPasos()">Listo</button></div>`
-      :`<div class="grid2"><button class="btn sec sm" onclick="contarPasos()">${ic('steps','s')} Contar con el teléfono</button><button class="btn sec sm" onclick="sheetPasos()">${ic('edit','s')} Anotar pasos</button></div><button class="btn ghost sm block" onclick="sheetPedAuto()">${ic('steps','s')} Contar pasos automáticamente</button>`}
-    ${saludAviso(p)}</section>`;
+      :`<div class="grid2"><button class="btn sec sm" onclick="contarPasos()">${ic('steps','s')} Contar con el teléfono</button><button class="btn sec sm" onclick="sheetPasos()">${ic('edit','s')} Anotar pasos</button></div><button class="btn ghost sm block" onclick="sheetPedAuto()">${ic('steps','s')} Contar pasos automáticamente</button>`}</section>`;
 }
 window.sheetPasos = () => { const p=me(); sheet(`<h2 class="disp h2">Pasos de hoy</h2><div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Total de pasos de hoy (según tu reloj o app)</span><input class="inp" id="sp-n" inputmode="numeric" value="${pasosDia(p,todayISO())||''}"></label><label class="field"><span class="lbl">Mi meta diaria</span><input class="inp" id="sp-m" inputmode="numeric" value="${metaPasos(p)}"></label><button class="btn pri block" onclick="guardarPasosSheet()">Guardar</button></div>`); };
 window.guardarPasosSheet = async () => { const p=me(), n=parseInt(val('sp-n')), m=parseInt(val('sp-m')); if(m>0) p.metaPasos=m;

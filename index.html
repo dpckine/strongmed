@@ -1256,7 +1256,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto() && !saludOn()) setTimeout(()=>pedAutoStart(false), 1200); setTimeout(()=>sincSalud(true), 1800); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
+function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto() && !saludOn()) setTimeout(()=>pedAutoStart(false), 1200); setTimeout(autoSalud, 1800); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
 window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} try{ bandejaUnsub && bandejaUnsub(); bandejaUnsub=null; S.bandeja=[]; }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
@@ -4060,13 +4060,49 @@ async function sincSalud(forzar){ const H=healthP(), p=me(); if(!H || !p || S.ro
     if(['hoy','progreso'].includes(S.patTab)) softRender(); return true; }
   return false; }
 window.sincSalud = sincSalud;
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') sincSalud(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState!=='visible' || S.role!=='pat') return; if(healthP()) sincSalud(); else sincAtajo(); });
+/* Conexión automática: en la app Android pide el permiso de Health Connect la primera vez; en la app web ofrece una sola vez
+   instalar la app Android (Android) o el Atajo de Salud (iPhone), y siempre trae lo que haya enviado el Atajo. */
+const esAndroid = () => /Android/i.test(navigator.userAgent);
+const esIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+const APK_URL = 'https://github.com/dpckine/strongmed/releases/latest/download/StrongMed.apk';
+const SALUD_API = 'https://strongmed.vercel.app/api/salud';
+const ATAJO_URL = '';   // enlace de iCloud del Atajo "StrongMed Salud" (cuando exista, se ofrece también en iPhone)
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } }, lsSet = (k,v) => { try{ localStorage.setItem(k,v); }catch(e){} };
+async function autoSalud(){ if(S.role!=='pat') return;
+  if(healthP()){ if(saludOn()) return sincSalud(true); if(!lsGet('sm_salud_pedido')){ lsSet('sm_salud_pedido','1'); return conectarSalud(); } return; }
+  await sincAtajo(true);
+  if(!lsGet('sm_oferta_salud') && (esAndroid() || (esIOS() && ATAJO_URL))){ lsSet('sm_oferta_salud','1'); setTimeout(ofertaSalud, 2500); } }
+window.ofertaSalud = (intento=0) => { if(S.role!=='pat') return; if($('#sheet')){ if(intento<8) setTimeout(()=>ofertaSalud(intento+1), 5000); return; }
+  sheet(`<h2 class="disp h2">Conecta tu app de salud</h2><div class="stack" style="margin-top:12px">${esAndroid()
+    ? `<p class="sm">Instala la app StrongMed para Android y tus <b>pasos, pulso, presión y saturación</b> se registran solos desde Samsung Health, Google Fit o tu reloj. Entras con tu mismo RUT y PIN.</p><a class="btn pri block" href="${APK_URL}" onclick="setTimeout(closeSheet,400)">${ic('steps','s')} Descargar app StrongMed</a><p class="xs muted">Android te pedirá permitir la instalación de esta app. Es la app oficial de StrongMed.</p>`
+    : `<p class="sm">Con el Atajo "StrongMed Salud", tus <b>pasos, pulso, presión y saturación</b> de la app Salud del iPhone llegan solos a StrongMed.</p><button class="btn pri block" onclick="conectarAtajo()">${ic('steps','s')} Conectar Salud de iPhone</button>`}
+    <button class="btn ghost block" onclick="closeSheet()">Ahora no</button></div>`); };
+window.conectarAtajo = async () => { const t=await tokenSM(); if(!t) return toast('Cierra sesión y vuelve a entrar para conectar','err');
+  try{ const r=await fetch(SALUD_API, {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer '+t}, body:JSON.stringify({accion:'codigo'})}); const j=await r.json(); if(!j.ok) throw 0;
+    try{ await navigator.clipboard.writeText(j.codigo); }catch(e){}
+    sheet(`<h2 class="disp h2">Tu código para el Atajo</h2><div class="stack" style="margin-top:12px"><p class="sm">Ya quedó copiado. Al agregar el Atajo, pégalo cuando te lo pida.</p>
+      <div class="card tight" style="font-family:monospace;font-size:20px;text-align:center;user-select:all;-webkit-user-select:all">${esc(j.codigo)}</div>
+      ${ATAJO_URL?`<a class="btn pri block" href="${ATAJO_URL}">Agregar el Atajo</a>`:''}
+      <p class="xs muted">Después, en Atajos → Automatización, crea una automatización diaria (por ejemplo a las 21:00) que ejecute "StrongMed Salud" sin preguntar. Si pides un código nuevo, el anterior deja de funcionar.</p>
+      <button class="btn ghost block" onclick="closeSheet()">Listo</button></div>`); }
+  catch(e){ toast('No se pudo crear el código. Intenta más tarde.','err'); } };
+async function sincAtajo(forzar){ const p=me(); if(!p || !S.fb || S.role!=='pat') return false;
+  if(!forzar && S._atajoTs && Date.now()-S._atajoTs<10*60e3) return false; S._atajoTs=Date.now();
+  try{ const s=await S.fb.getDoc(S.fb.doc(S.dbs.sm,'salud',normRut(p.rut))); if(!s.exists()) return false; const x=s.data()||{}; if(!x.recibido) return false;
+    let cambio=false; Object.entries(x.pasos||{}).forEach(([f,n])=>{ if(+n>0 && setPasosDiaSalud(p,f,Math.round(+n))) cambio=true; });
+    const sv={}; ['fc','fcr','pa','spo2'].forEach(k=>{ if(x[k] && x[k].ts && (!p.salud || !p.salud[k] || p.salud[k].ts<x[k].ts)) sv[k]=x[k]; });
+    if(Object.keys(sv).length){ p.salud={...(p.salud||{}), ...sv, sinc:x.recibido}; cambio=true; }
+    if(cambio){ await save(p); if(['hoy','progreso'].includes(S.patTab)) softRender(); } return cambio; }
+  catch(e){ console.warn('salud atajo', e); return false; } }
 const horaCorta = ts => new Date(ts).toLocaleString('es-CL', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
 function saludAviso(p){
   if(healthP()) return saludOn()
     ? `<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conectado a tu app de salud</div><div class="xs muted">Pasos, pulso, presión y saturación se leen solos al abrir StrongMed${p.salud&&p.salud.sinc?` · ${horaCorta(p.salud.sinc)}`:''}.</div></div><button class="btn sec sm" onclick="sincSalud(true).then(()=>{ toast('Datos actualizados'); keepScroll(render); })">Actualizar</button></div><button class="btn ghost sm block" onclick="desconectarSalud()">Dejar de leer la app de salud</button>`
     : `<button class="btn pri sm block" onclick="conectarSalud()">${ic('steps','s')} Conectar con mi app de salud</button><div class="xs muted">Lee tus pasos, pulso, presión y saturación desde Health Connect (Samsung Health, Google Fit, Fitbit, relojes…). Solo lectura.</div>`;
-  return `<div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día. Con la app StrongMed para Android se leen solos.</div>`; }
+  if(esAndroid()) return `<a class="btn sec sm block" href="${APK_URL}">${ic('steps','s')} Instalar la app StrongMed y leer mi app de salud</a>`;
+  if(esIOS() && ATAJO_URL) return `<button class="btn sec sm block" onclick="conectarAtajo()">${ic('steps','s')} Conectar Salud de iPhone</button>`;
+  return `<div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día.</div>`; }
 function vitalesCard(p){ const s=p.salud||{}; if(!s.fc && !s.fcr && !s.pa && !s.spo2) return '';
   const it=(titulo,x,valor,u)=> x ? `<div class="stat"><b>${valor}<small class="muted" style="font-size:13px"> ${u}</small></b><span>${titulo} · ${horaCorta(x.ts)}</span></div>` : '';
   return `<section class="card"><div class="row between"><span class="b">Datos de la app de salud</span><span class="xs muted">${s.sinc?'Leído '+horaCorta(s.sinc):''}</span></div>

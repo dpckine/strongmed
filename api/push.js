@@ -19,6 +19,11 @@ module.exports = async (req, res) => {
     const yo = await quien(req); if (!yo) return res.status(401).json({ ok: false });
     const b = cuerpo(req);
 
+    if (b.accion === 'sub' && b.fcm) {   // token de la app Android
+      const tk = String(b.fcm); if (!/^[\w:\-]{20,400}$/.test(tk)) return res.status(400).json({ ok: false });
+      await db().doc('push/' + yo.clave).set({ subs: { [idSub(tk)]: { fcm: tk, ts: Date.now(), ua: 'android-app' } }, tipo: yo.tipo }, { merge: true });
+      return res.status(200).json({ ok: true });
+    }
     if (b.accion === 'sub') {
       const s = b.sub || {}, k = s.keys || {};
       if (!/^https:\/\/[^\s]{10,800}$/.test(s.endpoint || '') || !k.p256dh || !k.auth || String(k.p256dh).length > 200 || String(k.auth).length > 100) return res.status(400).json({ ok: false });
@@ -26,7 +31,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
     if (b.accion === 'quitar') {
-      if (b.endpoint) await db().doc('push/' + yo.clave).update({ ['subs.' + idSub(String(b.endpoint))]: admin.firestore.FieldValue.delete() }).catch(() => { });
+      if (b.endpoint && String(b.endpoint).length < 900) await db().doc('push/' + yo.clave).update({ ['subs.' + idSub(String(b.endpoint))]: admin.firestore.FieldValue.delete() }).catch(() => { });
       return res.status(200).json({ ok: true });
     }
     if (b.accion === 'enviar') {

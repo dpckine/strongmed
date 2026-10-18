@@ -1,0 +1,98 @@
+# Compila la app Android de StrongMed en GitHub (no hace falta instalar nada en el computador).
+# Resultado: el APK queda en "Actions" (artefacto) y, en la rama main, como descarga pública en Releases:
+#   https://github.com/dpckine/strongmed/releases/latest/download/StrongMed.apk
+# Opcional: android-app/google-services.json (Firebase → app Android app.strongmed.kine) activa las notificaciones en la app.
+# Opcional (firma estable): secretos ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASS, ANDROID_KEY_ALIAS, ANDROID_KEY_PASS.
+name: App Android
+
+on:
+  push:
+    paths: ['android-app/**', '.github/workflows/android.yml', 'icons/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Dependencias
+        run: |
+          npm install --no-audit --no-fund
+          if [ -f google-services.json ]; then npm install --no-audit --no-fund @capacitor/push-notifications@^8; fi
+
+      - name: Proyecto Android
+        run: |
+          cp ../privacidad.html www/privacypolicy.html
+          npx cap add android
+          sed -i -E 's/minSdkVersion = [0-9]+/minSdkVersion = 26/' android/variables.gradle
+          if [ -f google-services.json ]; then cp google-services.json android/app/; fi
+          # política de privacidad que pide Health Connect
+          sed -i 's#</resources>#    <string name="health_connect_privacy_policy_url">https://strongmed.vercel.app/privacidad.html</string>\n</resources>#' android/app/src/main/res/values/strings.xml
+          # ícono de StrongMed
+          for d in android/app/src/main/res/mipmap-*dpi; do
+            cp ../icons/icon-512.png "$d/ic_launcher.png"
+            cp ../icons/icon-512.png "$d/ic_launcher_round.png"
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          npx cap sync android
+
+      - name: Firma (si hay secretos)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > android/app/release.jks
+            cat >> android/app/build.gradle <<EOF
+          android { signingConfigs { release { storeFile file('release.jks'); storePassword System.getenv('KS_PASS'); keyAlias System.getenv('KEY_ALIAS'); keyPassword System.getenv('KEY_PASS') } }
+            buildTypes { release { signingConfig signingConfigs.release; minifyEnabled false } } }
+          EOF
+            echo "TIPO=release" >> $GITHUB_ENV
+          else
+            echo "TIPO=debug" >> $GITHUB_ENV
+          fi
+
+      - name: Compilar APK
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ "$TIPO" = "release" ]; then ./gradlew assembleRelease --no-daemon; else ./gradlew assembleDebug --no-daemon; fi
+          mkdir -p ../salida
+          cp $(find app/build/outputs/apk -name '*.apk' | head -n 1) ../salida/StrongMed.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StrongMed-android
+          path: android-app/salida/StrongMed.apk
+
+      - name: Publicar descarga (solo main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-${{ github.run_number }}
+          name: App Android StrongMed ${{ github.run_number }}
+          body: App Android de StrongMed (abre strongmed.vercel.app y lee Health Connect). Instala StrongMed.apk en el teléfono.
+          files: android-app/salida/StrongMed.apk
+          make_latest: true

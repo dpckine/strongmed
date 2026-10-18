@@ -1256,7 +1256,7 @@ window.loginPat = async e => { e.preventDefault(); const b=$('#l-btn'); b.disabl
   const c=people().filter(p=>normRut(p.rut)===rut && String(p.pin)===pin).sort((a,b)=>(isPending(a)?1:0)-(isPending(b)?1:0));
   if(!c.length){ b.disabled=false; b.innerHTML=`Entrar ${ic('chevr')}`; return toast('RUT o PIN incorrecto','err'); }
   S.role='pat'; S.me=keyOf(c[0]); S.patTab='hoy'; afterPatLogin(); };
-function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto()) setTimeout(()=>pedAutoStart(false), 1200); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
+function afterPatLogin(){ S.hilo=null; S.hiloLista=false; S.chatMsgs=null; if(pedAuto() && !saludOn()) setTimeout(()=>pedAutoStart(false), 1200); setTimeout(()=>sincSalud(true), 1800); restoreWorkout(); restoreGps(); setTimeout(ofrecerImport, 600); loadAgendas(); loadFAQ().then(()=>{ if(S.role==='pat' && S.patTab==='hoy') softRender(); }); render(); watchMe(); notifyNew(); vigilarChat(); setTimeout(checkLlamada, 900); setTimeout(pedirConsentimiento, 700); setTimeout(suscribirPush, 2500); }
 window.logout = () => { try{ if(S.ped&&S.ped.auto){ pedFlush(); clearInterval(S.pedTimer); window.removeEventListener('devicemotion', onMotion); S.ped=null; } }catch(e){} stopChat(); S._ingLoaded=false; S.ingresos=[]; if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; } S.oralDocs={}; S._oralMig=false; salirAuth(); S.navStack=[]; try{ chatNotiUnsub && chatNotiUnsub(); }catch(e){} try{ bandejaUnsub && bandejaUnsub(); bandejaUnsub=null; S.bandeja=[]; }catch(e){} pararTimbre(); $('#llamada')?.remove(); $('#consent-gate')?.remove(); if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; } S.role=null; S.me=null; S.pro=null; S.workout=null; S.rest=null; S.chatKey=null; S.all=[]; S.loginMode='pat'; render(); };
 
 /* live updates for the person (alertas al instante) */
@@ -1362,7 +1362,7 @@ function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-a
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
   const per=perfilOf(p), tr=per!=='rehabilitacion', rh=per!=='entrenamiento', nr=nextRoutine(p), w=S.workout;
-  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${stepsCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
+  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${proximaCitaCard(p)}${stepsCard(p)}${vitalesCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
   let h=`${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">`;
   h+=avisosHoy(p);
   h+=weekStrip(p);
@@ -1703,7 +1703,7 @@ function pasosCard(p){ S.after.push(()=>chartPasos(p,'c-pasos'));
   return `<section class="card"><div class="row between"><span class="b">Pasos diarios</span><span class="xs muted">últimos 14 registros</span></div><div class="chart" style="margin-top:10px;height:170px"><canvas id="c-pasos"></canvas></div>
     <div class="row" style="margin-top:12px;gap:8px"><input class="inp" id="pp-steps" inputmode="numeric" placeholder="Pasos de hoy"><button class="btn pri" onclick="savePasos()">Guardar</button></div></section>`; }
 function vProgreso(p){
-  if(isPending(p)) return `<header class="top"><div class="eyebrow">Actividad diaria</div><h1 class="disp h1" style="margin-top:6px">Mis pasos</h1></header><div class="stack">${stepsCard(p)}${pasosCard(p)}<div class="note">${ic('info','s')}<span>Cuando tu profesional habilite tu perfil verás aquí tu evolución completa.</span></div></div>`;
+  if(isPending(p)) return `<header class="top"><div class="eyebrow">Actividad diaria</div><h1 class="disp h1" style="margin-top:6px">Mis pasos</h1></header><div class="stack">${stepsCard(p)}${vitalesCard(p)}${pasosCard(p)}<div class="note">${ic('info','s')}<span>Cuando tu profesional habilite tu perfil verás aquí tu evolución completa.</span></div></div>`;
   const per=perfilOf(p), rh=per!=='entrenamiento', ss=sessions(p).slice().sort((a,b)=>toISO(b.fecha).localeCompare(toISO(a.fecha)));
   S.after.push(()=>{ if(rh) chartEVA(p,'c-eva'); });
   if(per==='rehabilitacion') return `<header class="top"><div class="eyebrow">Tu evolución</div><h1 class="disp h1" style="margin-top:6px">Progreso</h1></header><div class="stack">${rehabCard(p)}
@@ -2396,7 +2396,7 @@ function pResumen(p){
   ${per!=='entrenamiento'?`<div class="stat"><b>${rehabDone(p)}${rehabPlan(p)?`<small class="muted" style="font-size:18px">/${rehabPlan(p)}</small>`:''}</b><span>Sesiones</span></div>`:`<div class="stat"><b>${adherence(p)}%</b><span>Adherencia 30d</span></div>`}<div class="stat"><b>${rpeAvg(p)}</b><span>RPE medio</span></div></div>`:''}
   ${animoCardChart(p,'Cómo se ha sentido')}
   <section class="card"><div class="row between"><span class="b">Pasos de hoy</span><span class="xs muted">Meta ${metaPasos(p).toLocaleString('es-CL')}</span></div><div class="row" style="gap:10px;margin-top:6px;align-items:baseline"><b class="disp" style="font-size:34px">${pasosDia(p,todayISO()).toLocaleString('es-CL')}</b><span class="xs muted">Promedio 7 días: ${Math.round([...Array(7)].reduce((t,_,i)=>{ const d=new Date(); d.setDate(d.getDate()-i); return t+pasosDia(p,iso(d)); },0)/7).toLocaleString('es-CL')}</span></div></section>
-  ${medidasCard(p,false)}
+  ${vitalesCard(p)}${medidasCard(p,false)}
   ${oralCardKine(p)}
   ${anamnesisHTML(p.anamnesis)}
   <section class="card stack"><div class="b">Datos y seguimiento</div>
@@ -4026,6 +4026,53 @@ const INF_CSS = `.a4{background:#fff;color:#111;width:100%;max-width:794px;min-h
 .a4body .c{text-align:center}.a4body .sig{text-align:center;margin-top:28px}.a4foot{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:11.5px;color:#444}
 .kids{display:inline-flex;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;padding:3px 7px;border-radius:9px;background:#fff;border:1.5px solid #ddd;gap:1px}.kids i{font-style:normal}.kids i:nth-child(1){color:#ff5a4f}.kids i:nth-child(2){color:#ffb02e}.kids i:nth-child(3){color:#2fbf71}.kids i:nth-child(4){color:#3d8bff}`;
 
+/* ================= APP DE SALUD DEL TELÉFONO =================
+   Solo dentro de la app Android de StrongMed (Capacitor + Health Connect): al abrir la app se leen los pasos de los
+   últimos 7 días y la última medición de pulso, pulso en reposo, presión y saturación, y se guardan en la ficha. */
+const nativo = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const healthP = () => nativo() && window.Capacitor.Plugins && window.Capacitor.Plugins.Health || null;
+const SALUD_TIPOS = ['steps','heartRate','restingHeartRate','bloodPressure','oxygenSaturation'];
+const saludOn = () => { try{ return localStorage.getItem('sm_salud')==='1'; }catch(e){ return false; } };
+window.conectarSalud = async () => { const H=healthP(); if(!H) return toast('Disponible en la app StrongMed para Android','err');
+  try{ const a=await H.isAvailable(); if(!a || !a.available){ toast('Instala o actualiza Health Connect desde Play Store','err'); return; }
+    const r=await H.requestAuthorization({read:SALUD_TIPOS, write:[]}); if(!(r && r.readAuthorized || []).length){ toast('No se dio permiso para leer los datos','err'); return; }
+    try{ localStorage.setItem('sm_salud','1'); }catch(e){} toast('App de salud conectada'); await sincSalud(true); keepScroll(render); }
+  catch(e){ console.warn(e); toast('No se pudo conectar: '+(e.message||e),'err'); } };
+window.desconectarSalud = () => { try{ localStorage.removeItem('sm_salud'); }catch(e){} toast('Se dejó de leer la app de salud'); keepScroll(render); };
+function setPasosDiaSalud(p, f, n){ p.diarios=p.diarios||[]; const total=pasosDia(p,f); if(n<=total) return false;
+  const solo=p.diarios.find(d=>toISO(d.fecha)===f && !isTraining(d)), otros=total-(solo?(+solo.pasos||0):0);
+  if(solo) solo.pasos=n-otros; else p.diarios.push({id:uid(), fecha:f, pasos:n-otros, fuente:'salud'}); return true; }
+async function sincSalud(forzar){ const H=healthP(), p=me(); if(!H || !p || S.role!=='pat' || !saludOn()) return false;
+  if(!forzar && S._saludTs && Date.now()-S._saludTs<10*60e3) return false; S._saludTs=Date.now();
+  const fin=new Date(), ini=new Date(); ini.setDate(ini.getDate()-6); ini.setHours(0,0,0,0); let cambio=false;
+  const m0=metaPasos(p), antes0=pasosDia(p,todayISO());
+  try{ const r=await H.queryAggregated({dataType:'steps', startDate:ini.toISOString(), endDate:fin.toISOString(), bucket:'day', aggregation:'sum'});
+    ((r && r.samples) || []).forEach(s=>{ const f=iso(new Date(s.startDate)), n=Math.round(+s.value||0); if(n>0 && setPasosDiaSalud(p,f,n)) cambio=true; }); }catch(e){ console.warn('pasos salud', e); }
+  const ult = async tipo => { try{ const r=await H.readSamples({dataType:tipo, startDate:new Date(Date.now()-30*864e5).toISOString(), endDate:fin.toISOString(), limit:1, ascending:false}); return ((r && r.samples) || [])[0] || null; }catch(e){ return null; } };
+  const [fc, fcr, pa, sat] = await Promise.all(['heartRate','restingHeartRate','bloodPressure','oxygenSaturation'].map(ult));
+  const sv={}, ts=s=>Date.parse(s.endDate||s.startDate)||Date.now();
+  const put=(k,s,v)=>{ if(s && v!=null && !isNaN(v) && v>0) sv[k]={v:Math.round(v*10)/10, ts:ts(s), src:String(s.sourceName||'').slice(0,40)}; };
+  put('fc',fc,fc&&+fc.value); put('fcr',fcr,fcr&&+fcr.value); put('spo2',sat,sat&&(+sat.value<=1 ? +sat.value*100 : +sat.value));
+  if(pa && +pa.systolic) sv.pa={sis:Math.round(+pa.systolic), dia:Math.round(+pa.diastolic), ts:ts(pa), src:String(pa.sourceName||'').slice(0,40)};
+  const prev=JSON.stringify({...(p.salud||{}), sinc:0}); p.salud={...(p.salud||{}), ...sv, sinc:Date.now()};
+  if(cambio || JSON.stringify({...p.salud, sinc:0})!==prev){ await save(p);
+    if(antes0<m0 && pasosDia(p,todayISO())>=m0) toast('¡Meta de pasos cumplida! Hoy cuenta como día activo 🎉');
+    if(['hoy','progreso'].includes(S.patTab)) softRender(); return true; }
+  return false; }
+window.sincSalud = sincSalud;
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') sincSalud(); });
+const horaCorta = ts => new Date(ts).toLocaleString('es-CL', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+function saludAviso(p){
+  if(healthP()) return saludOn()
+    ? `<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conectado a tu app de salud</div><div class="xs muted">Pasos, pulso, presión y saturación se leen solos al abrir StrongMed${p.salud&&p.salud.sinc?` · ${horaCorta(p.salud.sinc)}`:''}.</div></div><button class="btn sec sm" onclick="sincSalud(true).then(()=>{ toast('Datos actualizados'); keepScroll(render); })">Actualizar</button></div><button class="btn ghost sm block" onclick="desconectarSalud()">Dejar de leer la app de salud</button>`
+    : `<button class="btn pri sm block" onclick="conectarSalud()">${ic('steps','s')} Conectar con mi app de salud</button><div class="xs muted">Lee tus pasos, pulso, presión y saturación desde Health Connect (Samsung Health, Google Fit, Fitbit, relojes…). Solo lectura.</div>`;
+  return `<div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día. Con la app StrongMed para Android se leen solos.</div>`; }
+function vitalesCard(p){ const s=p.salud||{}; if(!s.fc && !s.fcr && !s.pa && !s.spo2) return '';
+  const it=(titulo,x,valor,u)=> x ? `<div class="stat"><b>${valor}<small class="muted" style="font-size:13px"> ${u}</small></b><span>${titulo} · ${horaCorta(x.ts)}</span></div>` : '';
+  return `<section class="card"><div class="row between"><span class="b">Datos de la app de salud</span><span class="xs muted">${s.sinc?'Leído '+horaCorta(s.sinc):''}</span></div>
+    <div class="grid2" style="margin-top:8px">${it('Pulso',s.fc,s.fc&&s.fc.v,'lpm')}${it('Pulso en reposo',s.fcr,s.fcr&&s.fcr.v,'lpm')}${it('Presión',s.pa,s.pa&&`${s.pa.sis}/${s.pa.dia}`,'mmHg')}${it('Saturación',s.spo2,s.spo2&&s.spo2.v,'%')}</div>
+    <div class="xs muted" style="margin-top:6px">Última medición registrada en el teléfono o el reloj. No reemplaza una evaluación clínica.</div></section>`; }
+
 /* ================= PASOS: meta, anillo y contador del teléfono ================= */
 const pasosDia = (p, d) => +((p.diarios||[]).filter(x=>toISO(x.fecha)===d).reduce((s,x)=>s+(+x.pasos||0),0));
 const metaPasos = p => +p.metaPasos || 8000;
@@ -4045,7 +4092,7 @@ function stepsCard(p){
     ${ped&&S.ped.auto?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Conteo automático activo</div><div class="xs muted">Cuenta mientras la app esté abierta y se guarda solo cada minuto.</div></div><button class="btn sec sm" onclick="pedAutoOff()">Desactivar</button></div>`
      :ped?`<div class="aviso acc"><span class="ico">${ic('steps')}</span><div class="grow"><div class="b">Contando pasos…</div><div class="xs muted">Mantén la app abierta y el teléfono contigo. <b id="ped-n">${S.ped.count}</b> pasos</div></div><button class="btn pri sm" onclick="pararPasos()">Listo</button></div>`
       :`<div class="grid2"><button class="btn sec sm" onclick="contarPasos()">${ic('steps','s')} Contar con el teléfono</button><button class="btn sec sm" onclick="sheetPasos()">${ic('edit','s')} Anotar pasos</button></div><button class="btn ghost sm block" onclick="sheetPedAuto()">${ic('steps','s')} Contar pasos automáticamente</button>`}
-    <div class="xs muted">¿Usas Google Fit, Samsung Health o el reloj? Anota aquí el total del día.</div></section>`;
+    ${saludAviso(p)}</section>`;
 }
 window.sheetPasos = () => { const p=me(); sheet(`<h2 class="disp h2">Pasos de hoy</h2><div class="stack" style="margin-top:14px"><label class="field"><span class="lbl">Total de pasos de hoy (según tu reloj o app)</span><input class="inp" id="sp-n" inputmode="numeric" value="${pasosDia(p,todayISO())||''}"></label><label class="field"><span class="lbl">Mi meta diaria</span><input class="inp" id="sp-m" inputmode="numeric" value="${metaPasos(p)}"></label><button class="btn pri block" onclick="guardarPasosSheet()">Guardar</button></div>`); };
 window.guardarPasosSheet = async () => { const p=me(), n=parseInt(val('sp-n')), m=parseInt(val('sp-m')); if(m>0) p.metaPasos=m;
@@ -4254,7 +4301,9 @@ window.instalarApp = async () => { if(S.installEvt){ S.installEvt.prompt(); cons
 function netBanner(){ let b=$('#net'); if(!b){ b=document.createElement('div'); b.id='net'; b.className='netpill'; document.body.appendChild(b); } b.textContent='Sin conexión · tus datos se guardan y se sincronizan al volver internet'; b.classList.toggle('show', !navigator.onLine); }
 window.addEventListener('online', ()=>{ netBanner(); toast('Conexión recuperada: sincronizando'); });
 window.addEventListener('offline', netBanner);
-if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW', e));
+/* en la app Android (Capacitor) no se usa service worker: el puente nativo debe inyectarse en cada carga */
+if('serviceWorker' in navigator && /StrongMedApp/.test(navigator.userAgent)) navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+else if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW', e));
 
 /* ================= ODONTOLOGÍA GENERAL (Dra. Nicole Escobar) =================
    Personas con servicio:'oral'. Datos en p.oral = {proId, anamnesis, plan:{tratamiento, sesiones}, atenciones:[], tareas:[]}
@@ -4708,19 +4757,30 @@ async function tokenSM(){ try{ const u=S.auth && S.auth.sm && S.auth.sm.currentU
 async function cabAuth(){ const t=await tokenSM(); return {'content-type':'application/json', ...(t?{authorization:'Bearer '+t}:{})}; }
 async function apiPush(body){ const t=await tokenSM(); if(!t) return null; try{ const r=await fetch(PUSH_API, {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer '+t}, body:JSON.stringify(body)}); return r.ok ? await r.json() : null; }catch(e){ return null; } }
 const b64u = s => { const b=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
+const pushNativo = () => window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications || null;
+let fcmListo=false;
+async function suscribirFCM(PN){ try{ let st=await PN.checkPermissions(); if(st.receive!=='granted') st=await PN.requestPermissions(); if(st.receive!=='granted') return false;
+  if(!fcmListo){ fcmListo=true;
+    PN.addListener('registration', t=>{ try{ localStorage.setItem('sm_fcm', t.value); }catch(e){} apiPush({accion:'sub', fcm:t.value}); });
+    PN.addListener('pushNotificationActionPerformed', a=>{ const d=(a && a.notification && a.notification.data) || {}; if(S.role==='pat' && d.tab) go(d.tab); else if(S.role==='pro' && d.tab) pgo(d.tab); });
+    PN.addListener('pushNotificationReceived', n=>{ if(n && (n.title||n.body)) toast(`${n.title||''}${n.body?' · '+n.body:''}`); }); }
+  await PN.register(); return true; }catch(e){ console.warn('fcm', e); return false; } }
 async function suscribirPush(){ try{
+  const PN=pushNativo(); if(PN) return S.role ? await suscribirFCM(PN) : false;
   if(!S.role || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || Notification.permission!=='granted') return false;
   const reg=await navigator.serviceWorker.ready; let sub=await reg.pushManager.getSubscription();
   if(!sub){ const r=await fetch(PUSH_API); if(!r.ok) return false; const j=await r.json(); sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(j.publicKey)}); }
   return !!(await apiPush({accion:'sub', sub:sub.toJSON()})); }catch(e){ console.warn('push', e); return false; } }
 window.suscribirPush = suscribirPush;
-async function quitarPush(){ try{ if(!('serviceWorker' in navigator)) return; const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1000))]); const s=reg && reg.pushManager && await reg.pushManager.getSubscription(); if(s){ await apiPush({accion:'quitar', endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){} }
+async function quitarPush(){ try{ const PN=pushNativo(); if(PN){ let tk=null; try{ tk=localStorage.getItem('sm_fcm'); }catch(e){} if(tk) await apiPush({accion:'quitar', endpoint:tk}); try{ await PN.unregister(); }catch(e){} return; }
+  if(!('serviceWorker' in navigator)) return; const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1000))]); const s=reg && reg.pushManager && await reg.pushManager.getSubscription(); if(s){ await apiPush({accion:'quitar', endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){} }
 function avisarPush(a, title, body, tab, tag){ if(!a || !S.role) return; apiPush({accion:'enviar', a, title, body, tab, tag}); }
 const TIT_AVISO = {rutina:'Tienes una rutina nueva', cita:'Novedades en tu agenda', tarea:'Tienes una tarea nueva', evaluacion:'Nueva evaluación', video:'Videollamada'};
 function pushMsg(p, m){ try{ if(S.role==='pro') avisarPush({rut:normRut(p.rut)}, `Mensaje de ${S.pro.nombre}`, m.tipo==='cita' ? (m.titulo||'Novedades en tu agenda') : 'Tienes un mensaje nuevo', m.tipo==='cita'?'agenda':'chat', m.tipo==='cita'?'cita-'+m.citaId:'chat');
   else { const h=miHilo(p); if(h) avisarPush({pro:h}, `Mensaje de ${first(p.nombre)}`, 'Tienes un mensaje nuevo', 'mensajes', 'chat-'+normRut(p.rut)); } }catch(e){} }
 /* pedir permiso con una explicación (Android/Chrome lo exige tras un toque) */
-async function pedirPermisoNotis(){ if(!('Notification' in window)){ toast(isIOS() && !isStandalone() ? 'En iPhone primero instala la app (Compartir → Agregar a inicio) para recibir notificaciones' : 'Este navegador no permite notificaciones','err'); return; }
+async function pedirPermisoNotis(){ if(pushNativo()){ const ok=await suscribirPush(); toast(ok?'Notificaciones activadas':'No se activaron. Revisa los permisos de StrongMed en Ajustes del teléfono.', ok?'':'err'); return; }
+  if(!('Notification' in window)){ toast(isIOS() && !isStandalone() ? 'En iPhone primero instala la app (Compartir → Agregar a inicio) para recibir notificaciones' : 'Este navegador no permite notificaciones','err'); return; }
   const r=await Notification.requestPermission(); if(r==='granted'){ toast('Notificaciones activadas'); suscribirPush(); notificar('StrongMed', 'Listo: aquí te avisaremos de tus sesiones, rutinas, mensajes y videollamadas.'); } else toast('No se activaron. Puedes activarlas en los ajustes del navegador.','err'); render(); }
 window.pedirNotis = pedirPermisoNotis;
 const notisPendiente = () => 'Notification' in window && Notification.permission==='default';

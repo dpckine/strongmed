@@ -76,6 +76,12 @@ async function enviar(dest, aviso) {
   const subs = s.data().subs || {}; let n = 0; const malas = {};
   const carga = JSON.stringify({ title: String(aviso.title || 'StrongMed').slice(0, 80), body: String(aviso.body || '').slice(0, 180), tab: aviso.tab || 'hoy', tag: aviso.tag || '', url: 'https://strongmed.vercel.app/' });
   await Promise.all(Object.entries(subs).map(async ([k, sub]) => {
+    if (sub.fcm) {   // app Android de StrongMed (Firebase Cloud Messaging)
+      const c = JSON.parse(carga);
+      try { await admin.messaging(fb()).send({ token: sub.fcm, notification: { title: c.title, body: c.body }, data: { tab: c.tab, tag: c.tag }, android: { priority: 'high', notification: { tag: c.tag || undefined, color: '#C8F53A' } } }); n++; }
+      catch (e) { if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test(e.code || '')) malas['subs.' + k] = admin.firestore.FieldValue.delete(); else console.warn('fcm', e.code); }
+      return;
+    }
     try { await webpush.sendNotification(sub, carga, { TTL: 86400, urgency: 'high' }); n++; }
     catch (e) { if (e.statusCode === 404 || e.statusCode === 410) malas['subs.' + k] = admin.firestore.FieldValue.delete(); else console.warn('push', e.statusCode, e.body); }
   }));

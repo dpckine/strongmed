@@ -1,0 +1,13 @@
+{
+  "name": "strongmed-android",
+  "private": true,
+  "description": "App Android de StrongMed: abre strongmed.vercel.app y lee Health Connect (pasos, pulso, presión, saturación).",
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capgo/capacitor-health": "^8.11.12"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}

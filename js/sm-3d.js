@@ -19,7 +19,9 @@
   // profundidad (medio ancho) de cada lado del cuerpo en 3D
   const ZARM = 19.5, ZLEG = 8.8;
   const ARMK = ['S', 'el', 'wr', 'hd', 'tg'], LEGK = ['H', 'kn', 'an', 'to', 'he'];
-  const zOf = key => { const m = /^(S|el|wr|hd|tg|H|kn|an|to|he)([12])$/.exec(key || ''); if (!m) return 0; const w = ARMK.includes(m[1]) ? ZARM : ZLEG; return m[2] === '1' ? w : -w; };
+  // el codo y la mano quedan un poco por fuera del hombro (brazo natural, sin atravesar el tronco)
+  const ZW = { S: ZARM, el: ZARM + 3.5, wr: ZARM + 3, hd: ZARM + 3, tg: ZARM + 3 };
+  const zOf = key => { const m = /^(S|el|wr|hd|tg|H|kn|an|to|he)([12])$/.exec(key || ''); if (!m) return 0; const w = ZW[m[1]] ?? ZLEG; return m[2] === '1' ? w : -w; };
 
   let loading = null;
   function loadThree() {
@@ -70,7 +72,7 @@
   const TAU = Math.PI * 2;
   // perfiles (radios en las mismas unidades del motor 2D)
   const PR = {
-    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.5, 12.5], [0.2, 6.2, 7.5, 11], [0.35, 6.3, 6.8, 10.8], [0.52, 6.8, 6.4, 11.8], [0.7, 8.6, 7.6, 13.2], [0.86, 7.8, 7.2, 14.6], [0.97, 6, 6, 14], [1.04, 4.2, 4.6, 9.5], [1.1, 3.4, 3.6, 5]],
+    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.5, 12.5], [0.2, 6.2, 7.5, 11], [0.35, 6.3, 6.8, 10.8], [0.52, 6.8, 6.4, 11.8], [0.7, 8.6, 7.6, 12.4], [0.86, 7.8, 7.2, 14.2], [0.97, 6, 6, 14], [1.04, 4.2, 4.6, 9.5], [1.1, 3.4, 3.6, 5]],
     thigh: [[0, 7.4, 7.4, 7.6], [0.35, 8.2, 7.6, 7.4], [0.75, 6.1, 5.6, 5.8], [1, 4.8, 4.6, 4.8]],
     shin: [[0, 4.6, 5, 4.6], [0.3, 4.1, 6.4, 4.7], [0.7, 3.1, 3.5, 3.3], [1, 2.8, 2.8, 2.9]],
     upper: [[0, 5.4, 5.4, 5.8], [0.4, 5.3, 5.2, 4.7], [0.85, 3.8, 3.8, 3.9], [1, 3.5, 3.5, 3.7]],
@@ -260,8 +262,10 @@
         const hv = Hd.clone().sub(W); if (hv.lengthSq() < 1) hv.copy(E).sub(W).multiplyScalar(-1);
         frame(BP['hd' + i], W, hv, Math.max(6, hv.length() + 1.5), fa);
         ball(BP['el' + i], E, 4.9); ball(BP['wr' + i], W, 3.3);
-        const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.2);
-        ball(BP['dl' + i], Sh.clone().add(out).addScaledVector(up.clone().normalize(), -0.8), 7.8, 8.2, 7.6);
+        // deltoides: casquete que cubre el hombro y baja por el brazo
+        const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.3);
+        const ad = E.clone().sub(Sh).normalize();
+        ell(BP['dl' + i], Sh.clone().add(out).addScaledVector(ad, 3.2), ad, ua, 7.4, 9.6, 7.8);
       }
     }
 

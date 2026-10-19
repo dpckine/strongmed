@@ -665,7 +665,15 @@
     }
   }
 
-  G.SMAnim = { yawAt, badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
+  // pose para el visor 3D (js/sm-3d.js): articulaciones sin el desfase visual del lado lejano
+  function pose3(tplName, phase) {
+    const tpl = tplOf(tplName);
+    if (tpl.custom) return { tpl, custom: true };
+    const J = solve(poseAt(tpl, phase).spec);
+    if (!J.front) for (const k of [...ARMK, ...LEGK]) { const q = J[k + '2']; if (q) J[k + '2'] = [q[0] - OFF[0], q[1] - OFF[1]]; }
+    return { tpl, J, front: !!J.front, cx: tplCx(tpl) };
+  }
+  G.SMAnim = { pose3, muscleSet, at: (J, a) => at(J, a), PROPS_LAYER: defaultLayer, yawAt, badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
 })(window);
 /* Primeros planos animados: mano, pie y cara (rehabilitación fina) */
 (function (G) {

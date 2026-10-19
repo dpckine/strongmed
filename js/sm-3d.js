@@ -17,7 +17,7 @@
     cable: '#8a96a6', band: '#ff6b8b', wood: '#c08a55', teal: '#2f6f73', ball: '#3b4655', rope: '#c9a46a', orange: '#f59e0b'
   };
   // profundidad (medio ancho) de cada lado del cuerpo en 3D
-  const ZARM = 15.5, ZLEG = 7;
+  const ZARM = 19.5, ZLEG = 8.8;
   const ARMK = ['S', 'el', 'wr', 'hd', 'tg'], LEGK = ['H', 'kn', 'an', 'to', 'he'];
   const zOf = key => { const m = /^(S|el|wr|hd|tg|H|kn|an|to|he)([12])$/.exec(key || ''); if (!m) return 0; const w = ARMK.includes(m[1]) ? ZARM : ZLEG; return m[2] === '1' ? w : -w; };
 
@@ -79,6 +79,9 @@
     shoe: [[0, 2.8, 2.4, 2.9], [0.25, 3.6, 2.6, 3.6], [0.7, 2.4, 2.4, 3.5], [1, 1.3, 1.7, 2.5]],
     hand: [[0, 2.3, 2.3, 2.9], [0.4, 2.8, 2.8, 3.4], [1, 1.5, 1.5, 2.6]]
   };
+  // contextura atlética: [adelante/atrás, lateral]
+  const BULK = { torso: [1.18, 1.3], thigh: [1.32, 1.32], shin: [1.28, 1.28], upper: [1.35, 1.35], fore: [1.28, 1.28], neck: [1.2, 1.25], shoe: [1.05, 1.1], hand: [1.1, 1.1] };
+  for (const k in PR) { const [d, l] = BULK[k] || [1, 1]; PR[k] = PR[k].map(r => [r[0], r[1] * d, r[2] * d, r[3] * l]); }
   // zonas musculares: [clave, t0, t1, fi0, fi1] (fi = 0 adelante, π atrás)
   const ZONES = {
     torso: [['chest', 0.62, 0.95, -1.25, -0.07], ['chest', 0.62, 0.95, 0.07, 1.25], ['abs', 0.14, 0.56, -0.55, 0.55],
@@ -210,14 +213,14 @@
       const nA = shc.clone().addScaledVector(up.clone().normalize(), -2), nB = nk.clone().addScaledVector(hu, 3);
       seg(BP.neck, nA, nB, tf);
       const hf = tf.clone().addScaledVector(hu, -tf.dot(hu)).normalize();
-      ell(BP.head, hd.clone().addScaledVector(hf, 0.8), hu, hf, 7.2, 8.8, 8);
+      ell(BP.head, hd.clone().addScaledVector(hf, 0.8), hu, hf, 7.6, 9.2, 8.4);
       ell(BP.jaw, hd.clone().addScaledVector(hu, -4.2).addScaledVector(hf, 2.6), hu, hf, 5.2, 4.2, 4.8);
       for (const i of [1, 2]) {
         const H = PT(J, 'H' + i), K = PT(J, 'kn' + i), An = PT(J, 'an' + i);
         const H2 = J['H' + i] || J.hip;
         seg(BP['th' + i], H, K, antOf(H2, J['kn' + i]));
         seg(BP['sh' + i], K, An, antOf(J['kn' + i], J['an' + i]));
-        ball(BP['kn' + i], K, 5.1); ball(BP['an' + i], An, 3.2); ball(BP['hp' + i], H, 7.6);
+        ball(BP['kn' + i], K, 6.4); ball(BP['an' + i], An, 3.9); ball(BP['hp' + i], H, 9.8);
         // pie (zapatilla)
         let he, to, fu;
         if (front) { he = An.clone().add(new T.Vector3(0, -2.4, -3.5)); to = An.clone().add(new T.Vector3((i === 1 ? 1 : -1) * 1.5, -2.4, 13)); fu = new T.Vector3(0, 1, 0); }
@@ -229,9 +232,9 @@
         seg(BP['ua' + i], Sh, E, ua); seg(BP['fa' + i], E, W, fa);
         const hv = Hd.clone().sub(W); if (hv.lengthSq() < 1) hv.copy(E).sub(W).multiplyScalar(-1);
         frame(BP['hd' + i], W, hv, Math.max(6, hv.length() + 1.5), fa);
-        ball(BP['el' + i], E, 3.8); ball(BP['wr' + i], W, 2.7);
+        ball(BP['el' + i], E, 4.9); ball(BP['wr' + i], W, 3.3);
         const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.2);
-        ball(BP['dl' + i], Sh.clone().add(out).addScaledVector(up.clone().normalize(), -0.8), 6.8, 7.2, 6.8);
+        ball(BP['dl' + i], Sh.clone().add(out).addScaledVector(up.clone().normalize(), -0.8), 8.6, 9, 8.4);
       }
     }
 

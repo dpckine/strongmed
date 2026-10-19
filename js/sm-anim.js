@@ -272,24 +272,31 @@
     return { full, front, back, n };
   }
   // pinta un segmento: base + sombra posterior + músculos iluminados (anterior/posterior)
-  function paint(seg, far, Ms, antKey, postKey, frontView) {
+  // pv: true = vista frontal; 'front' / 'back' = figura girada de frente o de espalda; 'mirror' = lateral visto desde el otro lado
+  function paint(seg, far, Ms, antKey, postKey, pv) {
     const base = far ? SKIN.far : SKIN.near, shade = far ? SKIN.farSh : SKIN.nearSh;
     let s = `<path d="${seg.full}" fill="${base}"/>`;
-    s += `<path d="${seg.back}" fill="${shade}" opacity=".55"/>`;
+    s += `<path d="${pv === 'mirror' ? seg.front : seg.back}" fill="${shade}" opacity=".55"/>`;
     const lit = (key, path) => { const v = key && Ms[key]; if (!v) return ''; return `<path d="${path}" fill="${far ? COL.hlFar : COL.hl}" opacity="${v < 1 ? 0.55 : 1}"${v >= 1 && !far ? ' filter="url(#glow)"' : ''}/>`; };
-    if (frontView) { const k = [].concat(antKey || [], postKey || []).find(x => Ms[x]); if (k) s += lit(k, seg.full); }
-    else { [].concat(antKey || []).forEach(k => { s += lit(k, seg.front); }); [].concat(postKey || []).forEach(k => { s += lit(k, seg.back); }); }
+    if (pv === true) { const k = [].concat(antKey || [], postKey || []).find(x => Ms[x]); if (k) s += lit(k, seg.full); }
+    else if (pv === 'front' || pv === 'back') { const k = [].concat(pv === 'front' ? antKey || [] : postKey || []).find(x => Ms[x]); if (k) s += lit(k, seg.full); }
+    else {
+      const A = pv === 'mirror' ? postKey : antKey, B = pv === 'mirror' ? antKey : postKey;
+      [].concat(A || []).forEach(k => { s += lit(k, seg.front); }); [].concat(B || []).forEach(k => { s += lit(k, seg.back); });
+    }
     return s;
   }
+  const pvOf = J => J.front ? true : (J.pm || false);
   function drawLeg(J, i, far, Ms) {
     const H = J['H' + i] || J.hip, K = J['kn' + i], A = J['an' + i];
     const th = limb(H, K, 15, 15.5, 10.5, 0.4, 0.12, 0.08);
     const sh = limb(K, A, 10, 10.5, 6.5, 0.3, 0.02, 0.28);
-    let s = paint(th, far, Ms, ['quads', 'hipflex'], ['hams', 'adductors'], J.front);
-    s += paint(sh, far, Ms, ['tib'], ['calves'], J.front);
-    if (!J.front && i === 1) {   // glúteo: volumen posterior de la cadera
-      const g = add(add(J.hip, J.n, -6.5), J.u, -1.5), gl = Ms.glutes;
-      s += `<ellipse cx="${f1(g[0])}" cy="${f1(g[1])}" rx="8.2" ry="9" transform="rotate(${f1(-(J.t - 180))} ${f1(g[0])} ${f1(g[1])})" fill="${gl ? COL.hl : SKIN.near}" opacity="${gl && gl < 1 ? .7 : 1}"${gl >= 1 ? ' filter="url(#glow)"' : ''}/>`;
+    let s = paint(th, far, Ms, ['quads', 'hipflex'], ['hams', 'adductors'], pvOf(J));
+    s += paint(sh, far, Ms, ['tib'], ['calves'], pvOf(J));
+    if (!J.front && (J.rot ? J.rot.glv[i] : i === 1)) {   // glúteo: volumen posterior de la cadera
+      const g = J.rot ? J.rot.gl[i] : add(add(J.hip, J.n, -6.5), J.u, -1.5), gl = Ms.glutes;
+      const rx = J.rot ? 4.5 + 3.7 * Math.abs(J.rot.c) : 8.2, fill = gl ? (far ? COL.hlFar : COL.hl) : (far ? SKIN.far : SKIN.near);
+      s += `<ellipse cx="${f1(g[0])}" cy="${f1(g[1])}" rx="${f1(rx)}" ry="9" transform="rotate(${f1(-(J.t - 180))} ${f1(g[0])} ${f1(g[1])})" fill="${fill}" opacity="${gl && gl < 1 ? .7 : 1}"${gl >= 1 && !far ? ' filter="url(#glow)"' : ''}/>`;
     }
     // pie (zapatilla)
     const he = J['he' + i], to = J['to' + i];
@@ -301,8 +308,8 @@
     const S = J['S' + i], E = J['el' + i], W = J['wr' + i], Hd = J['hd' + i];
     const ua = limb(S, E, 11.5, 10.5, 7.5, 0.35, 0.18, 0.14);
     const fa = limb(E, W, 7.5, 8, 5.5, 0.28, 0.1, 0.06);
-    let s = paint(ua, far, Ms, ['biceps'], ['triceps'], J.front);
-    s += paint(fa, far, Ms, ['forearm'], ['forearm'], J.front);
+    let s = paint(ua, far, Ms, ['biceps'], ['triceps'], pvOf(J));
+    s += paint(fa, far, Ms, ['forearm'], ['forearm'], pvOf(J));
     s += circ(E, 3.9, far ? SKIN.far : SKIN.near);
     // mano: puño redondeado orientado según la muñeca
     s += `<path d="${limb(W, Hd, 6, 6.5, 5.5, 0.5, 0, 0).full}" fill="${far ? SKIN.far : '#dfe4ea'}"/>`;
@@ -347,14 +354,22 @@
     const nk = Ms.neck;
     s += line(J.shc, J.neck, 7.5, nk ? COL.hl : SKIN.near, nk ? 'filter="url(#glow)"' : '');
     s += `<ellipse cx="${f1(J.head[0])}" cy="${f1(J.head[1])}" rx="8" ry="9" transform="rotate(${f1(-(J.t + (J.p.h || 0) - 180))} ${f1(J.head[0])} ${f1(J.head[1])})" fill="${SKIN.near}"/>`;
-    if (!J.front) {
-      const fwd = dir(J.t + (J.p.h || 0) - 90);
+    if (!J.front && !(J.rot && Math.abs(J.rot.c) < 0.5)) {
+      const fwd = dir(J.t + (J.p.h || 0) - 90); if (J.rot) fwd[0] *= J.rot.c;
       s += `<ellipse cx="${f1(J.head[0] - fwd[0] * 1.5)}" cy="${f1(J.head[1] - fwd[1] * 1.5 - 0.5)}" rx="1.8" ry="2.4" fill="${SKIN.nearSh}"/>`;   // oreja
     }
     return s;
   }
   function figure(J, hl, layer) {
     const Ms = J._ms || (J._ms = muscleSet(hl));
+    if (J.rot) {                  // figura girada: el lado más cercano a la cámara se dibuja encima
+      const R = J.rot, nr = R.near, fr = 3 - nr, flat = Math.abs(R.c) < 0.35;
+      if (layer === 'far') return flat ? drawLeg(J, fr, false, Ms) + drawLeg(J, nr, false, Ms) : drawLeg(J, fr, true, Ms) + drawArm(J, fr, true, Ms);
+      if (layer === 'body') return drawTorso3D(J, Ms) + drawHead(J, Ms);
+      if (layer === 'near') return flat ? '' : drawLeg(J, nr, false, Ms);
+      if (layer === 'arm') return flat ? drawArm(J, fr, false, Ms) + drawArm(J, nr, false, Ms) : drawArm(J, nr, false, Ms);
+      return '';
+    }
     if (J.front) {
       if (layer === 'far') return drawLeg(J, 2, false, Ms) + drawLeg(J, 1, false, Ms);
       if (layer === 'body') return drawTorso(J, Ms) + drawHead(J, Ms);
@@ -368,10 +383,66 @@
     return '';
   }
 
+  // ---------------------------------------------------------------- giro (ver ambos lados)
+  // La figura lateral se gira sobre un eje vertical: cada lado del cuerpo tiene profundidad z
+  // (medio ancho de hombros y caderas), así al girar se ve de frente y desde el otro lado.
+  const ZS = 12, ZH = 6.5;
+  const ARMK = ['S', 'el', 'wr', 'hd', 'tg'], LEGK = ['H', 'kn', 'an', 'to', 'he'];
+  const zOf = key => { const m = /^(S|el|wr|hd|tg|H|kn|an|to|he)([12])$/.exec(key || ''); if (!m) return 0; const w = ARMK.includes(m[1]) ? ZS : ZH; return m[2] === '1' ? w : -w; };
+  function rotateJ(J, deg, cx) {
+    const c = Math.cos(deg * RAD), s = Math.sin(deg * RAD);
+    const prj = (p, z) => [cx + (p[0] - cx) * c + (z || 0) * s, p[1]];
+    const B = Object.assign({}, J);                       // 2D sin el desfase visual del lado lejano
+    for (const k of [...ARMK, ...LEGK]) { const q = J[k + '2']; if (q) B[k + '2'] = [q[0] - OFF[0], q[1] - OFF[1]]; }
+    const R = Object.assign({}, B);
+    for (const key in B) { const v = B[key]; if (key !== 'u' && key !== 'n' && Array.isArray(v) && v.length === 2 && typeof v[0] === 'number') R[key] = prj(v, zOf(key)); }
+    const near = c >= 0 ? 1 : 2, flat = Math.abs(c) < 0.35, frontFacing = -J.n[0] * s >= 0;
+    const gp = i => prj(add(add(J.hip, J.n, -6.5), J.u, -1.5), i === 1 ? 5 : -5);
+    R.rot = { c, s, cx, prj, near, J0: B, u: J.u, n: J.n, hip0: J.hip, t: J.t, zOf,
+      gl: { 1: gp(1), 2: gp(2) }, glv: { 1: flat ? !frontFacing : near === 1, 2: flat ? !frontFacing : near === 2 } };
+    R.pm = flat ? (frontFacing ? 'front' : 'back') : (c < 0 ? 'mirror' : false);
+    R._ms = null;
+    return R;
+  }
+  // tronco girado: envolvente de secciones elípticas (adelante a, atrás b, medio ancho w) a lo largo del tronco
+  const TL = [[1.0, 5, 5.5, 15], [0.88, 7.5, 7, 16.5], [0.7, 8.6, 7.6, 14], [0.52, 6.6, 6.4, 12], [0.3, 6.2, 7.5, 10.5], [0.08, 6.8, 10, 10.5], [-0.1, 5.5, 7, 11]];
+  const TLat = f => { for (let i = 0; i < TL.length - 1; i++) { const A = TL[i], B = TL[i + 1]; if (f <= A[0] && f >= B[0]) { const u = (A[0] - f) / (A[0] - B[0]); return [lerp(A[1], B[1], u), lerp(A[2], B[2], u), lerp(A[3], B[3], u)]; } } return f > 1 ? TL[0].slice(1) : TL[TL.length - 1].slice(1); };
+  function hull(pts) {
+    const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+    for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+    return lo.slice(0, -1).concat(up.slice(0, -1));
+  }
+  function drawTorso3D(J, Ms) {
+    const R = J.rot, n = R.n;
+    const at3 = (f, off, z) => { const c0 = mv(R.hip0, R.t, L.torso * f); return R.prj([c0[0] + n[0] * off, c0[1] + n[1] * off], z); };
+    const pts = [];
+    for (const [f, a, b, w] of TL) for (let k = 0; k < 16; k++) { const ph = k / 8 * Math.PI, cs = Math.cos(ph); pts.push(at3(f, cs > 0 ? a * cs : b * cs, w * Math.sin(ph))); }
+    let s = `<path d="M${hull(pts).map(P).join(' L')} Z" fill="${SKIN.near}" stroke="${SKIN.near}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    const fill = (key, ps) => { const v = Ms[key]; if (!v) return ''; return `<path d="M${ps.map(P).join(' L')} Z" fill="${COL.hl}" opacity="${v < 1 ? .55 : 1}" stroke="${COL.hl}" stroke-width="2" stroke-linejoin="round"${v >= 1 ? ' filter="url(#glow)"' : ''}/>`; };
+    if (Math.abs(R.c) >= 0.45) {            // casi de perfil: mismas zonas que la vista lateral, sobre el costado visible
+      const zs = Math.sign(R.c) * 0.55, reg = (key, list) => fill(key, list.map(([f, o]) => at3(f, o, zs * TLat(f)[2])));
+      s += reg('chest', [[0.95, 0.5], [0.9, 7], [0.72, 8.8], [0.56, 6.8], [0.56, 0.5]]);
+      s += reg('abs', [[0.54, 0.5], [0.54, 6.4], [0.3, 6.3], [0.1, 6.8], [0.06, 0.5]]);
+      s += reg('lats', [[0.85, -0.5], [0.85, -7.1], [0.66, -7.6], [0.42, -6.3], [0.36, -0.5]]);
+      s += reg('upperback', [[1.0, -0.5], [1.0, -5.6], [0.9, -7.1], [0.76, -7.3], [0.76, -0.5]]);
+      s += reg('lowback', [[0.4, -0.5], [0.4, -6.4], [0.24, -7.4], [0.12, -8.2], [0.12, -0.5]]);
+      s += reg('glutes', [[0.12, -0.5], [0.1, -9], [0.0, -10.6], [-0.1, -7.2], [-0.1, -0.5]]);
+    } else {                                  // de frente o de espalda
+      const front = -n[0] * R.s >= 0;
+      const quad = (key, fa, fb, k1, k2) => fill(key, [[fa, k1], [fb, k2], [fb, -k2], [fa, -k1]].map(([f, k]) => { const t = TLat(f); return at3(f, front ? t[0] * 0.9 : -t[1] * 0.9, k); }));
+      if (front) s += quad('chest', 0.62, 0.92, 13, 15) + quad('abs', 0.12, 0.58, 8.5, 10);
+      else s += quad('lats', 0.45, 0.8, 11.5, 15.5) + quad('upperback', 0.85, 1.0, 15, 15) + quad('lowback', 0.05, 0.35, 9.5, 9.5);
+    }
+    return s;
+  }
+
   // ---------------------------------------------------------------- implementos
   function at(J, a) {
     if (typeof a === 'function') return a(J);
     if (typeof a === 'string') return J[a];
+    if (J.rot && Array.isArray(a)) return J.rot.prj(a, 0);
     return a;
   }
   const PROPS = {
@@ -404,11 +475,22 @@
     band: (J, o) => line(at(J, o.from), at(J, o.to), 2.4, COL.band),
     handle: (J, o) => { const p = at(J, o.at || 'hd1'); return circ(p, 3, COL.metal); },
     barbell: (J, o) => {
+      if (J.rot) {                // girada: la barra cruza de lado a lado con un disco en cada punta
+        const R = J.rot, p0 = at(R.J0, o.at || 'wr1'), r = o.r || 13, zf = R.c >= 0 ? -26 : 26;
+        const pl = z => { const q = R.prj(p0, z); return `<ellipse cx="${f1(q[0])}" cy="${f1(q[1])}" rx="${f1(Math.max(2.2, r * Math.abs(R.c)))}" ry="${r}" fill="${COL.plate}" stroke="${COL.plateRim}" stroke-width="2"/>`; };
+        return pl(zf) + line(R.prj(p0, -34), R.prj(p0, 34), 2.8, COL.metal) + pl(-zf);
+      }
       const p = at(J, o.at || 'wr1'); const r = o.r || 13;
       return circ(p, r, COL.plate, COL.plateRim, 2) + circ(p, r * 0.55, 'none', '#3a424d', 1.2) + circ(p, 2.6, COL.metal);
     },
     plate: (J, o) => { const p = at(J, o.at); const r = o.r || 9; return circ(p, r, COL.plate, COL.plateRim, 1.8) + circ(p, 2, COL.metal); },
     db: (J, o) => {
+      if (J.rot) {
+        const R = J.rot, key = typeof o.at === 'string' ? o.at : 'hd1', p0 = at(R.J0, o.at || 'hd1'), z0 = R.zOf(key), k = o.k || 1, zf = R.c >= 0 ? -6 : 6;
+        const e = z => { const q = R.prj(p0, z0 + z); return `<ellipse cx="${f1(q[0])}" cy="${f1(q[1])}" rx="${f1(Math.max(1.6, 6.5 * k * Math.abs(R.c)))}" ry="${f1(6.5 * k)}" fill="${COL.plate}" stroke="${COL.plateRim}" stroke-width="1.6"/>`; };
+        const dim = z0 * R.c < 0 && Math.abs(R.c) > 0.35;
+        return `<g ${dim ? 'opacity=".55"' : ''}>${e(zf)}${line(R.prj(p0, z0 - 6), R.prj(p0, z0 + 6), 2.6 * k, COL.metal)}${e(-zf)}</g>`;
+      }
       const p = at(J, o.at || 'hd1'); const k = o.k || 1;
       return `<g ${o.dim ? 'opacity=".55"' : ''}>${circ(p, 6.5 * k, COL.plate, COL.plateRim, 1.6)}${circ(p, 2 * k, COL.metal)}</g>`;
     },
@@ -423,14 +505,14 @@
     roller: (J, o) => { const p = at(J, o.at); return circ(p, o.r || 7, '#2f6f73', '#5fb3b8', 1.5); },
     stick: (J, o) => { const p = at(J, o.at || 'hd1'); return circ(p, 3, COL.wood); },
     landmine: (J, o) => {
-      const p = o.pivot, h = at(J, o.at || 'hd1'); const v = [h[0] - p[0], h[1] - p[1]]; const m = Math.hypot(...v) || 1;
+      const p = at(J, o.pivot), h = at(J, o.at || 'hd1'); const v = [h[0] - p[0], h[1] - p[1]]; const m = Math.hypot(...v) || 1;
       const e = [h[0] + v[0] / m * 12, h[1] + v[1] / m * 12];
       return line(p, e, 3.2, COL.metal) + circ(e, 10, COL.plate, COL.plateRim, 1.8) + circ(p, 3.5, COL.padDark);
     },
     platform: (J, o) => { const p = at(J, o.at || 'an1'); const d = dir(o.a); return line([p[0] - d[0] * 18, p[1] - d[1] * 18], [p[0] + d[0] * 18, p[1] + d[1] * 18], 5, COL.pad) + line(p, mv(p, o.a + 90, 0), 0, COL.pad); },
     pad: (J, o) => { const a = at(J, o.a), b = at(J, o.b); return line(a, b, o.w || 7, COL.pad); },
     rope: (J, o, T) => {
-      const a = at(J, o.from), b = o.to; let d = `M${pt(a)}`;
+      const a = at(J, o.from), b = at(J, o.to); let d = `M${pt(a)}`;
       for (let i = 1; i <= 24; i++) {
         const u = i / 24, x = lerp(a[0], b[0], u), y = lerp(a[1], b[1], u) + Math.sin(u * 12 - T * 14 + (o.ph || 0)) * 7 * (1 - u) * (0.4 + 0.6 * Math.abs(Math.sin(T * 3 + (o.ph || 0))));
         d += ` L${f1(x)},${f1(y)}`;
@@ -462,16 +544,30 @@
   };
 
   // ---------------------------------------------------------------- render de un cuadro
-  function render(tpl, phase, hl, T) {
+  // centro horizontal de la figura en la primera pose (eje del giro)
+  function tplCx(tpl) {
+    if (tpl._cx !== undefined) return tpl._cx;
+    const J = solve(compile(tpl).specs[0]), xs = ['hip', 'shc', 'head', 'hd1', 'kn1', 'an1', 'to1', 'he1', 'el1'].map(k => J[k] && J[k][0]).filter(x => typeof x === 'number');
+    return (tpl._cx = (Math.min(...xs) + Math.max(...xs)) / 2);
+  }
+  // giro lento y continuo: de perfil → de frente → desde el otro lado → de frente → de perfil (se detiene un poco en cada perfil)
+  const SPIN = 14;
+  const yawAt = t => { const x = (1 - Math.cos(2 * Math.PI * t / SPIN)) / 2; return -180 * x * x * (3 - 2 * x); };
+  function render(tpl, phase, hl, T, yaw) {
     if (tpl.custom) return G.SMCustom[tpl.custom](tpl, phase, hl, T);
     const { spec } = poseAt(tpl, phase);
-    const J = solve(spec);
-    const layer = lay => (tpl.props || []).filter(o => (o.layer || defaultLayer(o.type)) === lay).map(o => PROPS[o.type] ? PROPS[o.type](J, o, T) : '').join('');
+    let J = solve(spec), J0 = J;
+    if (yaw && !J.front) { J = rotateJ(J, yaw, tplCx(tpl)); J0 = J.rot.J0; }
+    const draw = (o, JJ) => PROPS[o.type] ? PROPS[o.type](JJ, o, T) : '';
+    const layer = lay => (tpl.props || []).filter(o => (o.layer || defaultLayer(o.type)) === lay).map(o => draw(o, J)).join('');
     let s = '';
     // sombra
     const cx = J.front ? J.hip[0] : (J.an1[0] + J.an2[0] + J.hip[0]) / 3;
-    s += `<ellipse cx="${f1(cx)}" cy="${FLOOR + 1}" rx="34" ry="3.2" fill="#000" opacity=".35"/>`;
-    s += layer('back');
+    s += `<ellipse cx="${f1(cx)}" cy="${FLOOR + 1}" rx="${J.rot ? f1(16 + 18 * Math.abs(J.rot.c)) : 34}" ry="3.2" fill="#000" opacity=".35"/>`;
+    if (J.rot) {          // bancos, máquinas y soportes: se comprimen con el giro (escala horizontal sobre el eje)
+      const R = J.rot, sc = (R.c < 0 ? -1 : 1) * Math.max(Math.abs(R.c), 0.14), bk = (tpl.props || []).filter(o => (o.layer || defaultLayer(o.type)) === 'back');
+      s += `<g transform="matrix(${f1(sc * 100) / 100} 0 0 1 ${f1(R.cx * (1 - sc))} 0)">${bk.filter(o => o.type !== 'text').map(o => draw(o, J0)).join('')}</g>` + bk.filter(o => o.type === 'text').map(o => draw(o, J0)).join('');
+    } else s += layer('back');
     s += figure(J, hl, 'far');
     s += layer('mid');
     s += figure(J, hl, 'body');
@@ -513,9 +609,9 @@
   let raf = null, last = 0;
   const reduce = G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function frameSVG(tplName, phase, hl, T) {
+  function frameSVG(tplName, phase, hl, T, yaw) {
     const tpl = tplOf(tplName);
-    return render(tpl, phase, hl, T ?? phase * (tpl.dur || 2.6));
+    return render(tpl, phase, hl, T ?? phase * (tpl.dur || 2.6), yaw);
   }
   // etiqueta (agarre / variante) en la esquina superior izquierda
   function badgeSVG(lines, y0) {
@@ -528,17 +624,17 @@
     }
     return `<g>${out}</g>`;
   }
-  function fullSVG(tplName, phase, hl, T, mark) {
+  function fullSVG(tplName, phase, hl, T, mark, yaw) {
     const tpl = tplOf(tplName);
     const wm = mark ? `${badgeSVG(mark.badge && [].concat(mark.badge), 4)}<g font-family="Inter,Arial,sans-serif" font-weight="800" font-size="7.5"><text x="-1" y="-3" fill="#ffffff" opacity=".9">STRONG<tspan fill="#bbf426">MED</tspan><tspan fill="#64748b"> × </tspan>Kin <tspan fill="#bbf426">At Home</tspan></text>${mark.title ? `<text x="-1" y="196" fill="#cbd5e1" font-size="7" font-weight="700">${mark.title.replace(/[&<>]/g, '')}</text>` : ''}</g>` : '';
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB}" width="420" height="420">${DEFS}${bgFor(tpl)}<g>${frameSVG(tplName, phase, hl, T)}</g>${wm}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VB}" width="420" height="420">${DEFS}${bgFor(tpl)}<g>${frameSVG(tplName, phase, hl, T, yaw)}</g>${wm}</svg>`;
   }
 
   function mount(el, tplName, hl, opts = {}) {
     const tpl = tplOf(tplName);
     el.innerHTML = `<svg viewBox="${VB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animación del ejercicio">${DEFS}${bgFor(tpl)}<g class="fig"></g>${badgeSVG(opts.badge && [].concat(opts.badge))}</svg>`;
     const g = el.querySelector('.fig');
-    const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false };
+    const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false, spin: opts.spin !== false };
     g.innerHTML = render(tpl, reduce ? 0.35 : P.off, hl, 0);
     if (reduce) return P;
     players.add(P);
@@ -564,11 +660,11 @@
       if (!P.visible) continue;
       const dur = P.tpl.dur || 2.6;
       const ph = (P.clock / dur + P.off) % 1;
-      P.g.innerHTML = render(P.tpl, ph, P.hl, P.clock);
+      P.spinT = (P.spinT || 0) + (P.spin ? dt * P.speed : 0);
     }
   }
 
-  G.SMAnim = { badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
+  G.SMAnim = { yawAt, badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
 })(window);
 /* Primeros planos animados: mano, pie y cara (rehabilitación fina) */
 (function (G) {

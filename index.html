@@ -604,7 +604,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 </div>
 <script>try{ if(/github\.io$/.test(location.hostname) && !sessionStorage.getItem('sm_mud')) document.getElementById('mudanza').classList.remove('hidden'); }catch(e){}</script>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
-<script src="js/sm-anim.js?v=26"></script>
+<script src="js/sm-anim.js?v=27"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -1088,16 +1088,23 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 
 /* ---------------- exercise library ---------------- */
 async function loadLib(){
-  if(S.lib) return S.lib;
-  try{ let r=null; for(const u of ['data/ejercicios.json?v=26', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=(await r.json()).concat(EJ_EXTRA);
-    S.lib.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
-    S.libByName=new Map(); S.libById=new Map(); S.lib.forEach(x=>{ S.libById.set(x.i,x); const k=x.n.toLowerCase(); if(!S.libByName.has(k)) S.libByName.set(k,x); });
-    // "al": ids y nombres de ejercicios fusionados o renombrados, para que las rutinas antiguas los sigan encontrando
-    S.lib.forEach(x=>(x.al||[]).forEach(([i,n])=>{ if(i && !S.libById.has(i)) S.libById.set(i,x); const k=String(n||'').toLowerCase(); if(k && !S.libByName.has(k)) S.libByName.set(k,x); }));
+  if(S.lib){ if(!S.libProOk && S.lib.length && S.fb && S.dbs && S.dbs.sm){ S.libProOk=true; const p=await loadEjPro(); if(p.length){ S.lib=S.lib.concat(p); libIndex(S.libAll.concat(p)); } } return S.lib; }
+  S.libProOk=!!(S.fb && S.dbs && S.dbs.sm);
+  try{ let r=null; for(const u of ['data/ejercicios.json?v=27', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
+    // "o": ejercicio oculto (repetido con otro nombre). No se muestra en la biblioteca, pero las rutinas antiguas lo siguen abriendo.
+    const all=(await r.json()).concat(EJ_EXTRA, await loadEjPro());
+    all.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
+    S.lib=all.filter(x=>!x.o); libIndex(all);
     fillLibDatalist(); }
   catch(e){ S.lib=[]; S.libByName=new Map(); S.libById=new Map(); console.warn('Biblioteca de ejercicios no disponible (sube data/ejercicios.json)'); }
   return S.lib;
 }
+function libIndex(all){ S.libAll=all; S.libByName=new Map(); S.libById=new Map();
+  [...all.filter(x=>!x.o), ...all.filter(x=>x.o)].forEach(x=>{ if(!S.libById.has(x.i)) S.libById.set(x.i,x); const k=x.n.toLowerCase(); if(!S.libByName.has(k)) S.libByName.set(k,x); });
+  // "al": ids y nombres de ejercicios fusionados o renombrados, para que las rutinas antiguas los sigan encontrando
+  all.forEach(x=>(x.al||[]).forEach(([i,n])=>{ if(i && !S.libById.has(i)) S.libById.set(i,x); const k=String(n||'').toLowerCase(); if(k && !S.libByName.has(k)) S.libByName.set(k,x); })); }
+/* ejercicios agregados por los profesionales (colección "ejercicios_pro" del Firebase de StrongMed) */
+async function loadEjPro(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return []; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_pro')); const a=[]; sn.forEach(d=>{ const x=d.data(); if(x && x.n) a.push(Object.assign({}, x, {i:d.id, pro:true}, x.borrado?{o:1}:{})); }); return a; }catch(e){ console.warn('ejercicios_pro', e); return []; } }
 function fillLibDatalist(){ const dl=$('#dl-ej'); if(!dl || !S.lib || dl.dataset.full) return; dl.dataset.full=1;
   dl.insertAdjacentHTML('beforeend', S.lib.map(x=>`<option value="${esc(x.n)}">`).join('')); }
 const libById = id => (S.libById && S.libById.get(id)) || null;
@@ -2063,14 +2070,51 @@ function vLib(){
   S.after.push(async()=>{ if(!S.lib){ await loadLib(); keepScroll(render); } });
   if(!S.lib) return `<header class="top"><h1 class="disp h1">Ejercicios</h1></header><div class="card empty">Cargando biblioteca…</div>`;
   if(!S.lib.length) return `<header class="top">${!pro?`<button class="back" onclick="goRutinas()">${ic('chevl','s')} Mi plan</button>`:''}<h1 class="disp h1">Ejercicios</h1></header><div class="card stack"><div class="b">Biblioteca no disponible</div><p class="sm muted">Sube la carpeta <b>data/</b> (con ejercicios.json) y las carpetas <b>images/</b> y <b>videos/</b> junto a index.html.</p></div>`;
-  const cats=[...new Set(S.lib.map(x=>x.c))].sort();
+  const cats=LIB_CATS.filter(c=>S.lib.some(x=>x.c===c)).concat([...new Set(S.lib.map(x=>x.c))].filter(c=>!LIB_CATS.includes(c)).sort());
+  const extra=[['rh','Rehabilitación'],['ca','En casa'],...(S.lib.some(x=>x.pro)?[['pro','Agregados por el equipo']]:[])];
+  const pill=(k,l)=>`<button class="pill ${S.libC===k?'on':''}" onclick="S.libC=${q(k)};render()">${esc(l)}</button>`;
   return `<header class="top">${!pro?`<button class="back" onclick="goRutinas()">${ic('chevl','s')} Mi plan</button>`:''}<div class="eyebrow">${S.lib.length} ejercicios con demostración</div><h1 class="disp h1" style="margin-top:6px">Ejercicios</h1></header><div class="stack">
+  ${pro?`<button class="btn ghost" onclick="ejProForm()">${ic('plus','s')} Agregar ejercicio a la biblioteca</button>`:''}
   <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar: sentadilla, bíceps, banda…" value="${esc(S.libQ)}" oninput="S.libQ=this.value;$('#libg').innerHTML=libGrid()"></div>
-  <div class="pills"><button class="pill ${S.libC==='★'?'on':''}" onclick="S.libC='★';render()">★ Más usados</button><button class="pill ${!S.libC?'on':''}" onclick="S.libC='';render()">Todos</button>${cats.map(c=>`<button class="pill ${S.libC===c?'on':''}" onclick="S.libC=${q(c)};render()">${esc(c)}</button>`).join('')}</div>
+  <div class="pills">${pill('★','★ Más usados')}<button class="pill ${!S.libC?'on':''}" onclick="S.libC='';render()">Todos</button>${cats.map(c=>pill(c,c)).join('')}${extra.map(([k,l])=>pill(':'+k,l)).join('')}</div>
   <div id="libg">${libGrid()}</div><p class="xs muted center">Animaciones StrongMed × Kin At Home</p></div>`;
 }
 const fold = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-function libGrid(){ const t=fold(S.libQ), w=t.split(/\s+/).filter(Boolean); let r=S.lib.filter(x=>(!S.libC||(S.libC==='★'?x.top:x.c===S.libC)) && (!w.length || w.every(p=>fold(x.n+' '+x.en+' '+x.m+' '+x.q+' '+(x.k||'')+' '+(x.al||[]).map(a=>a[1]).join(' ')).includes(p))));
+const LIB_CATS = ['Pecho','Espalda','Bíceps','Tríceps','Hombro','Core','Cuádriceps','Isquiosurales','Glúteo y cadera','Pantorrilla','Pliometría','Potencia','Cardio','Movilidad'];
+/* ---- el profesional agrega (o edita) un ejercicio que falte; lo ven todos los profesionales y sus pacientes ---- */
+window.ejProForm = async id => { await loadLib(); const x=id?libById(id):null; if(id && !(x && x.pro)) return;
+  const eqs=[...new Set(S.lib.map(e=>e.q).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es')), mus=[...new Set(S.lib.filter(e=>!e.rh).map(e=>e.m).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const base=x && x.a ? (S.lib.find(e=>!e.pro && e.a===x.a)||{}).n||'' : '';
+  sheet(`<h2 class="disp h2">${x?'Editar ejercicio':'Agregar ejercicio'}</h2><p class="sm muted" style="margin-top:6px">Queda en la biblioteca para todo el equipo y se puede usar en las rutinas.</p><div class="stack" style="margin-top:14px">
+  <label class="field"><span class="lbl">Nombre</span><input class="inp" id="ep-n" maxlength="90" value="${esc(x?x.n:'')}" placeholder="Ej: Remo Kroc con mancuerna"></label>
+  <div class="grid2"><label class="field"><span class="lbl">Grupo</span><select class="inp" id="ep-c">${LIB_CATS.map(c=>`<option ${x&&x.c===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+  <label class="field"><span class="lbl">Equipo</span><select class="inp" id="ep-q">${eqs.map(e=>`<option ${(x?x.q:'Mancuernas')===e?'selected':''}>${esc(e)}</option>`).join('')}</select></label></div>
+  <label class="field"><span class="lbl">Músculo principal</span><input class="inp" id="ep-m" list="dl-mus" value="${esc(x?x.m:'')}" placeholder="Ej: Dorsal Ancho"><datalist id="dl-mus">${mus.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
+  <label class="field"><span class="lbl">Animación: usar la de un ejercicio parecido</span><input class="inp" id="ep-a" list="dl-ej" value="${esc(base)}" placeholder="Ej: Remo inclinado a una mano con mancuerna" oninput="ejProPrev()"></label>
+  <div class="ejstage ejanim" id="ep-prev" style="max-width:220px;margin:0 auto"></div>
+  <label class="field"><span class="lbl">Cómo hacerlo (un paso por línea)</span><textarea class="inp" id="ep-p" rows="4">${esc(x?(x.p||[]).join('\n'):'')}</textarea></label>
+  <div class="row" style="gap:14px;flex-wrap:wrap"><label class="row sm" style="gap:6px"><input type="checkbox" id="ep-rh" ${x&&x.rh?'checked':''}> Rehabilitación</label><label class="row sm" style="gap:6px"><input type="checkbox" id="ep-ca" ${x&&x.ca?'checked':''}> En casa</label></div>
+  <button class="btn pri block" onclick="ejProSave(${x?q(x.i):"''"})">${ic('check','s')} Guardar ejercicio</button>
+  ${x?`<button class="btn ghost block" onclick="ejProDel(${q(x.i)})">${ic('trash','s')} Quitar de la biblioteca</button>`:''}</div>`);
+  fillLibDatalist(); ejProPrev(); };
+window.ejProPrev = () => { const el=$('#ep-prev'), b=libFind(val('ep-a')); if(!el) return; if(S.epP){ SMAnim.unmount(S.epP); S.epP=null; }
+  if(b && b.a && window.SMAnim){ S.epP=SMAnim.mount(el, b.a, ejHL(b), {phase:0}); el.style.display=''; } else { el.innerHTML=''; el.style.display='none'; } };
+window.ejProSave = async id => { const n=val('ep-n').trim(); if(n.length<3) return toast('Escribe el nombre del ejercicio','err');
+  const otro=libFind(n); if(otro && otro.i!==id && !otro.o) return toast('Ya existe un ejercicio con ese nombre','err');
+  const b=libFind(val('ep-a')), m=val('ep-m').trim()||'—';
+  const d={n, en:'', c:val('ep-c'), m, q:val('ep-q'), s:[], p:val('ep-p').split('\n').map(s=>s.trim()).filter(Boolean),
+    a:b&&b.a||'', h:b&&b.h||[], h2:b&&b.h2||[], g:b&&b.g||'', rh:$('#ep-rh').checked?1:0, ca:$('#ep-ca').checked?1:0,
+    por:S.pro.nombre||'', proId:S.pro.id||'', t:Date.now()};
+  if(!d.a) return toast('Elige un ejercicio parecido para la animación','err');
+  const nid=id||('p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+  if(!(await fsSet('ejercicios_pro', nid, d))) return;
+  const x=Object.assign({}, d, {i:nid, pro:true}); S.lib=S.lib.filter(e=>e.i!==nid).concat(x); libIndex(S.libAll.filter(e=>e.i!==nid).concat(x));
+  const dl=$('#dl-ej'); if(dl && !id) dl.insertAdjacentHTML('beforeend', `<option value="${esc(n)}">`);
+  EJ_THUMBS.delete(nid); toast(id?'Ejercicio actualizado':'Ejercicio agregado a la biblioteca'); closeSheet(); S.libC=''; S.libQ=n; render(); verEj(nid); };
+window.ejProDel = async id => { if(!confirm('¿Quitar este ejercicio de la biblioteca? Las rutinas que ya lo tienen lo seguirán mostrando.')) return;
+  if(!(await fsSet2('sm','ejercicios_pro', id, {borrado:true, t:Date.now()}, true))) return toast('No se pudo guardar','err');
+  const x=libById(id); if(x) x.o=1; S.lib=S.lib.filter(e=>e.i!==id); closeSheet(); toast('Ejercicio quitado'); render(); };
+function libGrid(){ const t=fold(S.libQ), w=t.split(/\s+/).filter(Boolean); const C=S.libC||''; let r=S.lib.filter(x=>(!C||(C==='★'?x.top:C[0]===':'?x[C.slice(1)]:x.c===C)) && (!w.length || w.every(p=>fold(x.n+' '+x.en+' '+x.m+' '+x.q+' '+(x.k||'')+' '+(x.al||[]).map(a=>a[1]).join(' ')).includes(p))));
   r=r.slice().sort((a,b)=>(a.top||999)-(b.top||999));
   return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.a||x.img||x.b?`<img src="${ejThumb(x)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
 window.libGrid = libGrid;
@@ -2096,21 +2140,21 @@ window.ejGo = j => { ejStop(); $('#ejst')?.classList.add('paused'); ejShow(j); }
 window.ejSpeed = () => { const st=$('#ejst'); if(!st) return; const sp=st.dataset.sp==='0.5'?1:0.5; st.dataset.sp=sp; const b=$('#ejsp'); if(b) b.textContent=sp===0.5?'Ver normal':'Ver lento'; if(ejTimer) ejPlay(); };
 /* "Para qué sirve": frase según el tipo de ejercicio (los de rehabilitación usan la lesión y la fase) */
 function ejUso(x){ const m=String(x.m||'').toLowerCase(), n=fold(x.n+' '+(x.en||'')), sec=(x.s||[]).filter(v=>!/^(circulaci|equilibrio)/i.test(v)).slice(0,2).map(v=>v.toLowerCase());
-  if(x.c==='Rehabilitación') return `Ejercicio de rehabilitación para ${x.m.replace(/:\s*/,' — ').toLowerCase()}${x.s&&x.s[0]?`, en la fase de ${x.s[0].toLowerCase()}`:''}. Úsalo solo con indicación de tu kinesiólogo.`;
+  if(x.rh && !x.pro) return `Ejercicio de rehabilitación para ${x.m.replace(/:\s*/,' — ').toLowerCase()}${x.s&&x.s[0]?`, en la fase de ${x.s[0].toLowerCase()}`:''}. Úsalo solo con indicación de tu kinesiólogo.`;
   if(/respira|diafragm/.test(n)) return 'Aprender a respirar con el diafragma, relajarte y activar la zona media. Útil para empezar y terminar la sesión.';
   if(/equilibrio|balance/.test(n) || m==='equilibrio') return 'Mejorar el equilibrio y la estabilidad del tobillo y la cadera, y así prevenir caídas.';
   if(/caminata|caminar|marcha|walk/.test(n) && (m==='resistencia'||/caminata|walk/.test(n))) return 'Mejorar la resistencia y la salud cardiovascular de forma suave, y sumar pasos diarios.';
   if(/bombeo de tobillo|ankle pump|puntas y talones/.test(n)) return 'Activar la circulación de las piernas y mantener la movilidad del tobillo, ideal si pasas mucho tiempo sentado o en cama.';
   if(/estira|stretch|elongaci|movilidad|liberaci|foam|mobility/.test(n)) return `Mejorar la flexibilidad y la movilidad de ${m}, y disminuir la rigidez.`;
-  if(x.c==='Cardiovascular') return 'Mejorar la resistencia cardiovascular y el gasto de energía.';
-  if(x.c==='Potencia y Pliometría') return `Desarrollar potencia, salto y capacidad de reacción de ${m}.`;
+  if(x.c==='Cardio') return 'Mejorar la resistencia cardiovascular y el gasto de energía.';
+  if(x.c==='Potencia' || x.c==='Pliometría') return `Desarrollar potencia, salto y capacidad de reacción de ${m}.`;
   if(/pararse y sentarse|sit to stand/.test(n)) return 'Fortalecer cuádriceps y glúteos para levantarte de la silla, subir escaleras y moverte con más seguridad en el día a día.';
   if(/isometr|plancha|plank|sostenid/.test(n)) return `Fortalecer ${m} manteniendo la posición, para ganar estabilidad y control.`;
   return `Fortalecer ${m}${sec.length?` y, en menor medida, ${sec.join(' y ')}`:''}.`; }
 window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return; ejStop();
   const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
   const stage = x.a && window.SMAnim ? `<div class="ejstage ejanim" id="ejan" onclick="ejAnTap()"><span class="ejpp">${ic('play','s')}</span></div>
-    <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px"><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button></div>
+    <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px"><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button><button type="button" class="pill" id="ejspin" onclick="ejAnSpin()">Detener giro</button></div>
       <button type="button" class="pill on" id="ejgif" onclick="ejGif(${q(x.i)})">Descargar GIF</button></div>`
   : n ? `<div class="ejstage" id="ejst" data-n="${n}" data-j="0" data-sp="1" onclick="ejTap()">
       ${pos.map(j=>`<img class="ejimg ${j===0?'on':''}" src="${ejPos(x,j)}" alt="${esc(x.n)} · ${POS_LBL(n,j)}" ${j?'loading="lazy"':''}>`).join('')}
@@ -2120,10 +2164,11 @@ window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return
     : `<div class="ejstage noanim">${x.img?`<img class="ejimg on" src="${media(x.img)}" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>`;
   sheet(`${stage}
   <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
+  ${x.pro?`<div class="row between" style="margin-top:8px;gap:8px"><span class="xs muted">Agregado por ${esc(x.por||'el equipo')}</span>${S.role==='pro'?`<button class="pill" onclick="closeSheet();ejProForm(${q(x.i)})">${ic('edit','s')} Editar</button>`:''}</div>`:''}
   <div class="ejuso"><small>Para qué sirve</small><p>${esc(ejUso(x))}</p></div>
-  ${x.c==='Rehabilitación'
+  ${x.rh && !x.pro
     ? `<div class="ejchips"><div class="ejchip main"><small>Lesión / condición</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Fase</small><b>${esc((x.s&&x.s[0])||'—')}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div></div>`
-    : `<div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Zona</small><b>${esc(x.c)}</b></div></div>
+    : `<div class="ejchips"><div class="ejchip main"><small>Músculo principal</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div><div class="ejchip"><small>Grupo</small><b>${esc(x.c)}</b></div></div>
   ${x.s&&x.s.length?`<div class="lbl" style="margin-top:14px">También trabaja</div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${x.s.map(m=>`<span class="badge">${esc(m)}</span>`).join('')}</div>`:''}`}
   ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} paso${x.p.length>1?'s':''}</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
   <div class="note" style="margin-top:16px">${ic('info','s')}<span>Haz el movimiento controlado y sin dolor. Si algo molesta, detente y avísale a tu kine.</span></div>
@@ -2131,6 +2176,7 @@ window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return
   if(x.a && window.SMAnim){ const el=$('#ejan'); if(el){ const pp=el.querySelector('.ejpp'); S.ejP=SMAnim.mount(el, x.a, ejHL(x), {phase:0, badge:ejBadge(x)}); el.appendChild(pp); } }
   else if(n>1) setTimeout(ejPlay, 300); };
 window.ejAnTap = () => { const P=S.ejP, el=$('#ejan'); if(!P||!el) return; P.paused=!P.paused; el.classList.toggle('paused', P.paused); };
+window.ejAnSpin = () => { const P=S.ejP; if(!P) return; P.spin=!P.spin; const b=$('#ejspin'); if(b) b.textContent = P.spin ? 'Detener giro' : 'Girar'; };
 window.ejAnSpeed = () => { const P=S.ejP; if(!P) return; P.speed = P.speed===1 ? .5 : 1; const b=$('#ejsp'); if(b) b.textContent = P.speed===1 ? 'Ver lento' : 'Ver normal'; };
 window.ejGif = async id => { const x=libById(id); if(!x||!x.a) return; const b=$('#ejgif'); if(b){ b.disabled=true; b.textContent='Creando GIF…'; }
   try{ const tpl=SMAnim.tpl(x.a), dur=tpl.dur||2.6, fps=12, nf=Math.max(10,Math.min(72,Math.round(dur*fps))), W=360;
@@ -2180,7 +2226,7 @@ const EJ_EXTRA = [
  ['x27','Sentadilla goblet con mancuerna','Cuádriceps','Mancuernas','Muslos / Pierna Superior',['Glúteos','Core'],['Sostén la mancuerna al pecho con ambas manos.','Baja entre las piernas con el pecho alto y las rodillas hacia afuera.','Sube empujando con todo el pie.']],
  ['x29','Sentadilla hack en máquina','Cuádriceps','Máquina de Palanca','Muslos / Pierna Superior',['Glúteos'],['Espalda y hombros apoyados en los cojines, pies a la anchura de la cadera en la plataforma.','Libera los seguros y baja flexionando rodillas y cadera hasta 90° o más, sin despegar la espalda.','Empuja con todo el pie hasta casi extender las rodillas, sin bloquearlas.','Pies más abajo en la plataforma = más cuádriceps; más arriba = más glúteo.']],
  ['x28','Press inclinado con mancuernas','Pectorales','Mancuernas','Pectorales',['Deltoides','Tríceps'],['Banco a 30°, mancuernas sobre el pecho.','Baja hasta los lados del pecho con codos a 45°.','Empuja hacia arriba juntando levemente las mancuernas.']]
-].map(([i,n,m,q,c,s2,p])=>({i,n,en:'',m,q,c,s:s2,p,extra:true}));
+].map(([i,n,m,q,c,s2,p])=>({i,n,en:'',m,q,c,s:s2,p,extra:true,o:1}));   // ocultos: ya están en la biblioteca con los nombres de David
 const RECO_MUS = {'Pecho':['Pectorales'], 'Espalda':['Dorsal Ancho','Espalda alta','Trapecio'], 'Hombros':['Deltoides'], 'Bíceps':['Bíceps'], 'Tríceps':['Tríceps'], 'Cuádriceps':['Cuádriceps'],
   'Isquiotibiales':['Isquiotibiales'], 'Glúteos':['Glúteos'], 'Pantorrillas':['Pantorrillas / Gemelos'], 'Core':['Abdomen'], 'Lumbar':['Espinales / Lumbar'], 'Antebrazos':['Antebrazos'], 'Aductores / abductores':['Aductores','Abductores']};
 const RECO_EQ = {'Barra':['Barra','Barra Z','Barra olímpica','Barra Hexagonal'], 'Mancuernas':['Mancuernas'], 'Polea':['Polea'], 'Máquinas':['Máquina de Palanca','Máquina Smith','Máquina Hammer','Trineo de Empuje'],

@@ -1917,6 +1917,31 @@
     base: S({ h1: [-2, -8] }), props: [{ type: 'yoke' }],
     frames: walk({ h1: [-2, -8], armSwing: 0, stride: 0.6 }), ease: 'linear', dur: 1.6
   });
+  // paseos con carga (loaded carries): misma marcha, distinta posición de brazos
+  const carryW = (arms, props, label, name) => add(name, label, {
+    base: S(arms), props, frames: walk(Object.assign({ armSwing: 0, stride: 0.8 }, arms)), ease: 'linear', dur: 1.6
+  });
+  carryW({ a1: 178, e1: 178 }, [BB], 'Paseo con barra sobre la cabeza', 'carry_oh');
+  carryW({ a1: 176, e1: 176 }, DB, 'Paseo con mancuernas sobre la cabeza', 'carry_oh_db');
+  carryW({ a1: 176, e1: 176, a2: 4, e2: 8 }, KB, 'Paseo con kettlebell sobre la cabeza / camarero', 'carry_oh1');
+  carryW({ a1: 18, e1: 162 }, [{ type: 'kb', at: 'hd2', layer: 'mid', dim: true }, { type: 'kb', at: 'hd1' }], 'Paseo en rack frontal', 'carry_rack');
+  carryW({ a1: 102, e1: -112 }, [{ type: 'barbell', at: J => A.mv(J.shc, J.t - 90, 9) }], 'Paseo con barra en rack frontal', 'carry_rack_bb');
+  carryW({ a1: 18, e1: 162, a2: 2, e2: 2 }, [{ type: 'kb', at: 'hd2', layer: 'mid', dim: true }, { type: 'kb', at: 'hd1' }], 'Paseo mixto (rack y maleta)', 'carry_mixed');
+  carryW({ a1: 10, e1: 100, a2: 4, e2: 8 }, [{ type: 'kb', at: 'hd1', up: true }], 'Paseo bottoms-up con kettlebell', 'carry_bu');
+  carryW({ a1: 30, e1: 150 }, [{ type: 'barbell', at: 'el1' }], 'Paseo Zercher', 'carry_zercher');
+  carryW({ a1: 40, e1: 120 }, [{ type: 'ball', at: J => [J.hd1[0] - 4, J.hd1[1] + 2], r: 17 }], 'Paseo con saco abrazado', 'carry_hug');
+  add('tuck_jump', 'Salto con rodillas al pecho', {
+    base: S({}),
+    frames: [{ d: 1 }, { x: 88, y: 128, t: 150, a1: -40, e1: -30, d: .6 }, { x: 100, y: 62, t: 178, F1: [112, 116], F2: [107, 118], a1: 70, e1: 80, d: .6, ease: 'out' }, { x: 92, y: 124, t: 150, F1: [104, AY], F2: [99, AY], a1: 20, e1: 30, d: .6 }], dur: 2
+  });
+  add('mb_toss', 'Lanzamiento de balón medicinal hacia arriba / atrás', {
+    base: S({ a1: 4, e1: 4 }), props: [{ type: 'ball', at: J => [J.hd1[0] + 2, J.hd1[1] + 4], r: 9 }],
+    frames: [{ d: 1 }, { x: 84, y: 132, t: 140, a1: -10, e1: -10, d: .6 }, { x: 100, y: 92, t: 188, a1: 176, e1: 176, d: .5, ease: 'out' }, { a1: 4, e1: 4, d: .6 }], dur: 2.4
+  });
+  add('wall_ball', 'Wall ball (sentadilla y lanzamiento)', {
+    base: S({ a1: 30, e1: 150 }), props: [{ type: 'wall', x: 150, w: 10 }, { type: 'ball', at: J => [J.hd1[0] + 3, J.hd1[1] - 4], r: 9 }],
+    frames: [{ d: .6 }, { x: 84, y: 140, t: 158, d: .8 }, { x: 100, y: 98, t: 182, a1: 172, e1: 172, d: .5, ease: 'out' }, { a1: 30, e1: 150, d: .6 }], dur: 2.6
+  });
   const crank = [124, 150];
   const pedal = (k, n) => { const a = 180 - k / n * 360; const c = [crank[0] + Math.sin(a * Math.PI / 180) * 15, crank[1] + Math.cos(a * Math.PI / 180) * 15]; const c2 = [crank[0] - Math.sin(a * Math.PI / 180) * 15, crank[1] - Math.cos(a * Math.PI / 180) * 15]; return { F1: c, F2: c2 }; };
   add('bike', 'Bicicleta estática', {

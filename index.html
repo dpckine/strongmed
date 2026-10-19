@@ -604,7 +604,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 </div>
 <script>try{ if(/github\.io$/.test(location.hostname) && !sessionStorage.getItem('sm_mud')) document.getElementById('mudanza').classList.remove('hidden'); }catch(e){}</script>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
-<script src="js/sm-anim.js?v=24"></script>
+<script src="js/sm-anim.js?v=25"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -1089,7 +1089,7 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 /* ---------------- exercise library ---------------- */
 async function loadLib(){
   if(S.lib) return S.lib;
-  try{ let r=null; for(const u of ['data/ejercicios.json?v=24', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=(await r.json()).concat(EJ_EXTRA);
+  try{ let r=null; for(const u of ['data/ejercicios.json?v=25', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0; S.lib=(await r.json()).concat(EJ_EXTRA);
     S.lib.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
     S.libByName=new Map(); S.lib.forEach(x=>{ const k=x.n.toLowerCase(); if(!S.libByName.has(k)) S.libByName.set(k,x); }); fillLibDatalist(); }
   catch(e){ S.lib=[]; S.libByName=new Map(); console.warn('Biblioteca de ejercicios no disponible (sube data/ejercicios.json)'); }

@@ -514,9 +514,9 @@
     const inv2 = G => front ? { p: [G.x + cx, FLOOR - G.y], z: G.z } : { p: [G.z + cx, FLOOR - G.y], z: -G.x };
     function snapProps(J, tpl) {
       const g = MODEL.grip; if (!g || !(g[1] || g[2])) return J;
-      J = Object.assign({}, J); const q = {};
+      const J0 = J; J = Object.assign({}, J); const q = {};
       for (const i of [1, 2]) if (g[i]) { q[i] = inv2(g[i]); for (const k of ['hd', 'wr']) { J[k + i] = q[i].p; OV[k + i + 'z'] = q[i].z; } }
-      if (q[1] && q[2] && (tpl.props || []).some(o => o.type === 'barbell' || o.type === 'stick')) { const m = [(q[1].p[0] + q[2].p[0]) / 2, (q[1].p[1] + q[2].p[1]) / 2]; J.wr1 = J.wr2 = J.hd1 = J.hd2 = m; }
+      if (q[1] && q[2] && ((J.hd1 && J.hd2 && d2(J0.hd1, J0.hd2) < 6) || (tpl.props || []).some(o => o.type === 'barbell' || o.type === 'stick'))) { const m = [(q[1].p[0] + q[2].p[0]) / 2, (q[1].p[1] + q[2].p[1]) / 2]; J.wr1 = J.wr2 = J.hd1 = J.hd2 = m; }
       return J;
     }
     function poseModel(J, tpl) {
@@ -578,7 +578,8 @@
         for (const x of (o.legs || [o.a[0] + 8, o.b[0] - 8])) { const y = o.a[1] + (o.b[1] - o.a[1]) * ((x - o.a[0]) / ((o.b[0] - o.a[0]) || 1)); for (const z of [-9, 9]) cyl(V2([x, y + 4], z), V2([x, FLOOR], z), 1.8, 'padDark'); }
         if (o.back) boxAB(V2(o.back[0]), V2(o.back[1]), 8, 26, 'pad');
       },
-      box: (J, o) => boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 38, 'pad'),
+      // de frente el cajón queda detrás (como respaldo) para no tapar el cuerpo
+      box: (J, o) => front ? boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 12, 'pad', -16) : boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 38, 'pad'),
       wall: (J, o) => boxS([o.x + (o.w || 8) / 2, (FLOOR - 40) / 2], o.w || 8, FLOOR + 40, 130, 'padDark'),
       table: (J, o) => { boxS([o.x + o.w / 2, o.y], o.w, 5, 40, 'pad'); for (const x of [o.x + 4, o.x + o.w - 4]) for (const z of [-15, 15]) cyl(V2([x, o.y], z), V2([x, FLOOR], z), 1.6, 'padDark'); },
       rails: (J, o) => { const p = at3(J, o.at, 'wr1').p; for (const z of [-24, 24]) { cyl(V2([p[0], p[1] + 2], z), V2([p[0], FLOOR], z), 1.6, 'padDark'); cyl(V2([p[0] - 22, p[1] + 2], z), V2([p[0] + 22, p[1] + 2], z), 1.8, 'metal'); } },

@@ -198,7 +198,7 @@
     function joints(J) {
       if (front) {        // vista frontal: brazos un poco hacia afuera para que no atraviesen el tronco
         J = Object.assign({}, J);
-        for (const i of [1, 2]) { const sg = Math.sign(J['S' + i][0] - J.shc[0]) || (i === 1 ? 1 : -1); for (const k of ARMK) if (J[k + i]) J[k + i] = [J[k + i][0] + sg * 3.5, J[k + i][1]]; }
+        for (const i of [1, 2]) { const sg = Math.sign(J['S' + i][0] - J.shc[0]) || (i === 1 ? 1 : -1); for (const k of ARMK) if (J[k + i]) J[k + i] = [J[k + i][0] + sg * 6.5, J[k + i][1]]; }
       }
       return J;
     }

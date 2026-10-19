@@ -265,7 +265,7 @@
         // deltoides: casquete que cubre el hombro y baja por el brazo
         const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.3);
         const ad = E.clone().sub(Sh).normalize();
-        ell(BP['dl' + i], Sh.clone().add(out).addScaledVector(ad, 3.2), ad, ua, 7.4, 9.6, 7.8);
+        ell(BP['dl' + i], Sh.clone().add(out).addScaledVector(ad, 3.2), ad, ua, 6.8, 9, 7.2);
       }
     }
 

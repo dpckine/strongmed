@@ -12,12 +12,12 @@
   const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js';
   const FLOOR = A.FLOOR;
   const C = {
-    bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#dde2e8', hl: '#bbf426', hl2: '#d4ec95',
+    bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#d3d7dc', hl: '#bbf426', hl2: '#d4ec95',
     shorts: '#1b1f25', shoe: '#2a3038', metal: '#c3ccd6', plate: '#1d2228', pad: '#353d48', padDark: '#262c34',
     cable: '#8a96a6', band: '#ff6b8b', wood: '#c08a55', teal: '#2f6f73', ball: '#3b4655', rope: '#c9a46a', orange: '#f59e0b'
   };
   // profundidad (medio ancho) de cada lado del cuerpo en 3D
-  const ZARM = 17, ZLEG = 8.8;
+  const ZARM = 16, ZLEG = 8.2;
   const ARMK = ['S', 'el', 'wr', 'hd', 'tg'], LEGK = ['H', 'kn', 'an', 'to', 'he'];
   // el codo y la mano quedan un poco por fuera del hombro (brazo natural, sin atravesar el tronco)
   const ZW = { S: ZARM, el: ZARM + 3.5, wr: ZARM + 3, hd: ZARM + 3, tg: ZARM + 3 };
@@ -54,16 +54,18 @@
     upper: [[0, 5.2, 5.2, 5.4], [0.4, 4.8, 4.8, 4.5], [0.85, 3.8, 3.8, 3.9], [1, 3.5, 3.5, 3.8]],
     fore: [[0, 3.6, 3.6, 4], [0.3, 3.7, 3.6, 4], [0.85, 2.4, 2.3, 3], [1, 2.3, 2.2, 2.9]],
     neck: [[0, 4.2, 4.4, 5], [0.4, 3.7, 3.8, 4], [1, 3.4, 3.5, 3.6]],
-    shoe: [[0, 2.8, 2.4, 2.9], [0.25, 3.6, 2.6, 3.6], [0.7, 2.4, 2.4, 3.5], [1, 1.3, 1.7, 2.5]],
+    foot: [[0, 2.3, 2, 2.2], [0.3, 2.8, 2, 2.9], [0.72, 1.6, 1.3, 3.2], [1, 0.9, 0.9, 2.6]],
+    palm: [[0, 2.6, 2.6, 1.5], [0.5, 3.2, 3.2, 1.7], [1, 3, 3, 1.5]],
+    finger: [[0, 0.85, 0.85, 0.85], [1, 0.72, 0.72, 0.72]],
     hand: [[0, 2.1, 2.1, 2.9], [0.35, 2.4, 2.4, 3.5], [0.75, 2, 2, 3.2], [1, 1.4, 1.4, 2.6]],
-    head: [[0, 2.6, 1.5, 3.2], [0.08, 5, 3, 4.8], [0.2, 6.6, 5.2, 6], [0.38, 7.6, 7.6, 7], [0.6, 7.9, 8.6, 7.6], [0.8, 7, 8.2, 7], [0.93, 4.8, 5.8, 4.8], [1, 1.5, 1.8, 1.5]]
+    head: [[0, 2.2, 1.4, 2.8], [0.07, 4.4, 2.6, 4.2], [0.18, 6, 4.6, 5.4], [0.35, 7.2, 7, 6.4], [0.55, 7.6, 8.4, 7], [0.75, 7, 8.4, 6.9], [0.9, 5.4, 6.6, 5.4], [1, 2.2, 2.6, 2.2]]
   };
   // contextura atlética: [adelante/atrás, lateral]
-  const BULK = { torso: [1.18, 1.3], thigh: [1.2, 1.18], shin: [1.2, 1.16], upper: [1.35, 1.35], fore: [1.28, 1.28], neck: [1.2, 1.25], shoe: [1.05, 1.1], hand: [1.1, 1.1] };
+  const BULK = { torso: [1.1, 1.18], thigh: [1.12, 1.1], shin: [1.1, 1.06], upper: [1.12, 1.12], fore: [1.1, 1.1], neck: [1.0, 1.05] };
   for (const k in PR) { const [d, l] = BULK[k] || [1, 1]; PR[k] = PR[k].map(r => [r[0], r[1] * d, r[2] * d, r[3] * l]); }
   // largo nominal (para redondear los extremos) y redondeo [inicio, fin]
-  const LEN = { thigh: 40, shin: 40, upper: 26, fore: 24, neck: 10, hand: 9, shoe: 17, head: 21, torso: 46 };
-  const CAP = { thigh: [0, 1], shin: [1, 1], upper: [0.55, 1], fore: [1, 1], hand: [0.6, 1], shoe: [1, 1], head: [0.5, 0.5], neck: [0, 0], torso: [0, 0] };
+  const LEN = { thigh: 40, shin: 40, upper: 26, fore: 24, neck: 10, hand: 9, foot: 17, head: 21, torso: 46, palm: 7, finger: 3 };
+  const CAP = { thigh: [0, 1], shin: [1, 1], upper: [0.55, 1], fore: [1, 1], palm: [0.5, 0.6], finger: [0.8, 1], foot: [1, 1], head: [0.5, 0.5], neck: [0, 0], torso: [0, 0] };
   // relieves: [t, fi, ancho en t, ancho en fi, altura]. fi = 0 adelante, π atrás; fi > 0 = lado interno
   const sym = (t, f, wt, wp, a) => [[t, f, wt, wp, a], [t, -f, wt, wp, a]];
   const BUMPS = {
@@ -77,9 +79,9 @@
     upper: [[0.5, 0, 0.22, 0.7, 0.16], [0.4, 2.64, 0.22, 0.6, 0.1], [0.3, -2.4, 0.2, 0.55, 0.12], [0.14, -1.57, 0.17, 1.0, 0.22], [0.08, -0.7, 0.13, 0.6, 0.1], [0.08, -2.5, 0.13, 0.6, 0.08]],
     fore: [[0.22, -0.9, 0.2, 0.6, 0.16], [0.25, 0.9, 0.2, 0.7, 0.1], [0.2, PI, 0.25, 0.8, 0.05]],
     neck: [...sym(0.5, 0.5, 0.3, 0.3, 0.06), [0.1, PI, 0.15, 1.0, 0.1]],
-    hand: [[0.85, 0, 0.12, 1.2, 0.08], [0.3, 1.3, 0.14, 0.5, 0.16]],
-    head: [[0.42, 0, 0.07, 0.16, 0.2], [0.08, 0, 0.06, 0.5, 0.18], [0.56, 0, 0.045, 0.8, 0.05], ...sym(0.5, 0.38, 0.05, 0.18, -0.025),
-      ...sym(0.48, 1.57, 0.09, 0.16, 0.14), ...sym(0.33, 0.75, 0.08, 0.35, 0.05), [0.62, PI, 0.25, 1, 0.04]]
+    foot: [[0.15, 0, 0.15, 0.6, 0.08], [0.6, 1.4, 0.2, 0.5, 0.06]],
+    head: [[0.4, 0, 0.06, 0.13, 0.12], [0.08, 0, 0.06, 0.45, 0.12], [0.53, 0, 0.04, 0.8, 0.04], ...sym(0.47, 0.36, 0.05, 0.18, -0.03),
+      ...sym(0.44, 1.57, 0.08, 0.14, 0.07), ...sym(0.32, 0.8, 0.08, 0.35, 0.04), ...sym(0.15, 1.2, 0.07, 0.35, 0.05), [0.62, PI, 0.25, 1, 0.03]]
   };
   function sculptGeo(T, kind, inn, t0, t1, p0, p1, nt, np, off, caps) {
     const prof = PR[kind], bumps = BUMPS[kind] || [];
@@ -90,7 +92,7 @@
       return [(r[2] * k + off) * s, ((c >= 0 ? r[0] : r[1]) * k + off) * c];
     };
     // filas: [t del perfil, posición a lo largo, escala del redondeo]
-    const rows = [], NC = 5, cp = caps && CAP[kind] || [0, 0], L = LEN[kind] || 30;
+    const rows = [], NC = 5, cp = Array.isArray(caps) ? caps : caps && CAP[kind] || [0, 0], L = LEN[kind] || 30;
     const capLen = t => { const r = profAt(prof, t); return (r[0] + r[1] + 2 * r[2]) / 4 / L; };
     if (cp[0]) for (let m = NC; m >= 1; m--) { const th = m / NC * PI / 2; rows.push([t0, t0 - capLen(t0) * cp[0] * Math.sin(th), Math.cos(th)]); }
     for (let i = 0; i <= nt; i++) { const t = t0 + (t1 - t0) * i / nt; rows.push([t, t, 1]); }
@@ -175,7 +177,7 @@
     // materiales
     const std = (c, r, m, e) => new T.MeshStandardMaterial({ color: c, roughness: r ?? 0.6, metalness: m ?? 0.05, emissive: e ? new T.Color(e) : 0x000000, emissiveIntensity: e ? 0.22 : 0 });
     const MAT = {
-      skin: std(C.skin, 0.55, 0.04), hl: std(C.hl, 0.5, 0.02, C.hl), hl2: std(C.hl2, 0.55, 0.02), shorts: std(C.shorts, 0.8, 0), shoe: std(C.shoe, 0.7, 0), sole: std(C.hl, 0.6, 0, C.hl),
+      skin: std(C.skin, 0.62, 0), hl: std(C.hl, 0.5, 0.02, C.hl), hl2: std(C.hl2, 0.55, 0.02), shorts: std(C.shorts, 0.8, 0), shoe: std(C.shoe, 0.7, 0), sole: std(C.hl, 0.6, 0, C.hl),
       metal: std(C.metal, 0.3, 0.85), plate: std(C.plate, 0.55, 0.3), pad: std(C.pad, 0.75, 0.05), padDark: std(C.padDark, 0.7, 0.2), cable: std(C.cable, 0.5, 0.5),
       band: std(C.band, 0.6, 0), wood: std(C.wood, 0.7, 0), teal: std(C.teal, 0.7, 0), ball: std(C.ball, 0.6, 0.05), rope: std(C.rope, 0.85, 0), orange: std(C.orange, 0.6, 0)
     };
@@ -186,32 +188,38 @@
     // segmento con volumen + zonas musculares iluminadas
     const GEO = {}; const geo = (name, f) => GEO[name] || (GEO[name] = f());
     // inn: +1 / -1 indica hacia qué lado (local) queda la cara interna de cada brazo y pierna
-    function part(kind, inn, t0, t1) {
-      const RES = { torso: [40, 44], head: [26, 36] }[kind] || [20, 32];
-      const list = [mesh(geo(kind + inn, () => sculptGeo(T, kind, inn, t0, t1, 0, TAU, RES[0], RES[1], 0, true)), 'skin')];
-      (ZONES[kind] || []).forEach(z => {
+    // pieza con volumen + zonas musculares iluminadas
+    function part(kind, inn, t0, t1, o) {
+      o = o || {};
+      const RES = { torso: [24, 44], head: [26, 36], finger: [3, 10], palm: [6, 16] }[kind] || [20, 32];
+      const list = [mesh(geo(kind + inn + t0, () => sculptGeo(T, kind, inn, t0, t1, 0, TAU, RES[0], RES[1], o.off || 0, o.caps ?? true)), 'skin')];
+      if (o.zones !== false) (ZONES[kind] || []).forEach(z => {
         const m = hlMat(z[0]); if (!m) return;
-        const off = (kind === 'torso' && z[2] < 0.25) || (kind === 'thigh' && z[1] < 0.3) ? 0.7 : 0.35;
+        const fm = (z[1] + z[2]) / 2, off = kind === 'torso' ? (fm > 0.25 && fm < 0.6 ? -0.15 : 0.4) : 0.35;
         const p0 = inn > 0 ? z[3] : -z[4], p1 = inn > 0 ? z[4] : -z[3];
         list.push(mesh(sculptGeo(T, kind, inn, z[1], z[2], p0, p1, 12, 16, off, false), m));
       });
-      if (kind === 'torso') list.push(mesh(geo('shortsT', () => sculptGeo(T, 'torso', 1, -0.2, 0.22, 0, TAU, 10, 44, 0.3, false)), 'shorts'));
-      if (kind === 'thigh') list.push(mesh(geo('shortsL' + inn, () => sculptGeo(T, 'thigh', inn, 0, 0.3, 0, TAU, 6, 32, 0.4, false)), 'shorts'));
-      if (kind === 'shoe') list.push(mesh(geo('sole', () => sculptGeo(T, 'shoe', 1, 0.02, 0.98, 2.35, 3.93, 8, 8, 0.25, false)), 'sole'));
       return list;
     }
     const sphG = new T.SphereGeometry(1, 28, 20);
     const inner = i => (front ? (i === 1 ? 1 : -1) : (i === 1 ? -1 : 1));
-    const BP = { torso: part('torso', 1, -0.2, 1.1), neck: part('neck', 1, 0, 1), head: part('head', 1, 0, 1) };
+    // tronco en tres piezas, como un maniquí articulado: tórax, abdomen (un poco hundido) y pelvis
+    const BP = {
+      torso: [...part('torso', 1, 0.56, 1.1, { caps: [0.35, 0], zones: true }), ...part('torso', 1, 0.2, 0.62, { caps: [0.3, 0.3], off: -0.55, zones: false }),
+        ...part('torso', 1, -0.22, 0.25, { caps: [0.25, 0.3], zones: false })],
+      neck: part('neck', 1, 0, 1), head: part('head', 1, 0, 1)
+    };
+    // dedos de la mano cerrada o relajada
+    const FING = [[3.2, 2.6], [3.5, 2.8], [3.3, 2.6], [2.6, 2.1]];
+    const holds = (tpl0.props || []).some(o => /^(barbell|db|kb|cable|handle|plate|landmine|stick|rope|sled|crutch|chain|pullbar|hbar|rails|yoke|bike|rower)$/.test(o.type));
     for (const i of [1, 2]) {
       const s = inner(i);
       BP['th' + i] = part('thigh', s, 0, 1); BP['sh' + i] = part('shin', s, 0, 1);
       BP['ua' + i] = part('upper', s, 0, 1); BP['fa' + i] = part('fore', s, 0, 1);
-      BP['ft' + i] = part('shoe', 1, 0, 1); BP['hd' + i] = part('hand', s, 0, 1);
-      BP['kn' + i] = mesh(sphG, 'skin'); BP['an' + i] = mesh(sphG, 'skin'); BP['el' + i] = mesh(sphG, 'skin');
-      BP['hp' + i] = mesh(sphG, 'shorts');
-    }
-    const tmpX = new T.Vector3(), tmpY = new T.Vector3(), tmpZ = new T.Vector3();
+      BP['ft' + i] = part('foot', 1, 0, 1); BP['pm' + i] = part('palm', s, 0, 1);
+      BP['fg' + i] = Array.from({ length: 10 }, () => mesh(geo('finger', () => sculptGeo(T, 'finger', 1, 0, 1, 0, TAU, 3, 10, 0, true)), 'skin'));
+      BP['kn' + i] = mesh(sphG, 'skin'); BP['an' + i] = mesh(sphG, 'skin'); BP['el' + i] = mesh(sphG, 'skin'); BP['wr' + i] = mesh(sphG, 'skin');
+    }    const tmpX = new T.Vector3(), tmpY = new T.Vector3(), tmpZ = new T.Vector3();
     function frame(o, A3, yv, len, zh, sx, sz) {   // ubica un segmento: eje y a lo largo, z hacia "adelante"
       tmpY.copy(yv).normalize();
       tmpZ.copy(zh).addScaledVector(tmpY, -zh.dot(tmpY));
@@ -277,7 +285,7 @@
         const H2 = J['H' + i] || J.hip;
         seg(BP['th' + i], H, K, antOf(H2, J['kn' + i]));
         seg(BP['sh' + i], K, An, antOf(J['kn' + i], J['an' + i]));
-        ball(BP['kn' + i], K, 5.4); ball(BP['an' + i], An, 3.2); ball(BP['hp' + i], H, 9.8);
+        ball(BP['kn' + i], K, 4.9); ball(BP['an' + i], An, 2.7);
         // pie (zapatilla)
         let he, to, fu;
         if (front) { he = An.clone().add(new T.Vector3(0, -2.4, -3.5)); to = An.clone().add(new T.Vector3((i === 1 ? 1 : -1) * 1.5, -2.4, 13)); fu = new T.Vector3(0, 1, 0); }
@@ -289,7 +297,23 @@
         const ua = antOf(J['S' + i], J['el' + i]), fa = antOf(J['el' + i], J['wr' + i]);
         seg(BP['ua' + i], Sh, E, ua); seg(BP['fa' + i], E, W, fa);
         const hv = Hd.clone().sub(W); if (hv.lengthSq() < 1) hv.copy(E).sub(W).multiplyScalar(-1);
-        frame(BP['hd' + i], W, hv, Math.max(6, hv.length() + 1.5), fa);
+        // mano: palma + cuatro dedos y pulgar (cerrados si sostiene algo)
+        const hy = hv.clone().normalize(), hz = fa.clone().addScaledVector(hy, -fa.dot(hy));
+        if (hz.lengthSq() < 1e-6) hz.set(0, 1, 0); hz.normalize();
+        const pn = new T.Vector3().crossVectors(hy, hz).multiplyScalar(inner(i));
+        frame(BP['pm' + i], W.clone().addScaledVector(hy, 0.6), hy, 7, hz);
+        const F = BP['fg' + i], PE = W.clone().addScaledVector(hy, 7.4), c1 = (holds ? 72 : 18) * Math.PI / 180, c2 = (holds ? 165 : 45) * Math.PI / 180;
+        const dirc = c => hy.clone().multiplyScalar(Math.cos(c)).addScaledVector(pn, Math.sin(c));
+        FING.forEach(([l1, l2], k) => {
+          const b = PE.clone().addScaledVector(hz, 2.2 - k * 1.45).addScaledVector(hy, k === 3 ? -0.6 : 0).addScaledVector(pn, 0.3);
+          const p1 = b.clone().addScaledVector(dirc(c1), l1), p2 = p1.clone().addScaledVector(dirc(c2), l2);
+          seg(F[k * 2], b, p1, hz); seg(F[k * 2 + 1], p1, p2, hz);
+        });
+        const tb = W.clone().addScaledVector(hy, 2.4).addScaledVector(hz, 2.6).addScaledVector(pn, 0.6);
+        const td = hy.clone().multiplyScalar(0.6).addScaledVector(hz, 0.55).addScaledVector(pn, holds ? 0.8 : 0.25).normalize();
+        const t1 = tb.clone().addScaledVector(td, 3), t2 = t1.clone().addScaledVector(td.clone().addScaledVector(pn, 0.9).normalize(), 2.4);
+        seg(F[8], tb, t1, hz); seg(F[9], t1, t2, hz);
+        ball(BP['wr' + i], W, 2.5);
         ball(BP['el' + i], E, 4.3);
       }
     }

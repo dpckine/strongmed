@@ -506,7 +506,7 @@
         const a = o.type === 'cable' ? (o.to || 'hd1') : (o.at || 'hd1'); if (typeof a !== 'string') continue;
         const m = /^(hd|wr|tg)([12])$/.exec(a); if (!m || !J[a]) continue; h[m[2]] = 1;
         const oth = m[2] === '1' ? 2 : 1;
-        if ((o.type === 'stick' || o.type === 'cable') && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 8) h[oth] = 1;
+        if ((o.type === 'stick' || o.type === 'cable') && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 10) h[oth] = h.two = 1;
       }
       return h;
     }
@@ -514,9 +514,9 @@
     const inv2 = G => front ? { p: [G.x + cx, FLOOR - G.y], z: G.z } : { p: [G.z + cx, FLOOR - G.y], z: -G.x };
     function snapProps(J, tpl) {
       const g = MODEL.grip; if (!g || !(g[1] || g[2])) return J;
-      const J0 = J; J = Object.assign({}, J); const q = {};
+      J = Object.assign({}, J); const q = {};
       for (const i of [1, 2]) if (g[i]) { q[i] = inv2(g[i]); for (const k of ['hd', 'wr']) { J[k + i] = q[i].p; OV[k + i + 'z'] = q[i].z; } }
-      if (q[1] && q[2] && ((J.hd1 && J.hd2 && d2(J0.hd1, J0.hd2) < 6) || (tpl.props || []).some(o => o.type === 'barbell' || o.type === 'stick'))) { const m = [(q[1].p[0] + q[2].p[0]) / 2, (q[1].p[1] + q[2].p[1]) / 2]; J.wr1 = J.wr2 = J.hd1 = J.hd2 = m; }
+      if (q[1] && q[2] && ((MODEL.held && MODEL.held.two) || (tpl.props || []).some(o => o.type === 'barbell' || o.type === 'stick'))) { const m = [(q[1].p[0] + q[2].p[0]) / 2, (q[1].p[1] + q[2].p[1]) / 2]; J.wr1 = J.wr2 = J.hd1 = J.hd2 = m; }
       return J;
     }
     function poseModel(J, tpl) {
@@ -551,7 +551,7 @@
       // la cadera del modelo queda en la cadera de la animación
       const hp = M.R.hips.getWorldPosition(new V3());
       M.grp.position.copy(hip.clone().sub(hp)); M.grp.updateMatrixWorld(true);
-      M.grip = {}; for (const i in hs) M.grip[i] = gripPt(hs[i]);
+      M.grip = {}; M.held = held; for (const i in hs) M.grip[i] = gripPt(hs[i]);
     }
     if (T.GLTFLoader) new T.GLTFLoader().load(MODEL_URL, gl => { try { setupModel(gl); } catch (e) { console.warn('SM3D modelo', e); } }, undefined, () => { });
 
@@ -590,7 +590,7 @@
       cable: (J, o) => {
         const a = at3(J, o.from), to = o.to || 'hd1', b = at3(J, to);
         // las dos manos juntas en la polea: barra o agarre entre ambas y el cable al centro
-        const two = !front && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 6;
+        const two = !front && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
         if (two && !o.band) { const w = ZARM + 7; cyl(V2(b.p, -w), V2(b.p, w), 1.5, 'metal'); b.z = 0; }
         cyl(V2(a.p, a.z), V2(b.p, b.z), o.band ? 1.2 : 0.7, o.band ? 'band' : 'cable');
       },

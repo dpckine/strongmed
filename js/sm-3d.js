@@ -37,31 +37,73 @@
   const hasGL = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } })();
 
   // ---------------------------------------------------------------- geometrías
-  // superficie de revolución con sección elíptica: perfil [t, adelante, atrás, lateral]
+  // superficie esculpida: sección elíptica según un perfil [t, adelante, atrás, lateral],
+  // con relieves musculares (abultamientos suaves) y extremos redondeados.
   function profAt(prof, t) {
     let i = 0; while (i < prof.length - 2 && t > prof[i + 1][0]) i++;
     const a = prof[i], b = prof[i + 1], u = Math.min(1, Math.max(0, (t - a[0]) / ((b[0] - a[0]) || 1)));
     return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u];
   }
-  function ringGeo(T, prof, t0, t1, p0, p1, nt, np, off) {
+  const TAU = Math.PI * 2, PI = Math.PI;
+  const angd = (a, b) => { let d = (a - b) % TAU; if (d > PI) d -= TAU; if (d < -PI) d += TAU; return d; };
+  // perfiles (radios en las mismas unidades del motor 2D)
+  const PR = {
+    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.2, 12.5], [0.2, 6.2, 7.3, 11], [0.35, 6.3, 6.8, 10.6], [0.52, 6.8, 6.6, 11.4], [0.7, 8.2, 7.6, 12.4], [0.86, 7.6, 7.2, 14.2], [0.97, 6, 6, 14], [1.04, 4.2, 4.8, 9.5], [1.1, 3.4, 3.6, 5]],
+    thigh: [[0, 7.4, 7.4, 7.6], [0.3, 7.6, 7.4, 7.3], [0.75, 6, 5.6, 5.7], [1, 4.8, 4.6, 4.8]],
+    shin: [[0, 4.6, 4.8, 4.6], [0.3, 4.1, 5.2, 4.5], [0.7, 3, 3.3, 3.1], [0.92, 2.6, 2.7, 2.9], [1, 2.7, 2.8, 3]],
+    upper: [[0, 5.2, 5.2, 5.4], [0.4, 4.8, 4.8, 4.5], [0.85, 3.8, 3.8, 3.9], [1, 3.5, 3.5, 3.8]],
+    fore: [[0, 3.6, 3.6, 4], [0.3, 3.7, 3.6, 4], [0.85, 2.4, 2.3, 3], [1, 2.3, 2.2, 2.9]],
+    neck: [[0, 4.2, 4.4, 5], [0.4, 3.7, 3.8, 4], [1, 3.4, 3.5, 3.6]],
+    shoe: [[0, 2.8, 2.4, 2.9], [0.25, 3.6, 2.6, 3.6], [0.7, 2.4, 2.4, 3.5], [1, 1.3, 1.7, 2.5]],
+    hand: [[0, 2.1, 2.1, 2.9], [0.35, 2.4, 2.4, 3.5], [0.75, 2, 2, 3.2], [1, 1.4, 1.4, 2.6]],
+    head: [[0, 2.6, 1.5, 3.2], [0.08, 5, 3, 4.8], [0.2, 6.6, 5.2, 6], [0.38, 7.6, 7.6, 7], [0.6, 7.9, 8.6, 7.6], [0.8, 7, 8.2, 7], [0.93, 4.8, 5.8, 4.8], [1, 1.5, 1.8, 1.5]]
+  };
+  // contextura atlética: [adelante/atrás, lateral]
+  const BULK = { torso: [1.18, 1.3], thigh: [1.32, 1.32], shin: [1.28, 1.28], upper: [1.35, 1.35], fore: [1.28, 1.28], neck: [1.2, 1.25], shoe: [1.05, 1.1], hand: [1.1, 1.1] };
+  for (const k in PR) { const [d, l] = BULK[k] || [1, 1]; PR[k] = PR[k].map(r => [r[0], r[1] * d, r[2] * d, r[3] * l]); }
+  // largo nominal (para redondear los extremos) y redondeo [inicio, fin]
+  const LEN = { thigh: 40, shin: 40, upper: 26, fore: 24, neck: 10, hand: 9, shoe: 17, head: 21, torso: 46 };
+  const CAP = { thigh: [0, 1], shin: [1, 1], upper: [1, 1], fore: [1, 1], hand: [0.6, 1], shoe: [1, 1], head: [0.5, 0.5], neck: [0, 0], torso: [0, 0] };
+  // relieves: [t, fi, ancho en t, ancho en fi, altura]. fi = 0 adelante, π atrás; fi > 0 = lado interno
+  const sym = (t, f, wt, wp, a) => [[t, f, wt, wp, a], [t, -f, wt, wp, a]];
+  const BUMPS = {
+    torso: [...sym(0.76, 0.55, 0.1, 0.5, 0.13), [0.76, 0, 0.14, 0.12, -0.05],
+      ...[0.2, 0.32, 0.44].flatMap(t => sym(t, 0.22, 0.045, 0.18, 0.035)), [0.33, 0, 0.25, 0.06, -0.025],
+      ...sym(0.25, 1.15, 0.14, 0.35, 0.04), ...sym(0.62, 1.75, 0.16, 0.4, 0.08),
+      ...sym(1.0, 2.2, 0.07, 0.7, 0.2), [0.9, PI, 0.12, 0.6, 0.05], ...sym(0.8, 2.4, 0.08, 0.35, 0.06),
+      ...sym(0.3, 2.92, 0.14, 0.16, 0.07), [0.5, PI, 0.45, 0.07, -0.04], ...sym(0.0, 2.6, 0.1, 0.5, 0.16), ...sym(0.08, 1.75, 0.09, 0.4, 0.05)],
+    thigh: [[0.45, 0, 0.28, 0.8, 0.08], [0.8, 0.85, 0.12, 0.55, 0.14], [0.5, -1.25, 0.25, 0.6, 0.07], [0.45, PI, 0.28, 0.9, 0.07], [0.2, 1.57, 0.2, 0.6, 0.08], [0.97, 0, 0.06, 0.45, 0.1]],
+    shin: [[0.27, 2.75, 0.14, 0.55, 0.22], [0.24, -2.75, 0.13, 0.5, 0.16], [0.3, -0.5, 0.2, 0.5, 0.05], [0.97, 1.57, 0.04, 0.35, 0.1], [0.99, -1.57, 0.04, 0.35, 0.08]],
+    upper: [[0.5, 0, 0.22, 0.7, 0.16], [0.4, 2.64, 0.22, 0.6, 0.1], [0.3, -2.4, 0.2, 0.55, 0.12], [0.06, -1.57, 0.14, 1.4, 0.3], [0.05, -0.6, 0.12, 0.7, 0.14], [0.05, -2.6, 0.12, 0.7, 0.12]],
+    fore: [[0.22, -0.9, 0.2, 0.6, 0.16], [0.25, 0.9, 0.2, 0.7, 0.1], [0.2, PI, 0.25, 0.8, 0.05]],
+    neck: [...sym(0.5, 0.5, 0.3, 0.3, 0.06), [0.1, PI, 0.15, 1.0, 0.1]],
+    hand: [[0.85, 0, 0.12, 1.2, 0.08], [0.3, 1.3, 0.14, 0.5, 0.16]],
+    head: [[0.42, 0, 0.07, 0.16, 0.2], [0.08, 0, 0.06, 0.5, 0.18], [0.56, 0, 0.045, 0.8, 0.05], ...sym(0.5, 0.38, 0.05, 0.18, -0.05),
+      ...sym(0.48, 1.57, 0.09, 0.16, 0.14), ...sym(0.33, 0.75, 0.08, 0.35, 0.05), [0.62, PI, 0.25, 1, 0.04]]
+  };
+  function sculptGeo(T, kind, inn, t0, t1, p0, p1, nt, np, off, caps) {
+    const prof = PR[kind], bumps = BUMPS[kind] || [];
+    const R = (t, ph) => {
+      const r = profAt(prof, t), c = Math.cos(ph), s = Math.sin(ph);
+      let k = 1;
+      for (const b of bumps) { const dt = (t - b[0]) / b[2]; if (dt * dt > 9) continue; const dp = angd(ph, b[1] * inn) / b[3]; k += b[4] * Math.exp(-dt * dt - dp * dp); }
+      return [(r[2] * k + off) * s, ((c >= 0 ? r[0] : r[1]) * k + off) * c];
+    };
+    // filas: [t del perfil, posición a lo largo, escala del redondeo]
+    const rows = [], NC = 5, cp = caps && CAP[kind] || [0, 0], L = LEN[kind] || 30;
+    const capLen = t => { const r = profAt(prof, t); return (r[0] + r[1] + 2 * r[2]) / 4 / L; };
+    if (cp[0]) for (let m = NC; m >= 1; m--) { const th = m / NC * PI / 2; rows.push([t0, t0 - capLen(t0) * cp[0] * Math.sin(th), Math.cos(th)]); }
+    for (let i = 0; i <= nt; i++) { const t = t0 + (t1 - t0) * i / nt; rows.push([t, t, 1]); }
+    if (cp[1]) for (let m = 1; m <= NC; m++) { const th = m / NC * PI / 2; rows.push([t1, t1 + capLen(t1) * cp[1] * Math.sin(th), Math.cos(th)]); }
     const pos = [], idx = [];
-    for (let i = 0; i <= nt; i++) {
-      const t = t0 + (t1 - t0) * i / nt, r = profAt(prof, t);
-      for (let j = 0; j <= np; j++) {
-        const ph = p0 + (p1 - p0) * j / np, c = Math.cos(ph), s = Math.sin(ph);
-        pos.push((r[2] + off) * s, t, ((c >= 0 ? r[0] : r[1]) + off) * c);
-      }
-    }
-    for (let i = 0; i < nt; i++) for (let j = 0; j < np; j++) {
-      const a = i * (np + 1) + j, b = a + np + 1;
-      idx.push(a, a + 1, b, b, a + 1, b + 1);
-    }
+    for (const [t, y, sc] of rows) for (let j = 0; j <= np; j++) { const ph = p0 + (p1 - p0) * j / np, q = R(t, ph); pos.push(q[0] * sc, y, q[1] * sc); }
+    for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < np; j++) { const a = i * (np + 1) + j, b = a + np + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
     const g = new T.BufferGeometry();
     g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
     g.setIndex(idx); g.computeVertexNormals();
-    if (Math.abs(p1 - p0 - 2 * Math.PI) < 1e-3) {     // costura: promedia normales
+    if (Math.abs(p1 - p0 - TAU) < 1e-3) {     // costura: promedia normales
       const n = g.attributes.normal;
-      for (let i = 0; i <= nt; i++) {
+      for (let i = 0; i < rows.length; i++) {
         const a = i * (np + 1), b = a + np;
         const x = (n.getX(a) + n.getX(b)) / 2, y = (n.getY(a) + n.getY(b)) / 2, z = (n.getZ(a) + n.getZ(b)) / 2, l = Math.hypot(x, y, z) || 1;
         n.setXYZ(a, x / l, y / l, z / l); n.setXYZ(b, x / l, y / l, z / l);
@@ -69,29 +111,14 @@
     }
     return g;
   }
-  const TAU = Math.PI * 2;
-  // perfiles (radios en las mismas unidades del motor 2D)
-  const PR = {
-    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.5, 12.5], [0.2, 6.2, 7.5, 11], [0.35, 6.3, 6.8, 10.8], [0.52, 6.8, 6.4, 11.8], [0.7, 8.6, 7.6, 12.4], [0.86, 7.8, 7.2, 14.2], [0.97, 6, 6, 14], [1.04, 4.2, 4.6, 9.5], [1.1, 3.4, 3.6, 5]],
-    thigh: [[0, 7.4, 7.4, 7.6], [0.35, 8.2, 7.6, 7.4], [0.75, 6.1, 5.6, 5.8], [1, 4.8, 4.6, 4.8]],
-    shin: [[0, 4.6, 5, 4.6], [0.3, 4.1, 6.4, 4.7], [0.7, 3.1, 3.5, 3.3], [1, 2.8, 2.8, 2.9]],
-    upper: [[0, 5.4, 5.4, 5.8], [0.4, 5.3, 5.2, 4.7], [0.85, 3.8, 3.8, 3.9], [1, 3.5, 3.5, 3.7]],
-    fore: [[0, 3.7, 3.7, 4.1], [0.3, 4.1, 3.9, 4.3], [1, 2.4, 2.4, 3]],
-    neck: [[0, 4, 4, 4.4], [1, 3.3, 3.3, 3.5]],
-    shoe: [[0, 2.8, 2.4, 2.9], [0.25, 3.6, 2.6, 3.6], [0.7, 2.4, 2.4, 3.5], [1, 1.3, 1.7, 2.5]],
-    hand: [[0, 2.3, 2.3, 2.9], [0.4, 2.8, 2.8, 3.4], [1, 1.5, 1.5, 2.6]]
-  };
-  // contextura atlética: [adelante/atrás, lateral]
-  const BULK = { torso: [1.18, 1.3], thigh: [1.32, 1.32], shin: [1.28, 1.28], upper: [1.35, 1.35], fore: [1.28, 1.28], neck: [1.2, 1.25], shoe: [1.05, 1.1], hand: [1.1, 1.1] };
-  for (const k in PR) { const [d, l] = BULK[k] || [1, 1]; PR[k] = PR[k].map(r => [r[0], r[1] * d, r[2] * d, r[3] * l]); }
-  // zonas musculares: [clave, t0, t1, fi0, fi1] (fi = 0 adelante, π atrás)
+  // zonas musculares: [clave, t0, t1, fi0, fi1] (fi = 0 adelante, π atrás, fi > 0 lado interno)
   const ZONES = {
     torso: [['chest', 0.62, 0.95, -1.25, -0.07], ['chest', 0.62, 0.95, 0.07, 1.25], ['abs', 0.14, 0.56, -0.55, 0.55],
       ['lats', 0.42, 0.86, 1.3, 2.35], ['lats', 0.42, 0.86, -2.35, -1.3], ['upperback', 0.74, 1.08, 2.25, 4.03],
       ['lowback', 0.12, 0.42, 2.65, 3.63], ['glutes', -0.14, 0.2, 2.0, 4.28]],
-    thigh: [['quads', 0.22, 0.92, -1.2, 1.2], ['hams', 0.18, 0.9, 2.1, 4.18], ['hipflex', 0.02, 0.32, -0.75, 0.75]],
-    shin: [['tib', 0.1, 0.75, -0.9, 0.6], ['calves', 0.08, 0.6, 2.2, 4.08]],
-    upper: [['biceps', 0.25, 0.85, -0.9, 0.9], ['triceps', 0.15, 0.85, 2.2, 4.08]],
+    thigh: [['quads', 0.22, 0.92, -1.2, 1.2], ['hams', 0.18, 0.9, 2.1, 4.18], ['hipflex', 0.02, 0.32, -0.75, 0.75], ['adductors', 0.08, 0.7, 0.87, 2.27]],
+    shin: [['tib', 0.1, 0.75, -0.6, 0.9], ['calves', 0.08, 0.6, 2.2, 4.08]],
+    upper: [['biceps', 0.25, 0.85, -0.9, 0.9], ['triceps', 0.15, 0.85, 2.2, 4.08], ['delts', 0, 0.3, -2.9, -0.3]],
     fore: [['forearm', 0.04, 0.7, 0, TAU]],
     neck: [['neck', 0, 1, 0, TAU]]
   };
@@ -158,29 +185,31 @@
 
     // segmento con volumen + zonas musculares iluminadas
     const GEO = {}; const geo = (name, f) => GEO[name] || (GEO[name] = f());
-    function part(kind, t0, t1, extra) {
-      const base = mesh(geo(kind, () => ringGeo(T, PR[kind], t0, t1, 0, TAU, kind === 'torso' ? 28 : 14, 28, 0)), 'skin');
-      const list = [base];
-      (ZONES[kind] || []).concat(extra || []).forEach((z, i) => {
+    // inn: +1 / -1 indica hacia qué lado (local) queda la cara interna de cada brazo y pierna
+    function part(kind, inn, t0, t1) {
+      const RES = { torso: [40, 44], head: [26, 36] }[kind] || [20, 32];
+      const list = [mesh(geo(kind + inn, () => sculptGeo(T, kind, inn, t0, t1, 0, TAU, RES[0], RES[1], 0, true)), 'skin')];
+      (ZONES[kind] || []).forEach(z => {
         const m = hlMat(z[0]); if (!m) return;
         const off = (kind === 'torso' && z[2] < 0.25) || (kind === 'thigh' && z[1] < 0.3) ? 0.7 : 0.35;
-        list.push(mesh(ringGeo(T, PR[kind], z[1], z[2], z[3], z[4], 10, 14, off), m));
+        const p0 = inn > 0 ? z[3] : -z[4], p1 = inn > 0 ? z[4] : -z[3];
+        list.push(mesh(sculptGeo(T, kind, inn, z[1], z[2], p0, p1, 12, 16, off, false), m));
       });
-      if (kind === 'torso') list.push(mesh(geo('shortsT', () => ringGeo(T, PR.torso, -0.2, 0.22, 0, TAU, 8, 28, 0.3)), 'shorts'));
-      if (kind === 'thigh') list.push(mesh(geo('shortsL', () => ringGeo(T, PR.thigh, 0, 0.3, 0, TAU, 5, 28, 0.3)), 'shorts'));
-      if (kind === 'shoe') list.push(mesh(geo('sole', () => ringGeo(T, PR.shoe, 0.02, 0.98, 2.35, 3.93, 8, 8, 0.25)), 'sole'));
+      if (kind === 'torso') list.push(mesh(geo('shortsT', () => sculptGeo(T, 'torso', 1, -0.2, 0.22, 0, TAU, 10, 44, 0.3, false)), 'shorts'));
+      if (kind === 'thigh') list.push(mesh(geo('shortsL' + inn, () => sculptGeo(T, 'thigh', inn, 0, 0.3, 0, TAU, 6, 32, 0.4, false)), 'shorts'));
+      if (kind === 'shoe') list.push(mesh(geo('sole', () => sculptGeo(T, 'shoe', 1, 0.02, 0.98, 2.35, 3.93, 8, 8, 0.25, false)), 'sole'));
       return list;
     }
     const sphG = new T.SphereGeometry(1, 28, 20);
-    // aductores: zona interna de cada muslo
-    const inner = i => (front ? (i === 1 ? 1 : -1) : (i === 1 ? -1 : 1)) * Math.PI / 2;
-    const BP = { torso: part('torso', -0.2, 1.1), neck: part('neck', 0, 1), head: mesh(sphG, 'skin'), jaw: mesh(sphG, 'skin') };
+    const inner = i => (front ? (i === 1 ? 1 : -1) : (i === 1 ? -1 : 1));
+    const BP = { torso: part('torso', 1, -0.2, 1.1), neck: part('neck', 1, 0, 1), head: part('head', 1, 0, 1) };
     for (const i of [1, 2]) {
-      BP['th' + i] = part('thigh', 0, 1, [['adductors', 0.08, 0.7, inner(i) - 0.7, inner(i) + 0.7]]);
-      BP['sh' + i] = part('shin', 0, 1); BP['ua' + i] = part('upper', 0, 1); BP['fa' + i] = part('fore', 0, 1);
-      BP['ft' + i] = part('shoe', 0, 1); BP['hd' + i] = part('hand', 0, 1);
-      BP['kn' + i] = mesh(sphG, 'skin'); BP['an' + i] = mesh(sphG, 'skin'); BP['el' + i] = mesh(sphG, 'skin'); BP['wr' + i] = mesh(sphG, 'skin');
-      BP['dl' + i] = mesh(sphG, hlMat('delts') || 'skin'); BP['hp' + i] = mesh(sphG, 'shorts');
+      const s = inner(i);
+      BP['th' + i] = part('thigh', s, 0, 1); BP['sh' + i] = part('shin', s, 0, 1);
+      BP['ua' + i] = part('upper', s, 0, 1); BP['fa' + i] = part('fore', s, 0, 1);
+      BP['ft' + i] = part('shoe', 1, 0, 1); BP['hd' + i] = part('hand', s, 0, 1);
+      BP['kn' + i] = mesh(sphG, 'skin'); BP['an' + i] = mesh(sphG, 'skin'); BP['el' + i] = mesh(sphG, 'skin');
+      BP['hp' + i] = mesh(sphG, 'shorts');
     }
     const tmpX = new T.Vector3(), tmpY = new T.Vector3(), tmpZ = new T.Vector3();
     function frame(o, A3, yv, len, zh, sx, sz) {   // ubica un segmento: eje y a lo largo, z hacia "adelante"
@@ -242,14 +271,13 @@
       const nA = shc.clone().addScaledVector(up.clone().normalize(), -2), nB = nk.clone().addScaledVector(hu, 3);
       seg(BP.neck, nA, nB, tf);
       const hf = tf.clone().addScaledVector(hu, -tf.dot(hu)).normalize();
-      ell(BP.head, hd.clone().addScaledVector(hf, 0.8), hu, hf, 7.6, 9.2, 8.4);
-      ell(BP.jaw, hd.clone().addScaledVector(hu, -4.2).addScaledVector(hf, 2.6), hu, hf, 5.2, 4.2, 4.8);
+      frame(BP.head, hd.clone().addScaledVector(hu, -11.5).addScaledVector(hf, 0.6), hu, 21, hf);
       for (const i of [1, 2]) {
         const H = PT(J, 'H' + i), K = PT(J, 'kn' + i), An = PT(J, 'an' + i);
         const H2 = J['H' + i] || J.hip;
         seg(BP['th' + i], H, K, antOf(H2, J['kn' + i]));
         seg(BP['sh' + i], K, An, antOf(J['kn' + i], J['an' + i]));
-        ball(BP['kn' + i], K, 6.4); ball(BP['an' + i], An, 3.9); ball(BP['hp' + i], H, 9.8);
+        ball(BP['kn' + i], K, 5.4); ball(BP['an' + i], An, 3.2); ball(BP['hp' + i], H, 9.8);
         // pie (zapatilla)
         let he, to, fu;
         if (front) { he = An.clone().add(new T.Vector3(0, -2.4, -3.5)); to = An.clone().add(new T.Vector3((i === 1 ? 1 : -1) * 1.5, -2.4, 13)); fu = new T.Vector3(0, 1, 0); }
@@ -261,11 +289,7 @@
         seg(BP['ua' + i], Sh, E, ua); seg(BP['fa' + i], E, W, fa);
         const hv = Hd.clone().sub(W); if (hv.lengthSq() < 1) hv.copy(E).sub(W).multiplyScalar(-1);
         frame(BP['hd' + i], W, hv, Math.max(6, hv.length() + 1.5), fa);
-        ball(BP['el' + i], E, 4.9); ball(BP['wr' + i], W, 3.3);
-        // deltoides: casquete que cubre el hombro y baja por el brazo
-        const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.3);
-        const ad = E.clone().sub(Sh).normalize();
-        ell(BP['dl' + i], Sh.clone().add(out).addScaledVector(ad, 3.2), ad, ua, 6.8, 9, 7.2);
+        ball(BP['el' + i], E, 4.3);
       }
     }
 

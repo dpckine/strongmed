@@ -104,7 +104,7 @@
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace;
     const scene = new T.Scene(); scene.background = new T.Color(C.bg);
     const cam = new T.PerspectiveCamera(32, W / H, 1, 6000);
-    scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 1.15));
+    scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 1.3));
     const key = new T.DirectionalLight(0xffffff, 1.9); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0008; key.shadow.normalBias = 0.6;
     scene.add(key); scene.add(key.target);
@@ -234,7 +234,7 @@
         frame(BP['hd' + i], W, hv, Math.max(6, hv.length() + 1.5), fa);
         ball(BP['el' + i], E, 4.9); ball(BP['wr' + i], W, 3.3);
         const out = Sh.clone().sub(shc); out.y = 0; if (out.lengthSq() > 1e-4) out.normalize().multiplyScalar(1.2);
-        ball(BP['dl' + i], Sh.clone().add(out).addScaledVector(up.clone().normalize(), -0.8), 8.6, 9, 8.4);
+        ball(BP['dl' + i], Sh.clone().add(out).addScaledVector(up.clone().normalize(), -0.8), 7.8, 8.2, 7.6);
       }
     }
 
@@ -269,7 +269,13 @@
       hbar: (J, o) => { const hx = J.wr1 && Math.abs(J.wr1[1] - o.y) < 25 ? Math.min(o.x2, Math.max(o.x1, J.wr1[0])) : (o.x1 + o.x2) / 2; cyl(V2([hx, o.y], -42), V2([hx, o.y], 42), 1.6, 'metal'); for (const z of [-42, 42]) cyl(V2([hx, o.y], z), V2([hx, FLOOR], z), 2.2, 'padDark'); },
       pullbar: (J, o) => { cyl(V2([o.x, o.y], -40), V2([o.x, o.y], 40), 1.8, 'metal'); for (const z of [-40, 40]) cyl(V2([o.x, o.y], z), V2([o.x, FLOOR], z), 2.4, 'padDark'); },
       tower: (J, o) => { const top = o.top ?? 6; boxS([o.x, (top + FLOOR) / 2], 10, FLOOR - top, 12, 'padDark'); (o.pulleys || []).forEach(y => disc(V2([o.x, y]), LAT, 4, 3, 'metal')); },
-      cable: (J, o) => { const a = at3(J, o.from), b = at3(J, o.to, 'hd1'); cyl(V2(a.p, a.z), V2(b.p, b.z), o.band ? 1.2 : 0.7, o.band ? 'band' : 'cable'); },
+      cable: (J, o) => {
+        const a = at3(J, o.from), to = o.to || 'hd1', b = at3(J, to);
+        // las dos manos juntas en la polea: barra o agarre entre ambas y el cable al centro
+        const two = !front && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 6;
+        if (two && !o.band) { const w = ZARM + 7; cyl(V2(b.p, -w), V2(b.p, w), 1.5, 'metal'); b.z = 0; }
+        cyl(V2(a.p, a.z), V2(b.p, b.z), o.band ? 1.2 : 0.7, o.band ? 'band' : 'cable');
+      },
       band: (J, o) => { const a = at3(J, o.from), b = at3(J, o.to); cyl(V2(a.p, a.z), V2(b.p, b.z), 1.3, 'band'); },
       handle: (J, o) => { const a = at3(J, o.at, 'hd1'); sph(V2(a.p, a.z), 3, 'metal'); },
       barbell: (J, o) => {
@@ -338,7 +344,7 @@
     if (props.children.length) { const pb = new T.Box3().setFromObject(props), lim = box.clone().expandByScalar(45); pb.intersect(lim); if (!pb.isEmpty()) box.union(pb); }
     box.expandByScalar(8); box.min.y = Math.min(box.min.y, 0);
     const ctr = box.getCenter(new T.Vector3()), size = box.getSize(new T.Vector3());
-    const rad = Math.max(size.y, Math.hypot(size.x, size.z) * 0.85) * 0.62 + 6;
+    const rad = Math.max(size.y, Math.hypot(size.x, size.z) * 0.85) * 0.54 + 6;
     const VIEWS = front ? { front: 0, side: -90, back: 180, def: 28 } : { front: 0, side: -90, back: 180, def: -58 };
     const cam = { yaw: VIEWS.def, pitch: 12, dist: rad / Math.tan(16 * Math.PI / 180), ty: VIEWS.def, tp: 12, td: 0 };
     cam.td = cam.dist; S.scene.fog.near = cam.dist * 1.4; S.scene.fog.far = cam.dist * 3.4;

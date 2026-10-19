@@ -387,7 +387,8 @@
       const v = new V3(), hipH = wp(R.hips);
       skinned.updateMatrixWorld(true);
       for (let i = 0; i < pos.count; i++) {
-        let bi = 0, bw = -1; for (let c = 0; c < 4; c++) { const w = sw.getComponent(i, c); if (w > bw) { bw = w; bi = si.getComponent(i, c); } }
+        let bi = 0, bw = -1; const gc = (at, c) => c === 0 ? at.getX(i) : c === 1 ? at.getY(i) : c === 2 ? at.getZ(i) : at.getW(i);
+        for (let c = 0; c < 4; c++) { const w = gc(sw, c); if (w > bw) { bw = w; bi = gc(si, c); } }
         const role = boneRole[bi] || '', base = role.replace(/[LR]$/, ''), side = role.endsWith('L') ? 1 : -1;
         v.fromBufferAttribute(pos, i).applyMatrix4(skinned.matrixWorld);
         let mus = null;

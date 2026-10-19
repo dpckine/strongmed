@@ -1927,12 +1927,12 @@
   carryW({ a1: 18, e1: 162 }, [{ type: 'kb', at: 'hd2', layer: 'mid', dim: true }, { type: 'kb', at: 'hd1' }], 'Paseo en rack frontal', 'carry_rack');
   carryW({ a1: 102, e1: -112 }, [{ type: 'barbell', at: J => A.mv(J.shc, J.t - 90, 9) }], 'Paseo con barra en rack frontal', 'carry_rack_bb');
   carryW({ a1: 18, e1: 162, a2: 2, e2: 2 }, [{ type: 'kb', at: 'hd2', layer: 'mid', dim: true }, { type: 'kb', at: 'hd1' }], 'Paseo mixto (rack y maleta)', 'carry_mixed');
-  carryW({ a1: 10, e1: 100, a2: 4, e2: 8 }, [{ type: 'kb', at: 'hd1', up: true }], 'Paseo bottoms-up con kettlebell', 'carry_bu');
+  carryW({ a1: 24, e1: 172, a2: 4, e2: 8 }, [{ type: 'kb', at: 'hd1', up: true }], 'Paseo bottoms-up con kettlebell', 'carry_bu');
   carryW({ a1: 30, e1: 150 }, [{ type: 'barbell', at: 'el1' }], 'Paseo Zercher', 'carry_zercher');
   carryW({ a1: 40, e1: 120 }, [{ type: 'ball', at: J => [J.hd1[0] - 4, J.hd1[1] + 2], r: 17 }], 'Paseo con saco abrazado', 'carry_hug');
   add('tuck_jump', 'Salto con rodillas al pecho', {
     base: S({}),
-    frames: [{ d: 1 }, { x: 88, y: 128, t: 150, a1: -40, e1: -30, d: .6 }, { x: 100, y: 62, t: 178, F1: [112, 116], F2: [107, 118], a1: 70, e1: 80, d: .6, ease: 'out' }, { x: 92, y: 124, t: 150, F1: [104, AY], F2: [99, AY], a1: 20, e1: 30, d: .6 }], dur: 2
+    frames: [{ d: 1 }, { x: 88, y: 128, t: 150, a1: -40, e1: -30, d: .6 }, { x: 100, y: 62, t: 178, F1: [110, 100], F2: [105, 102], a1: 70, e1: 80, d: .6, ease: 'out' }, { x: 92, y: 124, t: 150, F1: [104, AY], F2: [99, AY], a1: 20, e1: 30, d: .6 }], dur: 2
   });
   add('mb_toss', 'Lanzamiento de balón medicinal hacia arriba / atrás', {
     base: S({ a1: 4, e1: 4 }), props: [{ type: 'ball', at: J => [J.hd1[0] + 2, J.hd1[1] + 4], r: 9 }],

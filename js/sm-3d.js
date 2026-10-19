@@ -12,7 +12,7 @@
   const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js';
   const GLTF_URL = 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js';
   // cuerpo 3D esculpido con esqueleto (CC0). Para cambiarlo, reemplazar el archivo y subir ?v=
-  const MODEL_URL = 'modelos/cuerpo.glb?v=1';
+  const MODEL_URL = 'modelos/cuerpo.glb?v=2';
   const FLOOR = A.FLOOR;
   const C = {
     bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#cfd3d8', hl: '#bbf426', hl2: '#d4ec95',
@@ -347,6 +347,48 @@
       z.normalize(); const x = new V3().crossVectors(y, z);
       M4.makeBasis(x, y, z); return (out || new Q()).setFromRotationMatrix(M4);
     }
+    // contextura fit: infla suavemente hombros, pecho, espalda, brazos y piernas y afina la cintura
+    // (cm a lo largo de la normal, según hueso, posición a lo largo del hueso y lado: adelante/atrás/afuera)
+    const cl = x => x < 0 ? 0 : x > 1 ? 1 : x, bell = (x, c, w) => { const z = (x - c) / w; return Math.exp(-z * z); };
+    const FIT = {
+      upperarm: (t, f, l) => 0.35 + 1.1 * bell(t, 0.1, 0.22) * cl(0.4 + l) + 0.8 * bell(t, 0.55, 0.22) * cl(f) + 0.8 * bell(t, 0.42, 0.28) * cl(-f),
+      lowerarm: t => 0.12 + 0.5 * bell(t, 0.2, 0.28),
+      clavicle: (t, f, l, u) => 0.7 * cl(u) * bell(t, 0.5, 0.6) + 0.9 * bell(t, 1.05, 0.3),
+      spine_03: (t, f, l, u, ax) => 1.5 * cl(f) * bell(ax, 0.45, 0.35) * bell(t, 0.25, 0.35) + 1.2 * bell(ax, 0.9, 0.25) * cl(0.5 - f) * bell(t, 0.2, 0.45) + 0.6 * cl(-f) * bell(t, 0.4, 0.4),
+      spine_02: (t, f, l, u, ax) => 0.8 * bell(ax, 0.85, 0.3) * cl(0.4 - f) + 0.15 * cl(f),
+      spine_01: (t, f, l, u, ax) => -0.75 * bell(ax, 1, 0.4),
+      pelvis: (t, f, l, u, ax) => 0.6 * cl(-f) * bell(ax, 0.45, 0.4) * bell(t, -0.4, 0.6),
+      thigh: (t, f, l) => 0.45 * bell(t, 0.5, 0.3) * cl(0.4 + f - 0.6 * l) - 0.3 * cl(l) * bell(t, 0.2, 0.25) + 0.5 * cl(f) * bell(t, 0.6, 0.28) + 0.3 * cl(-f) * bell(t, 0.4, 0.3),
+      calf: (t, f) => 0.85 * cl(-f) * bell(t, 0.25, 0.18) + 0.2 * bell(t, 0.3, 0.3),
+      neck: (t, f) => 0.45 * cl(0.3 - f) * bell(t, 0, 0.7)
+    };
+    function fitBody(mesh, fwd, left, k) {
+      const g = mesh.geometry, pos = g.attributes.position, nor = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+      if (!nor || !si || !sw) return;
+      const bones = mesh.skeleton.bones, ix = new Map(bones.map((b, i) => [b, i]));
+      const P = mesh.skeleton.boneInverses.map(m => new V3().setFromMatrixPosition(m.clone().invert()));
+      const info = bones.map((b, i) => {
+        const n = b.name.toLowerCase(), side = /_l$/.test(n) ? 1 : /_r$/.test(n) ? -1 : 0, base = n.replace(/_[lr]$/, '');
+        const fn = FIT[base] || FIT[base.replace(/_0\d$/, '')]; if (!fn) return null;
+        const c = b.children.find(c => ix.has(c) && !/thumb|index|pinky|ring|middle|ball/.test(c.name)) || b.children.find(c => ix.has(c));
+        const d = c ? P[ix.get(c)].clone().sub(P[i]) : new V3(0, 0.1, 0), len = d.length(); d.normalize();
+        return { fn, side, d, len, p: P[i] };
+      });
+      if (!info.some(Boolean)) return;
+      const v = new V3(), rel = new V3(), n = new V3(), gc = (at, i, c) => c === 0 ? at.getX(i) : c === 1 ? at.getY(i) : c === 2 ? at.getZ(i) : at.getW(i);
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i); let a = 0;
+        for (let c = 0; c < 4; c++) {
+          const w = gc(sw, i, c); if (w < 1e-3) continue;
+          const I = info[gc(si, i, c)]; if (!I) continue;
+          rel.copy(v).sub(I.p); const along = rel.dot(I.d), t = along / (I.len || 0.1); rel.addScaledVector(I.d, -along);
+          const rl = rel.length() || 1, f = rel.dot(fwd) / rl, x = rel.dot(left) / rl;
+          a += w * I.fn(t, f, I.side ? x * I.side : Math.abs(x), rel.y / rl, Math.abs(x));
+        }
+        if (a) { n.fromBufferAttribute(nor, i); v.addScaledVector(n, a * 0.01 * k); pos.setXYZ(i, v.x, v.y, v.z); }
+      }
+      g.computeVertexNormals(); g.computeBoundingSphere();
+    }
     function setupModel(gltf) {
       const root = gltf.scene; let skinned = null;
       root.traverse(o => { if (o.isSkinnedMesh && !skinned) skinned = o; });
@@ -375,6 +417,7 @@
         const u = /^foot/.test(k) ? upW.clone() : fwd.clone();
         rest[k] = { q, d, u, len: n ? wp(n).distanceTo(wp(b)) : 0.15 };
       }
+      fitBody(skinned, fwd, left, 1.6 * (legLen || 0.8) / 0.8);
       // colores por músculo: cada vértice toma el músculo según su hueso principal y su posición
       const g = skinned.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
       const roleOf = new Map(); for (const k in R) if (R[k]) roleOf.set(R[k], k);

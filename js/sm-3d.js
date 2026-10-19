@@ -202,7 +202,34 @@
       }
       return J;
     }
-    const PT = (J, key) => V2(J[key], front ? 0 : zOf(key));
+    // agarre de barra: manos más abiertas que los hombros y codo recalculado en 3D
+    const GRIP = 27; let OV = {};
+    const zk = key => OV[key + 'z'] ?? (front ? 0 : zOf(key));
+    const PT = (J, key) => OV[key] ? OV[key].clone() : V2(J[key], zk(key));
+    const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    function gripFix(J, tpl) {
+      OV = {};
+      if (front) return;
+      const bb = (tpl.props || []).find(o => o.type === 'barbell'); if (!bb) return;
+      let bp; try { bp = A.at(J, bb.at || 'wr1'); } catch (e) { return; }
+      if (!bp) return;
+      for (const i of [1, 2]) {
+        const w = J['wr' + i], s2 = J['S' + i], e2 = J['el' + i];
+        if (!w || d2(w, bp) > 16) continue;
+        const sg = i === 1 ? 1 : -1, z = sg * GRIP;
+        for (const k of ['wr', 'hd', 'tg']) OV[k + i + 'z'] = z;
+        const S = V2(s2, sg * ZARM), Wt = V2(w, z), l1 = d2(s2, e2), l2 = d2(e2, w);
+        const ax = Wt.clone().sub(S); let d = ax.length() || 0.01; ax.normalize(); d = Math.min(d, l1 + l2 - 0.1);
+        const a = (l1 * l1 + d * d - l2 * l2) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+        const out = new T.Vector3(-sg, 0, 0);
+        // mano detrás del hombro (barra en la espalda): codo hacia abajo y atrás; si no, como en la animación 2D
+        const behind = (w[0] - s2[0]) * J.n[0] + (w[1] - s2[1]) * J.n[1] < 0;
+        const pole = behind ? new T.Vector3(0, -1, 0).addScaledVector(D2(J.n), -0.45).addScaledVector(out, 0.5)
+          : V2(e2, sg * ZARM).sub(S.clone().add(Wt).multiplyScalar(0.5)).addScaledVector(out, 0.25 * l1);
+        pole.addScaledVector(ax, -pole.dot(ax)); if (pole.lengthSq() < 1e-6) pole.copy(out); pole.normalize();
+        OV['el' + i] = S.clone().addScaledVector(ax, a).addScaledVector(pole, h);
+      }
+    }
 
     function poseBody(J) {
       const hip = V2(J.hip, 0), shc = V2(J.shc, 0), up = shc.clone().sub(hip), Lt = up.length();
@@ -253,7 +280,7 @@
     function boxAB(a, b, th, wd, mat) { const m = prim('box', mat), d = b.clone().sub(a), l = d.length() || 0.01, y = d.clone().normalize(); const z = new T.Vector3().crossVectors(LAT, y).normalize(); m.matrix.makeBasis(LAT.clone().multiplyScalar(wd), y.multiplyScalar(l), z.multiplyScalar(th)).setPosition(a.clone().addScaledVector(d, 0.5)); m.matrixWorldNeedsUpdate = true; }
     function boxS(c2, along, h, lat, mat, z) { const m = prim('box', mat), c = V2(c2, z || 0); if (front) m.matrix.makeScale(along, h, lat); else m.matrix.makeScale(lat, h, along); m.matrix.setPosition(c); m.matrixWorldNeedsUpdate = true; }
     const latAt = (p2, z) => V2(p2, z);
-    function at3(J, a, def) { a = a ?? def; if (typeof a === 'string') return { p: J[a], z: front ? 0 : zOf(a) }; if (typeof a === 'function') return { p: a(J), z: 0 }; return { p: a, z: 0 }; }
+    function at3(J, a, def) { a = a ?? def; if (typeof a === 'string') return { p: J[a], z: zk(a) }; if (typeof a === 'function') return { p: a(J), z: 0 }; return { p: a, z: 0 }; }
     const lerp = (a, b, u) => a + (b - a) * u;
     const PROP3 = {
       bench: (J, o) => {
@@ -412,7 +439,7 @@
       const k = 1 - Math.pow(0.0015, dt);
       cam.yaw += (cam.ty - cam.yaw) * k; cam.pitch += (cam.tp - cam.pitch) * k; cam.dist += (cam.td - cam.dist) * k;
       const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph), J = joints(R.J);
-      poseBody(J); poseProps(J, R.tpl, P.clock);
+      gripFix(J, R.tpl); poseBody(J); poseProps(J, R.tpl, P.clock);
       placeCam();
       S.renderer.render(S.scene, S.cam);
     }

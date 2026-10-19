@@ -634,7 +634,9 @@
     const tpl = tplOf(tplName);
     el.innerHTML = `<svg viewBox="${VB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animación del ejercicio">${DEFS}${bgFor(tpl)}<g class="fig"></g>${badgeSVG(opts.badge && [].concat(opts.badge))}</svg>`;
     const g = el.querySelector('.fig');
-    const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false, spin: opts.spin !== false };
+    const P = { el, g, tpl, hl, off: opts.phase ?? Math.random(), visible: true, speed: opts.speed || 1, clock: 0, paused: false, spin: opts.spin === true, yaw: 0 };
+    // ángulo elegido por la persona: perfil, de frente o de espalda
+    P.view = v => { P.yaw = ({ front: -90, side: 0, back: 90 })[v] ?? 0; P.spin = false; P.g.innerHTML = render(P.tpl, P.ph ?? P.off, P.hl, P.clock, P.yaw); };
     g.innerHTML = render(tpl, reduce ? 0.35 : P.off, hl, 0);
     if (reduce) return P;
     players.add(P);
@@ -661,7 +663,7 @@
       const dur = P.tpl.dur || 2.6;
       const ph = (P.clock / dur + P.off) % 1;
       P.spinT = (P.spinT || 0) + (P.spin ? dt * P.speed : 0);
-      P.g.innerHTML = render(P.tpl, ph, P.hl, P.clock, yawAt(P.spinT));
+      P.ph = ph; P.g.innerHTML = render(P.tpl, ph, P.hl, P.clock, P.spin ? yawAt(P.spinT) : P.yaw);
     }
   }
 

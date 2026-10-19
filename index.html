@@ -604,8 +604,8 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 </div>
 <script>try{ if(/github\.io$/.test(location.hostname) && !sessionStorage.getItem('sm_mud')) document.getElementById('mudanza').classList.remove('hidden'); }catch(e){}</script>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
-<script src="js/sm-anim.js?v=30"></script>
-<script src="js/sm-3d.js?v=30"></script>
+<script src="js/sm-anim.js?v=31"></script>
+<script src="js/sm-3d.js?v=31"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -1091,7 +1091,7 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 async function loadLib(){
   if(S.lib){ if(!S.libProOk && S.lib.length && S.fb && S.dbs && S.dbs.sm){ S.libProOk=true; const [p, mods]=await Promise.all([loadEjPro(), loadEjMod()]); const all=S.libAll.concat(p); applyEjMod(all, mods); S.lib=S.lib.concat(p.filter(x=>!x.o)); libIndex(all); EJ_THUMBS.clear(); } return S.lib; }
   S.libProOk=!!(S.fb && S.dbs && S.dbs.sm);
-  try{ let r=null; for(const u of ['data/ejercicios.json?v=30', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
+  try{ let r=null; for(const u of ['data/ejercicios.json?v=31', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
     // "o": ejercicio oculto (repetido con otro nombre). No se muestra en la biblioteca, pero las rutinas antiguas lo siguen abriendo.
     const [pro, mods]=await Promise.all([loadEjPro(), loadEjMod()]), all=(await r.json()).concat(EJ_EXTRA, pro);
     all.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
@@ -2213,8 +2213,8 @@ function ejUso(x){ const m=String(x.m||'').toLowerCase(), n=fold(x.n+' '+(x.en||
 window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return; ejStop();
   const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
   const stage = x.a && window.SMAnim ? `<div class="ejstage ejanim" id="ejan" onclick="ejAnTap()"><span class="ejpp">${ic('play','s')}</span></div>
-    <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px;flex-wrap:wrap"><span class="row" id="ejviews" style="gap:6px;display:none"><button type="button" class="pill" onclick="ejView('front')">Frente</button><button type="button" class="pill" onclick="ejView('side')">Lado</button><button type="button" class="pill" onclick="ejView('back')">Atrás</button></span><button type="button" class="pill" id="ejspin" onclick="ejAnSpin()">Girar</button><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button></div>
-      <button type="button" class="pill on" id="ejgif" onclick="ejGif(${q(x.i)})">Descargar GIF</button></div>`
+    <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px;flex-wrap:wrap"><span class="row" id="ejviews" style="gap:6px"><button type="button" class="pill" onclick="ejView('front')">Frente</button><button type="button" class="pill" onclick="ejView('side')">Lado</button><button type="button" class="pill" onclick="ejView('back')">Atrás</button></span><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button></div>
+      ${S.role==='pro'?`<button type="button" class="pill on" id="ejgif" onclick="ejGif(${q(x.i)})">Descargar GIF</button>`:''}</div>`
   : n ? `<div class="ejstage" id="ejst" data-n="${n}" data-j="0" data-sp="1" onclick="ejTap()">
       ${pos.map(j=>`<img class="ejimg ${j===0?'on':''}" src="${ejPos(x,j)}" alt="${esc(x.n)} · ${POS_LBL(n,j)}" ${j?'loading="lazy"':''}>`).join('')}
       <span class="ejlbl" id="ejlbl">${POS_LBL(n,0)}</span><span class="ejpp">${ic('play','s')}</span></div>
@@ -2232,11 +2232,11 @@ window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return
   ${x.p&&x.p.length?`<div class="sec-t" style="margin-top:20px"><h2>Cómo hacerlo</h2><span class="xs muted">${x.p.length} paso${x.p.length>1?'s':''}</span></div><ol class="ejsteps">${x.p.map((st,i)=>`<li><span class="n">${i+1}</span><p>${esc(st)}</p></li>`).join('')}</ol>`:''}
   <div class="note" style="margin-top:16px">${ic('info','s')}<span>Haz el movimiento controlado y sin dolor. Si algo molesta, detente y avísale a tu kine.</span></div>
   <p class="xs muted center" id="ejhint" style="margin-top:14px">${x.a?'Animación StrongMed × Kin At Home · toca para pausar':'Ejercicio agregado por StrongMed'}</p>`);
-  if(x.a && window.SMAnim){ const el=$('#ejan'); if(el){ const pp=el.querySelector('.ejpp'); S.ejP=(window.SM3D||SMAnim).mount(el, x.a, ejHL(x), {phase:0, badge:ejBadge(x), onReady:P=>{ const v=$('#ejviews'); if(v) v.style.display=''; const h=$('#ejhint'); if(h) h.textContent='Arrastra para girar el modelo · toca para pausar'; P.onSpin=s=>{ const b=$('#ejspin'); if(b) b.textContent=s?'Detener giro':'Girar'; }; }}); el.appendChild(pp); } }
+  if(x.a && window.SMAnim){ const el=$('#ejan'); if(el){ const pp=el.querySelector('.ejpp'); S.ejP=(window.SM3D||SMAnim).mount(el, x.a, ejHL(x), {phase:0, badge:ejBadge(x), onReady:P=>{ const h=$('#ejhint'); if(h) h.textContent='Arrastra para girar el modelo · toca para pausar'; }}); el.appendChild(pp); } }
   else if(n>1) setTimeout(ejPlay, 300); };
 window.ejAnTap = () => { const P=S.ejP, el=$('#ejan'); if(!P||!el) return; P.paused=!P.paused; el.classList.toggle('paused', P.paused); };
 window.ejAnSpin = () => { const P=S.ejP; if(!P) return; P.spin=!P.spin; const b=$('#ejspin'); if(b) b.textContent = P.spin ? 'Detener giro' : 'Girar'; };
-window.ejView = v => { const P=S.ejP; if(P && P.view) P.view(v); const b=$('#ejspin'); if(b) b.textContent='Girar'; };
+window.ejView = v => { const P=S.ejP; if(P && P.view) P.view(v); };
 window.ejAnSpeed = () => { const P=S.ejP; if(!P) return; P.speed = P.speed===1 ? .5 : 1; const b=$('#ejsp'); if(b) b.textContent = P.speed===1 ? 'Ver lento' : 'Ver normal'; };
 window.ejGif = async id => { const x=libById(id); if(!x||!x.a) return; const b=$('#ejgif'); if(b){ b.disabled=true; b.textContent='Creando GIF…'; }
   try{ const tpl=SMAnim.tpl(x.a), dur=tpl.dur||2.6, fps=12, nf=Math.max(10,Math.min(72,Math.round(dur*fps))), W=360;

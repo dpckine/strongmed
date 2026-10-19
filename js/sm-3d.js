@@ -105,15 +105,18 @@
     const key = new T.DirectionalLight(0xffffff, 1.9); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0008; key.shadow.normalBias = 0.6;
     scene.add(key); scene.add(key.target);
-    const rim = new T.DirectionalLight(new T.Color(C.hl), 0.55); scene.add(rim);
+    const rim = new T.DirectionalLight(new T.Color(C.hl), 0.4); scene.add(rim);
     const fill = new T.DirectionalLight(0xbfd2ff, 0.35); scene.add(fill);
     // piso con grilla y brillo de la marca
-    const floor = new T.Mesh(new T.CircleGeometry(900, 64), new T.MeshStandardMaterial({ color: C.floor, roughness: 0.95, metalness: 0 }));
-    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-    const grid = new T.GridHelper(1600, 80, C.grid, C.grid); grid.position.y = 0.15; grid.material.transparent = true; grid.material.opacity = 0.55; scene.add(grid);
+    const floor = new T.Mesh(new T.CircleGeometry(1400, 64), new T.MeshBasicMaterial({ color: C.floor }));
+    floor.rotation.x = -Math.PI / 2; scene.add(floor);
+    const shade = new T.Mesh(new T.CircleGeometry(1400, 64), new T.ShadowMaterial({ opacity: 0.5 }));
+    shade.rotation.x = -Math.PI / 2; shade.position.y = 0.1; shade.receiveShadow = true; scene.add(shade);
+    const grid = new T.GridHelper(1600, 64, C.grid, C.grid); grid.position.y = 0.15; grid.material.transparent = true; grid.material.opacity = 0.4; scene.add(grid);
+    scene.fog = new T.Fog(C.bg, 600, 1400);
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const cx = cv.getContext('2d'), gr = cx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gr.addColorStop(0, 'rgba(187,244,38,.22)'); gr.addColorStop(1, 'rgba(187,244,38,0)'); cx.fillStyle = gr; cx.fillRect(0, 0, 128, 128);
+    gr.addColorStop(0, 'rgba(187,244,38,.13)'); gr.addColorStop(1, 'rgba(187,244,38,0)'); cx.fillStyle = gr; cx.fillRect(0, 0, 128, 128);
     const glow = new T.Mesh(new T.CircleGeometry(1, 48), new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), transparent: true, depthWrite: false }));
     glow.rotation.x = -Math.PI / 2; glow.position.y = 0.3; scene.add(glow);
     return { renderer, scene, cam, key, rim, fill, glow };
@@ -328,12 +331,14 @@
     // ---- cámara: encuadre según el recorrido completo del ejercicio
     const box = new T.Box3();
     for (let i = 0; i < 8; i++) { const J = joints(A.pose3(P.tplName, i / 8).J); for (const k of ['hip', 'shc', 'head', 'hd1', 'hd2', 'kn1', 'kn2', 'an1', 'an2', 'to1', 'to2', 'el1', 'el2']) if (J[k]) box.expandByPoint(PT(J, k)); }
-    box.expandByScalar(10); box.min.y = Math.min(box.min.y, 0);
+    poseProps(joints(first.J), first.tpl, 0); props.updateMatrixWorld(true);
+    if (props.children.length) { const pb = new T.Box3().setFromObject(props), lim = box.clone().expandByScalar(45); pb.intersect(lim); if (!pb.isEmpty()) box.union(pb); }
+    box.expandByScalar(8); box.min.y = Math.min(box.min.y, 0);
     const ctr = box.getCenter(new T.Vector3()), size = box.getSize(new T.Vector3());
     const rad = Math.max(size.y, Math.hypot(size.x, size.z) * 0.85) * 0.62 + 6;
     const VIEWS = front ? { front: 0, side: -90, back: 180, def: 28 } : { front: 0, side: -90, back: 180, def: -58 };
     const cam = { yaw: VIEWS.def, pitch: 12, dist: rad / Math.tan(16 * Math.PI / 180), ty: VIEWS.def, tp: 12, td: 0 };
-    cam.td = cam.dist;
+    cam.td = cam.dist; S.scene.fog.near = cam.dist * 1.4; S.scene.fog.far = cam.dist * 3.4;
     S.glow.scale.setScalar(Math.max(size.x, size.z) * 0.9 + 40); S.glow.position.x = ctr.x; S.glow.position.z = ctr.z;
     const sc = S.key.shadow.camera, R0 = rad * 1.6; sc.left = -R0; sc.right = R0; sc.top = R0; sc.bottom = -R0; sc.near = 1; sc.far = rad * 8; sc.updateProjectionMatrix();
     function placeCam() {

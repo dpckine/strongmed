@@ -129,10 +129,13 @@
 
   // ---------------------------------------------------------------- escena
   function makeScene(T, el, P) {
+    // mismas luces y colores que en versiones nuevas de Three.js
+    if (T.ColorManagement && 'legacyMode' in T.ColorManagement) T.ColorManagement.legacyMode = false;
     const W = el.clientWidth || 320, H = el.clientHeight || 320;
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' });
     renderer.setPixelRatio(Math.min(G.devicePixelRatio || 1, 2));
     renderer.setSize(W, H, false);
+    if ('physicallyCorrectLights' in renderer) renderer.physicallyCorrectLights = true;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace; else renderer.outputEncoding = T.sRGBEncoding;
     const scene = new T.Scene(); scene.background = new T.Color(C.bg);

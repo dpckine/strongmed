@@ -417,6 +417,15 @@
         const u = /^foot/.test(k) ? upW.clone() : fwd.clone();
         rest[k] = { q, d, u, len: n ? wp(n).distanceTo(wp(b)) : 0.15 };
       }
+      // manos: línea de nudillos (índice → meñique) en reposo, para girar el puño según el implemento
+      const fing = {};
+      for (const s of ['L', 'R']) {
+        const ls = s.toLowerCase(), list = [];
+        for (const f of ['index', 'middle', 'ring', 'pinky']) for (const n of [1, 2, 3]) { const b = byName.get(f + '0' + n + ls); if (b) list.push(b); }
+        fing[s] = list;
+        const i1 = byName.get('index01' + ls), p1 = byName.get('pinky01' + ls);
+        if (rest['hand' + s] && i1 && p1) rest['hand' + s].k = wp(p1).sub(wp(i1)).normalize();
+      }
       fitBody(skinned, fwd, left, 1.6 * (legLen || 0.8) / 0.8);
       // colores por músculo: cada vértice toma el músculo según su hueso principal y su posición
       const g = skinned.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
@@ -464,7 +473,7 @@
         const th = /thumb/.test(n) ? 0.45 : 1;
         b.quaternion.multiply(new Q().setFromAxisAngle(new V3(1, 0, 0), FCURL * th * (MODEL_CURL || 1)));
       }
-      Object.assign(MODEL, { ok: true, grp, R, rest, fwd, left });
+      Object.assign(MODEL, { ok: true, grp, R, rest, fwd, left, fing });
       body.visible = false;
       return true;
     }
@@ -475,8 +484,44 @@
       b.parent.getWorldQuaternion(qp); b.quaternion.copy(qp.invert().multiply(qa));
       b.updateMatrixWorld(true);
     }
-    function poseModel(J) {
+    // mano con la línea de nudillos en la dirección kT (así el mango pasa por dentro del puño)
+    function aimK(k, dT, kT) {
+      const b = MODEL.R[k], r = MODEL.rest[k]; if (!b || !r || !r.k || dT.lengthSq() < 1e-6) return false;
+      basisQ(dT, kT, qa); basisQ(r.d, r.k, qb); qa.multiply(qb.invert()).multiply(r.q);
+      b.parent.getWorldQuaternion(qp); b.quaternion.copy(qp.invert().multiply(qa));
+      b.updateMatrixWorld(true); return true;
+    }
+    // centro del puño: promedio de las falanges (con los dedos cerrados queda dentro del hueco)
+    function gripPt(s) {
+      const L = MODEL.fing[s]; if (!L || !L.length) return null;
+      const c = new V3(), t = new V3(); for (const b of L) c.add(b.getWorldPosition(t)); return c.multiplyScalar(1 / L.length);
+    }
+    // qué manos sujetan un implemento con mango transversal
+    const HELD = /^(barbell|db|kb|stick|cable|handle)$/;
+    function heldHands(J, tpl) {
+      const h = {};
+      for (const o of tpl.props || []) {
+        if (!HELD.test(o.type) || o.band) continue;
+        if (o.type === 'barbell') { let bp = null; try { bp = A.at(J, o.at || 'wr1'); } catch (e) { } if (bp) for (const i of [1, 2]) if (J['wr' + i] && d2(J['wr' + i], bp) <= 16) h[i] = 1; continue; }
+        const a = o.type === 'cable' ? (o.to || 'hd1') : (o.at || 'hd1'); if (typeof a !== 'string') continue;
+        const m = /^(hd|wr|tg)([12])$/.exec(a); if (!m || !J[a]) continue; h[m[2]] = 1;
+        const oth = m[2] === '1' ? 2 : 1;
+        if ((o.type === 'stick' || o.type === 'cable') && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 8) h[oth] = 1;
+      }
+      return h;
+    }
+    // los implementos se ubican en el puño real del modelo
+    const inv2 = G => front ? { p: [G.x + cx, FLOOR - G.y], z: G.z } : { p: [G.z + cx, FLOOR - G.y], z: -G.x };
+    function snapProps(J, tpl) {
+      const g = MODEL.grip; if (!g || !(g[1] || g[2])) return J;
+      J = Object.assign({}, J); const q = {};
+      for (const i of [1, 2]) if (g[i]) { q[i] = inv2(g[i]); for (const k of ['hd', 'wr']) { J[k + i] = q[i].p; OV[k + i + 'z'] = q[i].z; } }
+      if (q[1] && q[2] && (tpl.props || []).some(o => o.type === 'barbell' || o.type === 'stick')) { const m = [(q[1].p[0] + q[2].p[0]) / 2, (q[1].p[1] + q[2].p[1]) / 2]; J.wr1 = J.wr2 = J.hd1 = J.hd2 = m; }
+      return J;
+    }
+    function poseModel(J, tpl) {
       const M = MODEL; M.grp.position.set(0, 0, 0); M.grp.updateMatrixWorld(true);
+      const held = tpl ? heldHands(J, tpl) : {}, hs = {};
       const hip = V2(J.hip, 0), shc = V2(J.shc, 0), up = shc.clone().sub(hip);
       const tf = front ? FWD : D2(J.n);
       for (const k of ['hips', 'spine1', 'spine2', 'spine3']) aim(k, up, tf);
@@ -488,7 +533,12 @@
         const Sh = PT(J, 'S' + i), E = PT(J, 'el' + i), W = PT(J, 'wr' + i), Hd = PT(J, 'hd' + i);
         const ua = antOf(J['S' + i], J['el' + i]), fa = antOf(J['el' + i], J['wr' + i]);
         aim('upper' + s, E.clone().sub(Sh), ua); aim('fore' + s, W.clone().sub(E), fa);
-        const hv = Hd.clone().sub(W); if (hv.lengthSq() > 0.5) aim('hand' + s, hv, fa);
+        const hv = Hd.clone().sub(W);
+        if (hv.lengthSq() > 0.5) {
+          const kT = front ? FWD.clone().negate() : leftT.clone().multiplyScalar(s === 'L' ? 1 : -1);
+          if (!(held[i] && aimK('hand' + s, hv, kT))) aim('hand' + s, hv, fa);
+        }
+        if (held[i]) hs[i] = s;
         const H = PT(J, 'H' + i), K = PT(J, 'kn' + i), An = PT(J, 'an' + i);
         const ls = PT(J, 'H' + i).sub(hip).dot(leftT) > 0 ? 'L' : 'R';
         aim('thigh' + ls, K.clone().sub(H), antOf(J['H' + i] || J.hip, J['kn' + i]));
@@ -501,6 +551,7 @@
       // la cadera del modelo queda en la cadera de la animación
       const hp = M.R.hips.getWorldPosition(new V3());
       M.grp.position.copy(hip.clone().sub(hp)); M.grp.updateMatrixWorld(true);
+      M.grip = {}; for (const i in hs) M.grip[i] = gripPt(hs[i]);
     }
     if (T.GLTFLoader) new T.GLTFLoader().load(MODEL_URL, gl => { try { setupModel(gl); } catch (e) { console.warn('SM3D modelo', e); } }, undefined, () => { });
 
@@ -677,8 +728,8 @@
       if (P.spin) cam.ty -= dt * 22;
       const k = 1 - Math.pow(0.0015, dt);
       cam.yaw += (cam.ty - cam.yaw) * k; cam.pitch += (cam.tp - cam.pitch) * k; cam.dist += (cam.td - cam.dist) * k;
-      const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph), J = joints(R.J);
-      gripFix(J, R.tpl); if (MODEL.ok) poseModel(J); else poseBody(J); poseProps(J, R.tpl, P.clock);
+      const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph); let J = joints(R.J);
+      gripFix(J, R.tpl); if (MODEL.ok) { poseModel(J, R.tpl); J = snapProps(J, R.tpl); } else poseBody(J); poseProps(J, R.tpl, P.clock);
       placeCam();
       S.renderer.render(S.scene, S.cam);
     }

@@ -604,7 +604,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 </div>
 <script>try{ if(/github\.io$/.test(location.hostname) && !sessionStorage.getItem('sm_mud')) document.getElementById('mudanza').classList.remove('hidden'); }catch(e){}</script>
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
-<script src="js/sm-anim.js?v=27"></script>
+<script src="js/sm-anim.js?v=28"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -1088,13 +1088,13 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 
 /* ---------------- exercise library ---------------- */
 async function loadLib(){
-  if(S.lib){ if(!S.libProOk && S.lib.length && S.fb && S.dbs && S.dbs.sm){ S.libProOk=true; const p=await loadEjPro(); if(p.length){ S.lib=S.lib.concat(p); libIndex(S.libAll.concat(p)); } } return S.lib; }
+  if(S.lib){ if(!S.libProOk && S.lib.length && S.fb && S.dbs && S.dbs.sm){ S.libProOk=true; const [p, mods]=await Promise.all([loadEjPro(), loadEjMod()]); const all=S.libAll.concat(p); applyEjMod(all, mods); S.lib=S.lib.concat(p.filter(x=>!x.o)); libIndex(all); EJ_THUMBS.clear(); } return S.lib; }
   S.libProOk=!!(S.fb && S.dbs && S.dbs.sm);
-  try{ let r=null; for(const u of ['data/ejercicios.json?v=27', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
+  try{ let r=null; for(const u of ['data/ejercicios.json?v=28', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
     // "o": ejercicio oculto (repetido con otro nombre). No se muestra en la biblioteca, pero las rutinas antiguas lo siguen abriendo.
-    const all=(await r.json()).concat(EJ_EXTRA, await loadEjPro());
+    const [pro, mods]=await Promise.all([loadEjPro(), loadEjMod()]), all=(await r.json()).concat(EJ_EXTRA, pro);
     all.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });
-    S.lib=all.filter(x=>!x.o); libIndex(all);
+    applyEjMod(all, mods); S.lib=all.filter(x=>!x.o); libIndex(all);
     fillLibDatalist(); }
   catch(e){ S.lib=[]; S.libByName=new Map(); S.libById=new Map(); console.warn('Biblioteca de ejercicios no disponible (sube data/ejercicios.json)'); }
   return S.lib;
@@ -1105,6 +1105,10 @@ function libIndex(all){ S.libAll=all; S.libByName=new Map(); S.libById=new Map()
   all.forEach(x=>(x.al||[]).forEach(([i,n])=>{ if(i && !S.libById.has(i)) S.libById.set(i,x); const k=String(n||'').toLowerCase(); if(k && !S.libByName.has(k)) S.libByName.set(k,x); })); }
 /* ejercicios agregados por los profesionales (colección "ejercicios_pro" del Firebase de StrongMed) */
 async function loadEjPro(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return []; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_pro')); const a=[]; sn.forEach(d=>{ const x=d.data(); if(x && x.n) a.push(Object.assign({}, x, {i:d.id, pro:true}, x.borrado?{o:1}:{})); }); return a; }catch(e){ console.warn('ejercicios_pro', e); return []; } }
+/* animaciones cambiadas por los profesionales (colección "ejercicios_mod": id del ejercicio → a, h, h2, g) */
+async function loadEjMod(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return {}; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_mod')); const m={}; sn.forEach(d=>{ const x=d.data(); if(x && x.a && !x.borrado) m[d.id]=x; }); return m; }catch(e){ console.warn('ejercicios_mod', e); return {}; } }
+const EJ_ANKEYS=['a','h','h2','g'];
+function applyEjMod(all, mods){ all.forEach(x=>{ const m=mods[x.i]; if(!m) return; if(!x._orig) x._orig=Object.fromEntries(EJ_ANKEYS.map(k=>[k,x[k]])); EJ_ANKEYS.forEach(k=>{ if(m[k]!==undefined) x[k]=m[k]; }); x.mod=m.por||'el equipo'; }); }
 function fillLibDatalist(){ const dl=$('#dl-ej'); if(!dl || !S.lib || dl.dataset.full) return; dl.dataset.full=1;
   dl.insertAdjacentHTML('beforeend', S.lib.map(x=>`<option value="${esc(x.n)}">`).join('')); }
 const libById = id => (S.libById && S.libById.get(id)) || null;
@@ -2074,7 +2078,7 @@ function vLib(){
   const extra=[['rh','Rehabilitación'],['ca','En casa'],...(S.lib.some(x=>x.pro)?[['pro','Agregados por el equipo']]:[])];
   const pill=(k,l)=>`<button class="pill ${S.libC===k?'on':''}" onclick="S.libC=${q(k)};render()">${esc(l)}</button>`;
   return `<header class="top">${!pro?`<button class="back" onclick="goRutinas()">${ic('chevl','s')} Mi plan</button>`:''}<div class="eyebrow">${S.lib.length} ejercicios con demostración</div><h1 class="disp h1" style="margin-top:6px">Ejercicios</h1></header><div class="stack">
-  ${pro?`<button class="btn ghost" onclick="ejProForm()">${ic('plus','s')} Agregar ejercicio a la biblioteca</button>`:''}
+  ${pro?`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost grow" onclick="ejProForm()">${ic('plus','s')} Agregar ejercicio</button><button class="btn ghost grow" onclick="anRevisar()">${ic('edit','s')} Revisar animaciones</button></div>`:''}
   <div class="searchbox">${ic('search','s')}<input class="inp" placeholder="Buscar: sentadilla, bíceps, banda…" value="${esc(S.libQ)}" oninput="S.libQ=this.value;$('#libg').innerHTML=libGrid()"></div>
   <div class="pills">${pill('★','★ Más usados')}<button class="pill ${!S.libC?'on':''}" onclick="S.libC='';render()">Todos</button>${cats.map(c=>pill(c,c)).join('')}${extra.map(([k,l])=>pill(':'+k,l)).join('')}</div>
   <div id="libg">${libGrid()}</div><p class="xs muted center">Animaciones StrongMed × Kin At Home</p></div>`;
@@ -2114,8 +2118,62 @@ window.ejProSave = async id => { const n=val('ep-n').trim(); if(n.length<3) retu
 window.ejProDel = async id => { if(!confirm('¿Quitar este ejercicio de la biblioteca? Las rutinas que ya lo tienen lo seguirán mostrando.')) return;
   if(!(await fsSet2('sm','ejercicios_pro', id, {borrado:true, t:Date.now()}, true))) return toast('No se pudo guardar','err');
   const x=libById(id); if(x) x.o=1; S.lib=S.lib.filter(e=>e.i!==id); closeSheet(); toast('Ejercicio quitado'); render(); };
-function libGrid(){ const t=fold(S.libQ), w=t.split(/\s+/).filter(Boolean); const C=S.libC||''; let r=S.lib.filter(x=>(!C||(C==='★'?x.top:C[0]===':'?x[C.slice(1)]:x.c===C)) && (!w.length || w.every(p=>fold(x.n+' '+x.en+' '+x.m+' '+x.q+' '+(x.k||'')+' '+(x.al||[]).map(a=>a[1]).join(' ')).includes(p))));
-  r=r.slice().sort((a,b)=>(a.top||999)-(b.top||999));
+/* ---- el profesional cambia la animación de cualquier ejercicio: movimiento, postura/implemento, músculos en verde y agarre ---- */
+const AN_MODS=[['seated','Sentado'],['kneel','De rodillas'],['db','Mancuernas'],['bb','Barra'],['kb','Kettlebell'],['band','Banda'],['smith','Smith'],['uni','A una mano'],['alt','Alterno'],['leg1','A una pierna']];
+const AN_MUS=[['chest','Pecho'],['lats','Dorsal'],['upperback','Espalda alta'],['lowback','Lumbar'],['delts','Hombro'],['biceps','Bíceps'],['triceps','Tríceps'],['forearm','Antebrazo'],['abs','Abdomen'],['quads','Cuádriceps'],['hams','Isquiosurales'],['glutes','Glúteos'],['adductors','Aductores'],['hipflex','Flexores de cadera'],['calves','Gemelos'],['tib','Tibial'],['neck','Cuello']];
+const anName = E => E.base + (E.mods.length ? '@'+E.mods.join('+') : '');
+const anHL = E => { const o={}; E.h2.forEach(k=>o[k]=2); E.h.forEach(k=>o[k]=1); return o; };
+const AN_THUMBS = new Map();
+const anThumb = (name, E) => { const k=name+'|'+E.h.join(','); let u=AN_THUMBS.get(k); if(!u){ u='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SMAnim.fullSVG(name, .42, anHL(E), 1)); AN_THUMBS.set(k,u); } return u; };
+window.anEdit = async id => { await loadLib(); const x=libById(id); if(!x || S.role!=='pro' || !window.SMAnim) return;
+  const [b, m]=String(x.a||'stand').split('@');
+  S.anEd={id, base:b, mods:(m||'').split('+').filter(Boolean), h:[...(x.h||[])], h2:[...(x.h2||[])], g:x.g||'', q:''};
+  sheet(`<h2 class="disp h2">Cambiar animación</h2><p class="sm muted" style="margin-top:4px">${esc(x.n)}</p>
+  <div class="ejstage ejanim" id="ae-prev" style="margin-top:12px"></div><p class="xs muted center" id="ae-lbl" style="margin-top:6px"></p>
+  <div class="stack" style="margin-top:12px">
+  <div><div class="lbl">Postura e implemento</div><div class="pills" id="ae-mods" style="flex-wrap:wrap;margin-top:6px"></div></div>
+  <div><div class="lbl">Músculos en verde <span class="xs muted">(toca: principal → secundario → nada)</span></div><div class="pills" id="ae-mus" style="flex-wrap:wrap;margin-top:6px"></div></div>
+  <label class="field"><span class="lbl">Etiqueta de agarre (opcional)</span><input class="inp" id="ae-g" maxlength="24" value="${esc(S.anEd.g)}" placeholder="Ej: Prono, Neutro, Supino" oninput="S.anEd.g=this.value;anPrev()"></label>
+  <div><div class="lbl">Movimiento</div><div class="searchbox" style="margin-top:6px">${ic('search','s')}<input class="inp" placeholder="Buscar movimiento: remo, sentadilla, curl…" oninput="S.anEd.q=this.value;anList()"></div>
+  <div id="ae-list" class="libgrid" style="margin-top:8px"></div></div>
+  <div class="row" style="gap:8px"><button class="btn pri grow" onclick="anSave()">${ic('check','s')} Guardar</button><button class="btn sec grow" onclick="anSave(1)">Guardar y siguiente</button></div>${anNext(id)?`<button class="btn ghost block" onclick="anGoNext()">Saltar al siguiente sin cambiar →</button>`:''}
+  ${x.mod && !x.pro?`<button class="btn ghost block" onclick="anReset()">Volver a la animación original</button>`:''}</div>`);
+  anChips(); anList(); anPrev(); };
+function anChips(){ const E=S.anEd; if(!E) return;
+  const md=$('#ae-mods'); if(md) md.innerHTML=AN_MODS.map(([k,l])=>`<button type="button" class="pill ${E.mods.includes(k)?'on':''}" onclick="anMod('${k}')">${l}</button>`).join('');
+  const mu=$('#ae-mus'); if(mu) mu.innerHTML=AN_MUS.map(([k,l])=>{ const p=E.h.includes(k), s=E.h2.includes(k); return `<button type="button" class="pill ${p?'on':''}" style="${s?'border-color:#bbf426;opacity:.75':''}" onclick="anMus('${k}')">${l}${s?' · 2°':''}</button>`; }).join(''); }
+window.anMod = k => { const E=S.anEd, i=E.mods.indexOf(k); if(i>-1) E.mods.splice(i,1); else { const grp=[['seated','kneel'],['db','bb','kb','band'],['uni','alt']].find(g=>g.includes(k)); if(grp) E.mods=E.mods.filter(x=>!grp.includes(x)); E.mods.push(k); } anChips(); anPrev(); };
+window.anMus = k => { const E=S.anEd; if(E.h.includes(k)){ E.h=E.h.filter(x=>x!==k); E.h2.push(k); } else if(E.h2.includes(k)) E.h2=E.h2.filter(x=>x!==k); else E.h.push(k); anChips(); anPrev(); anList(); };
+window.anPick = b => { S.anEd.base=b; anPrev(); anList(); $('#ae-prev')?.scrollIntoView({behavior:'smooth', block:'center'}); };
+function anPrev(){ const E=S.anEd, el=$('#ae-prev'); if(!E || !el) return; if(S.aeP){ SMAnim.unmount(S.aeP); S.aeP=null; }
+  const T=window.SMTemplates||{}; S.aeP=SMAnim.mount(el, anName(E), anHL(E), {phase:0, badge:[E.g].filter(Boolean)});
+  const l=$('#ae-lbl'); if(l) l.textContent=(T[E.base]&&T[E.base].label||E.base)+(E.mods.length?' · '+E.mods.map(k=>(AN_MODS.find(m=>m[0]===k)||[])[1]).join(' · '):''); }
+function anList(){ const E=S.anEd, box=$('#ae-list'); if(!E || !box) return; const T=window.SMTemplates||{}, x=libById(E.id)||{};
+  const names=Object.keys(T).filter(k=>!k.includes('@') && T[k] && T[k].frames && !T[k].custom), w=fold(E.q).split(/\s+/).filter(Boolean);
+  let r;
+  if(w.length){ const usos={}; S.lib.forEach(e=>{ const b=String(e.a||'').split('@')[0]; (usos[b]=usos[b]||[]).push(e.n); });
+    r=names.filter(k=>{ const t=fold(k.replace(/_/g,' ')+' '+(T[k].label||'')+' '+(usos[k]||[]).slice(0,12).join(' ')); return w.every(p=>t.includes(p)); }); }
+  else { const m=new Map(); S.lib.filter(e=>e.c===x.c).forEach(e=>{ const b=String(e.a||'').split('@')[0]; if(T[b]) m.set(b,(m.get(b)||0)+1); }); r=[...m.keys()].sort((a,b)=>m.get(b)-m.get(a)); }
+  r=[E.base, ...r.filter(k=>k!==E.base)].slice(0,30);
+  box.innerHTML=r.map(k=>`<button type="button" class="libc" style="${k===E.base?'outline:2px solid #bbf426':''}" onclick="anPick(${q(k)})"><div class="im"><img src="${anThumb(k,E)}" loading="lazy" alt=""></div><div class="bd"><b>${esc(T[k]&&T[k].label||k)}</b></div></button>`).join('')
+    + (w.length?'':`<p class="xs muted center" style="grid-column:1/-1">Escribe para buscar entre las ${names.length} animaciones.</p>`); }
+window.anRevisar = () => { const l=libFiltered().filter(e=>e.a); if(!l.length) return toast('No hay ejercicios en este filtro','err'); toast('Revisando '+l.length+' ejercicios del filtro actual'); anEdit(l[0].i); };
+const anNext = id => { const l=(S.lib?libFiltered():[]).filter(e=>e.a), i=l.findIndex(e=>e.i===id); return i>-1 && i<l.length-1 ? l[i+1].i : null; };
+window.anGoNext = () => { const n=S.anEd && anNext(S.anEd.id); if(n) anEdit(n); else { closeSheet(); toast('No hay más ejercicios en este filtro'); } };
+window.anSave = async next => { const E=S.anEd, x=E && libById(E.id); if(!x) return;
+  const d={a:anName(E), h:E.h, h2:E.h2, g:String(E.g||'').trim(), por:S.pro.nombre||'', proId:S.pro.id||'', t:Date.now()};
+  const ok = x.pro ? await fsSet2('sm','ejercicios_pro', x.i, {a:d.a, h:d.h, h2:d.h2, g:d.g, t:d.t}, true) : await fsSet('ejercicios_mod', x.i, d);
+  if(!ok) return toast('No se pudo guardar','err');
+  if(!x.pro && !x._orig) x._orig=Object.fromEntries(EJ_ANKEYS.map(k=>[k,x[k]]));
+  EJ_ANKEYS.forEach(k=>x[k]=d[k]); if(!x.pro) x.mod=d.por||'el equipo'; EJ_THUMBS.delete(x.i);
+  toast('Animación actualizada para todo el equipo'); const nx=next && anNext(x.i); keepScroll(render); if(nx) return anEdit(nx); closeSheet(); S.anEd=null; verEj(x.i); };
+window.anReset = async () => { const E=S.anEd, x=E && libById(E.id); if(!x || !x._orig) return;
+  if(!(await fsSet2('sm','ejercicios_mod', x.i, {borrado:true, t:Date.now()}, true))) return toast('No se pudo guardar','err');
+  EJ_ANKEYS.forEach(k=>x[k]=x._orig[k]); delete x._orig; delete x.mod; EJ_THUMBS.delete(x.i);
+  toast('Animación original restaurada'); closeSheet(); S.anEd=null; keepScroll(render); verEj(x.i); };
+function libFiltered(){ const t=fold(S.libQ), w=t.split(/\s+/).filter(Boolean); const C=S.libC||''; let r=S.lib.filter(x=>(!C||(C==='★'?x.top:C[0]===':'?x[C.slice(1)]:x.c===C)) && (!w.length || w.every(p=>fold(x.n+' '+x.en+' '+x.m+' '+x.q+' '+(x.k||'')+' '+(x.al||[]).map(a=>a[1]).join(' ')).includes(p))));
+  return r.slice().sort((a,b)=>(a.top||999)-(b.top||999)); }
+function libGrid(){ const r=libFiltered();
   return r.length ? `<div class="libgrid">${r.slice(0,60).map(x=>`<button class="libc" onclick="verEj(${q(x.i)})"><div class="im">${x.a||x.img||x.b?`<img src="${ejThumb(x)}" loading="lazy" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div><div class="bd"><b>${esc(x.n)}</b><span class="xs muted">${esc(x.m)} · ${esc(x.q)}</span></div></button>`).join('')}</div>${r.length>60?`<p class="xs muted center" style="margin-top:10px">Mostrando 60 de ${r.length}. Escribe para afinar la búsqueda.</p>`:''}` : `<div class="card empty">Sin resultados</div>`; }
 window.libGrid = libGrid;
 /* ---- ficha de ejercicio: posiciones nítidas (extraídas de la animación) que se alternan suave ---- */
@@ -2164,7 +2222,7 @@ window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return
     : `<div class="ejstage noanim">${x.img?`<img class="ejimg on" src="${media(x.img)}" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>`;
   sheet(`${stage}
   <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
-  ${x.pro?`<div class="row between" style="margin-top:8px;gap:8px"><span class="xs muted">Agregado por ${esc(x.por||'el equipo')}</span>${S.role==='pro'?`<button class="pill" onclick="closeSheet();ejProForm(${q(x.i)})">${ic('edit','s')} Editar</button>`:''}</div>`:''}
+  ${x.pro||x.mod||(S.role==='pro'&&x.a)?`<div class="row between" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span class="xs muted">${x.pro?`Agregado por ${esc(x.por||'el equipo')}`:x.mod?`Animación ajustada por ${esc(x.mod)}`:''}</span>${S.role==='pro'?`<div class="row" style="gap:6px">${x.a?`<button class="pill" onclick="closeSheet();anEdit(${q(x.i)})">${ic('edit','s')} Cambiar animación</button>`:''}${x.pro?`<button class="pill" onclick="closeSheet();ejProForm(${q(x.i)})">${ic('edit','s')} Editar</button>`:''}</div>`:''}</div>`:''}
   <div class="ejuso"><small>Para qué sirve</small><p>${esc(ejUso(x))}</p></div>
   ${x.rh && !x.pro
     ? `<div class="ejchips"><div class="ejchip main"><small>Lesión / condición</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Fase</small><b>${esc((x.s&&x.s[0])||'—')}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div></div>`

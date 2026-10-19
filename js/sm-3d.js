@@ -74,7 +74,7 @@
       ...sym(0.3, 2.92, 0.14, 0.16, 0.07), [0.5, PI, 0.45, 0.07, -0.04], ...sym(0.0, 2.6, 0.1, 0.5, 0.16), ...sym(0.08, 1.75, 0.09, 0.4, 0.05)],
     thigh: [[0.45, 0, 0.28, 0.8, 0.08], [0.8, 0.85, 0.12, 0.55, 0.14], [0.5, -1.25, 0.25, 0.6, 0.07], [0.45, PI, 0.28, 0.9, 0.07], [0.2, 1.57, 0.2, 0.6, 0.08], [0.97, 0, 0.06, 0.45, 0.1]],
     shin: [[0.27, 2.75, 0.14, 0.55, 0.22], [0.24, -2.75, 0.13, 0.5, 0.16], [0.3, -0.5, 0.2, 0.5, 0.05], [0.97, 1.57, 0.04, 0.35, 0.1], [0.99, -1.57, 0.04, 0.35, 0.08]],
-    upper: [[0.5, 0, 0.22, 0.7, 0.16], [0.4, 2.64, 0.22, 0.6, 0.1], [0.3, -2.4, 0.2, 0.55, 0.12], [0.06, -1.57, 0.14, 1.4, 0.3], [0.05, -0.6, 0.12, 0.7, 0.14], [0.05, -2.6, 0.12, 0.7, 0.12]],
+    upper: [[0.5, 0, 0.22, 0.7, 0.16], [0.4, 2.64, 0.22, 0.6, 0.1], [0.3, -2.4, 0.2, 0.55, 0.12], [0.1, -1.57, 0.16, 1.0, 0.17], [0.08, -0.7, 0.13, 0.6, 0.1], [0.08, -2.5, 0.13, 0.6, 0.08]],
     fore: [[0.22, -0.9, 0.2, 0.6, 0.16], [0.25, 0.9, 0.2, 0.7, 0.1], [0.2, PI, 0.25, 0.8, 0.05]],
     neck: [...sym(0.5, 0.5, 0.3, 0.3, 0.06), [0.1, PI, 0.15, 1.0, 0.1]],
     hand: [[0.85, 0, 0.12, 1.2, 0.08], [0.3, 1.3, 0.14, 0.5, 0.16]],
@@ -133,8 +133,8 @@
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace;
     const scene = new T.Scene(); scene.background = new T.Color(C.bg);
     const cam = new T.PerspectiveCamera(32, W / H, 1, 6000);
-    scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 1.3));
-    const key = new T.DirectionalLight(0xffffff, 1.9); key.castShadow = true;
+    scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 0.85));
+    const key = new T.DirectionalLight(0xffffff, 2.5); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0008; key.shadow.normalBias = 0.6;
     scene.add(key); scene.add(key.target);
     const rim = new T.DirectionalLight(new T.Color(C.hl), 0.4); scene.add(rim);

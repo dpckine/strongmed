@@ -48,7 +48,7 @@
   const angd = (a, b) => { let d = (a - b) % TAU; if (d > PI) d -= TAU; if (d < -PI) d += TAU; return d; };
   // perfiles (radios en las mismas unidades del motor 2D)
   const PR = {
-    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.2, 12.5], [0.2, 6.2, 7.3, 11], [0.35, 6.3, 6.8, 10.6], [0.52, 6.8, 6.6, 11.4], [0.7, 8.2, 7.6, 12.4], [0.86, 7.6, 7.2, 14.6], [0.95, 6.4, 6.2, 15.6], [1.0, 5, 5.2, 13], [1.05, 4, 4.6, 8.5], [1.1, 3.4, 3.6, 5]],
+    torso: [[-0.2, 2, 3, 6], [-0.12, 5, 6.5, 11.5], [0.05, 6.8, 9.2, 12.5], [0.2, 6.2, 7.3, 11], [0.35, 6.3, 6.8, 10.6], [0.52, 6.8, 6.6, 11.4], [0.7, 8.2, 7.6, 12.4], [0.86, 7.6, 7.2, 14.6], [0.95, 6.4, 6.4, 15.8], [1.0, 5.2, 5.6, 14.6], [1.05, 4.2, 4.8, 10.5], [1.1, 3.4, 3.6, 5]],
     thigh: [[0, 7.4, 7.4, 7.6], [0.3, 7.6, 7.4, 7.3], [0.75, 6, 5.6, 5.7], [1, 4.8, 4.6, 4.8]],
     shin: [[0, 4.6, 4.8, 4.6], [0.3, 4.1, 5.2, 4.5], [0.7, 3, 3.3, 3.1], [0.92, 2.6, 2.7, 2.9], [1, 2.7, 2.8, 3]],
     upper: [[0, 5.2, 5.2, 5.4], [0.4, 4.8, 4.8, 4.5], [0.85, 3.8, 3.8, 3.9], [1, 3.5, 3.5, 3.8]],
@@ -63,7 +63,7 @@
   for (const k in PR) { const [d, l] = BULK[k] || [1, 1]; PR[k] = PR[k].map(r => [r[0], r[1] * d, r[2] * d, r[3] * l]); }
   // largo nominal (para redondear los extremos) y redondeo [inicio, fin]
   const LEN = { thigh: 40, shin: 40, upper: 26, fore: 24, neck: 10, hand: 9, shoe: 17, head: 21, torso: 46 };
-  const CAP = { thigh: [0, 1], shin: [1, 1], upper: [1, 1], fore: [1, 1], hand: [0.6, 1], shoe: [1, 1], head: [0.5, 0.5], neck: [0, 0], torso: [0, 0] };
+  const CAP = { thigh: [0, 1], shin: [1, 1], upper: [0.55, 1], fore: [1, 1], hand: [0.6, 1], shoe: [1, 1], head: [0.5, 0.5], neck: [0, 0], torso: [0, 0] };
   // relieves: [t, fi, ancho en t, ancho en fi, altura]. fi = 0 adelante, π atrás; fi > 0 = lado interno
   const sym = (t, f, wt, wp, a) => [[t, f, wt, wp, a], [t, -f, wt, wp, a]];
   const BUMPS = {
@@ -284,7 +284,8 @@
         else { he = PT(J, 'he' + i); to = PT(J, 'to' + i); const u = [J['to' + i][0] - J['he' + i][0], J['to' + i][1] - J['he' + i][1]], l = Math.hypot(...u) || 1; fu = D2([u[1] / l, -u[0] / l]); he.addScaledVector(fu, -1.6); to.addScaledVector(fu, -1.6); }
         seg(BP['ft' + i], he, to, fu);
         // brazo
-        const Sh = PT(J, 'S' + i), E = PT(J, 'el' + i), W = PT(J, 'wr' + i), Hd = PT(J, 'hd' + i);
+        // el brazo nace un poco bajo el borde del hombro, así el tronco lo cubre (trapecio)
+        const Sh = PT(J, 'S' + i).addScaledVector(up, -3.2 / (Lt || 1)), E = PT(J, 'el' + i), W = PT(J, 'wr' + i), Hd = PT(J, 'hd' + i);
         const ua = antOf(J['S' + i], J['el' + i]), fa = antOf(J['el' + i], J['wr' + i]);
         seg(BP['ua' + i], Sh, E, ua); seg(BP['fa' + i], E, W, fa);
         const hv = Hd.clone().sub(W); if (hv.lengthSq() < 1) hv.copy(E).sub(W).multiplyScalar(-1);

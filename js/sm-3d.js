@@ -327,7 +327,7 @@
     // ---- cuerpo esculpido (modelo 3D con esqueleto): si carga, reemplaza al maniquí hecho con piezas
     // Cada hueso se orienta hacia el punto de la animación (cadera → hombros, hombro → codo, etc.).
     // Sirve con esqueletos tipo Rigify, MakeHuman "game engine", Unreal o Mixamo.
-    const MODEL = { ok: false };
+    const MODEL = { ok: false }; let MODEL_CURL = G.SM3D_CURL || 1;
     const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const SIDE = (l, r) => ({ L: l, R: r });
     const ROLE_NAMES = {
@@ -414,6 +414,13 @@
       g.setAttribute('color', new T.BufferAttribute(col, 3));
       root.traverse(o => { if (o.isMesh) { o.material = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.55, metalness: 0 }); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
       const grp = new T.Group(); grp.add(root); grp.scale.setScalar(scale); S.scene.add(grp);
+      // dedos: cerrados sobre el implemento si el ejercicio usa barra, mancuerna, polea…; si no, un poco flexionados
+      const FCURL = holds ? 1.25 : 0.25;
+      for (const b of bones) {
+        const n = norm(b.name); if (!/finger|^f(index|middle|ring|pinky)|index|middle|ring|pinky|thumb/.test(n)) continue;
+        const th = /thumb/.test(n) ? 0.45 : 1;
+        b.quaternion.multiply(new Q().setFromAxisAngle(new V3(1, 0, 0), FCURL * th * (MODEL_CURL || 1)));
+      }
       Object.assign(MODEL, { ok: true, grp, R, rest, fwd, left });
       body.visible = false;
       return true;

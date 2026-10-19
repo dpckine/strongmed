@@ -597,8 +597,9 @@
       handle: (J, o) => { const a = at3(J, o.at, 'hd1'); sph(V2(a.p, a.z), 3, 'metal'); },
       barbell: (J, o) => {
         const p = at3(J, o.at, 'wr1').p, r = o.r || 13;
-        cyl(latAt(p, -46), latAt(p, 46), 1.5, 'metal');
-        for (const s of [-1, 1]) { disc(latAt(p, s * 31), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 35.5), LAT, r * 0.72, 3.5, 'plate'); disc(latAt(p, s * 27.5), LAT, 2.6, 2.2, 'metal'); }
+        // discos por fuera del agarre (manos a ±27) para que no se toquen
+        cyl(latAt(p, -58), latAt(p, 58), 1.5, 'metal');
+        for (const s of [-1, 1]) { disc(latAt(p, s * 42), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 46.5), LAT, r * 0.72, 3.5, 'plate'); disc(latAt(p, s * 38.5), LAT, 2.6, 2.2, 'metal'); }
       },
       plate: (J, o) => { const a = at3(J, o.at); disc(V2(a.p, a.z), LAT, o.r || 9, 3, 'plate'); },
       db: (J, o) => {

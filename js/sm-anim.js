@@ -661,6 +661,7 @@
       const dur = P.tpl.dur || 2.6;
       const ph = (P.clock / dur + P.off) % 1;
       P.spinT = (P.spinT || 0) + (P.spin ? dt * P.speed : 0);
+      P.g.innerHTML = render(P.tpl, ph, P.hl, P.clock, yawAt(P.spinT));
     }
   }
 

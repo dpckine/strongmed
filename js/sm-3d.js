@@ -9,10 +9,13 @@
   'use strict';
   const A = G.SMAnim;
   if (!A) return;
-  const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js';
+  const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js';
+  const GLTF_URL = 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js';
+  // cuerpo 3D esculpido con esqueleto (CC0). Para cambiarlo, reemplazar el archivo y subir ?v=
+  const MODEL_URL = 'modelos/cuerpo.glb?v=1';
   const FLOOR = A.FLOOR;
   const C = {
-    bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#d9a877', hl: '#bbf426', hl2: '#d4ec95',
+    bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#cfd3d8', hl: '#bbf426', hl2: '#d4ec95',
     shorts: '#1b1f25', shoe: '#2a3038', metal: '#c3ccd6', plate: '#1d2228', pad: '#353d48', padDark: '#262c34',
     cable: '#8a96a6', band: '#ff6b8b', wood: '#c08a55', teal: '#2f6f73', ball: '#3b4655', rope: '#c9a46a', orange: '#f59e0b'
   };
@@ -28,7 +31,7 @@
     if (G.THREE) return Promise.resolve(G.THREE);
     if (!loading) loading = new Promise((ok, ko) => {
       const s = document.createElement('script'); s.src = THREE_URL; s.async = true; s.crossOrigin = 'anonymous';
-      s.onload = () => (G.THREE ? ok(G.THREE) : ko(new Error('three')));
+      s.onload = () => { if (!G.THREE) return ko(new Error('three')); const l = document.createElement('script'); l.src = GLTF_URL; l.async = true; l.crossOrigin = 'anonymous'; l.onload = l.onerror = () => ok(G.THREE); document.head.appendChild(l); };
       s.onerror = () => { loading = null; ko(new Error('three')); };
       document.head.appendChild(s);
     });
@@ -131,7 +134,7 @@
     renderer.setPixelRatio(Math.min(G.devicePixelRatio || 1, 2));
     renderer.setSize(W, H, false);
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
-    if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace;
+    if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace; else renderer.outputEncoding = T.sRGBEncoding;
     const scene = new T.Scene(); scene.background = new T.Color(C.bg);
     const cam = new T.PerspectiveCamera(32, W / H, 1, 6000);
     scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 0.85));
@@ -318,6 +321,135 @@
       }
     }
 
+    // ---- cuerpo esculpido (modelo 3D con esqueleto): si carga, reemplaza al maniquí hecho con piezas
+    // Cada hueso se orienta hacia el punto de la animación (cadera → hombros, hombro → codo, etc.).
+    // Sirve con esqueletos tipo Rigify, MakeHuman "game engine", Unreal o Mixamo.
+    const MODEL = { ok: false };
+    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const SIDE = (l, r) => ({ L: l, R: r });
+    const ROLE_NAMES = {
+      hips: ['hips', 'mixamorighips', 'pelvis', 'spine'], spine1: ['spine001', 'spine01', 'mixamorigspine', 'spine'], spine2: ['spine002', 'spine02', 'spine1', 'mixamorigspine1'],
+      spine3: ['spine003', 'spine03', 'spine2', 'mixamorigspine2'], neck: ['spine004', 'neck01', 'neck', 'mixamorigneck'], head: ['spine005', 'head', 'mixamorighead'],
+      upper: SIDE(['upperarml', 'upperarmL', 'leftarm', 'mixamorigleftarm'], ['upperarmr', 'rightarm', 'mixamorigrightarm']),
+      fore: SIDE(['forearml', 'lowerarml', 'leftforearm', 'mixamorigleftforearm'], ['forearmr', 'lowerarmr', 'rightforearm', 'mixamorigrightforearm']),
+      hand: SIDE(['handl', 'lefthand', 'mixamoriglefthand'], ['handr', 'righthand', 'mixamorigrighthand']),
+      thigh: SIDE(['thighl', 'leftupleg', 'mixamorigleftupleg'], ['thighr', 'rightupleg', 'mixamorigrightupleg']),
+      shin: SIDE(['shinl', 'calfl', 'leftleg', 'mixamorigleftleg'], ['shinr', 'calfr', 'rightleg', 'mixamorigrightleg']),
+      foot: SIDE(['footl', 'leftfoot', 'mixamorigleftfoot'], ['footr', 'rightfoot', 'mixamorigrightfoot'])
+    };
+    const V3 = T.Vector3, Q = T.Quaternion, M4 = new T.Matrix4();
+    function basisQ(d, u, out) {
+      const y = d.clone().normalize(), z = u.clone().addScaledVector(y, -u.dot(y));
+      if (z.lengthSq() < 1e-8) { z.set(y.y, -y.x, 0); if (z.lengthSq() < 1e-8) z.set(0, 0, 1); }
+      z.normalize(); const x = new V3().crossVectors(y, z);
+      M4.makeBasis(x, y, z); return (out || new Q()).setFromRotationMatrix(M4);
+    }
+    function setupModel(gltf) {
+      const root = gltf.scene; let skinned = null;
+      root.traverse(o => { if (o.isSkinnedMesh && !skinned) skinned = o; });
+      if (!skinned) return false;
+      const bones = skinned.skeleton.bones, byName = new Map(bones.map(b => [norm(b.name), b]));
+      const find = list => { for (const n of list) { const b = byName.get(norm(n)); if (b) return b; } return null; };
+      const R = {};
+      for (const k in ROLE_NAMES) { const v = ROLE_NAMES[k]; if (Array.isArray(v)) R[k] = find(v); else { R[k + 'L'] = find(v.L); R[k + 'R'] = find(v.R); } }
+      if (!R.hips || !R.upperL || !R.upperR || !R.thighL || !R.thighR || !R.shinL || !R.foreL) return false;
+      root.updateMatrixWorld(true);
+      const wp = b => b.getWorldPosition(new V3()), wq = b => b.getWorldQuaternion(new Q());
+      // orientación del personaje en reposo
+      const left = wp(R.upperL).sub(wp(R.upperR)).normalize(), upW = new V3(0, 1, 0), fwd = new V3().crossVectors(left, upW).normalize();
+      const legLen = wp(R.thighL).distanceTo(wp(R.shinL)) + wp(R.shinL).distanceTo(wp(R.footL || R.shinL));
+      const scale = 80 / (legLen || 1);
+      // dirección de reposo de cada hueso: hacia el siguiente hueso de la cadena (o su eje Y)
+      const next = { hips: 'spine1', spine1: 'spine2', spine2: 'spine3', spine3: 'neck', neck: 'head' };
+      for (const s of ['L', 'R']) Object.assign(next, { ['upper' + s]: 'fore' + s, ['fore' + s]: 'hand' + s, ['thigh' + s]: 'shin' + s, ['shin' + s]: 'foot' + s });
+      const rest = {};
+      for (const k in R) {
+        const b = R[k]; if (!b) continue;
+        const q = wq(b), n = next[k] && R[next[k]];
+        let d = n ? wp(n).sub(wp(b)) : new V3(0, 1, 0).applyQuaternion(q);
+        if (k === 'hips' && R.spine1 && R.spine3) d = wp(R.spine3).sub(wp(b));
+        d.normalize();
+        const u = /^foot/.test(k) ? upW.clone() : fwd.clone();
+        rest[k] = { q, d, u, len: n ? wp(n).distanceTo(wp(b)) : 0.15 };
+      }
+      // colores por músculo: cada vértice toma el músculo según su hueso principal y su posición
+      const g = skinned.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+      const roleOf = new Map(); for (const k in R) if (R[k]) roleOf.set(R[k], k);
+      const roleUp = b => { while (b) { if (roleOf.has(b)) return roleOf.get(b); b = b.parent; } return null; };
+      const boneRole = bones.map(b => {
+        const r = roleOf.get(b); if (r) return r;
+        const n = norm(b.name);
+        if (/shoulder|clavicle/.test(n)) return 'shoulder' + (/l$|left/.test(n) ? 'L' : 'R');
+        if (/pelvis/.test(n)) return 'hips';
+        return roleUp(b);
+      });
+      const col = new Float32Array(pos.count * 3), sk = new T.Color(C.skin), hl1 = new T.Color(C.hl), hl2c = new T.Color(C.hl2);
+      const v = new V3(), hipH = wp(R.hips);
+      skinned.updateMatrixWorld(true);
+      for (let i = 0; i < pos.count; i++) {
+        let bi = 0, bw = -1; for (let c = 0; c < 4; c++) { const w = sw.getComponent(i, c); if (w > bw) { bw = w; bi = si.getComponent(i, c); } }
+        const role = boneRole[bi] || '', base = role.replace(/[LR]$/, ''), side = role.endsWith('L') ? 1 : -1;
+        v.fromBufferAttribute(pos, i).applyMatrix4(skinned.matrixWorld);
+        let mus = null;
+        const rr = rest[role] || { d: upW, len: 0.15 }, b = R[role] || bones[bi];
+        if (b) {
+          const rel = v.clone().sub(wp(b)), t = rel.dot(rr.d) / (rr.len || 0.1), fr = rel.dot(fwd), lat = rel.dot(left) * side;
+          if (base === 'thigh') mus = t < 0.15 && fr < 0 ? 'glutes' : fr > 0.01 ? (t < 0.3 ? 'hipflex' : 'quads') : lat < -0.01 && Math.abs(fr) < 0.04 ? 'adductors' : 'hams';
+          else if (base === 'shin') mus = fr < 0 ? 'calves' : 'tib';
+          else if (base === 'upper') mus = t < 0.28 ? 'delts' : fr > 0 ? 'biceps' : 'triceps';
+          else if (base === 'fore' || base === 'hand') mus = base === 'fore' ? 'forearm' : null;
+          else if (base === 'shoulder') mus = lat > 0.04 ? 'delts' : 'upperback';
+          else if (base === 'neck' || base === 'head') mus = base === 'neck' ? 'neck' : null;
+          else if (base === 'hips' || base === 'spine1') mus = fr > 0 ? (v.y > hipH.y ? 'abs' : 'hipflex') : (v.y < hipH.y + 0.04 ? 'glutes' : 'lowback');
+          else if (base === 'spine2') mus = fr > 0 ? 'abs' : (Math.abs(rel.dot(left)) > 0.08 ? 'lats' : 'lowback');
+          else if (base === 'spine3') mus = fr > 0 ? (t > 0.15 ? 'chest' : 'abs') : (Math.abs(rel.dot(left)) > 0.07 ? 'lats' : 'upperback');
+        }
+        const lv = mus && Ms[mus], c = lv ? (lv < 1 ? hl2c : hl1) : sk;
+        col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      }
+      g.setAttribute('color', new T.BufferAttribute(col, 3));
+      root.traverse(o => { if (o.isMesh) { o.material = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.55, metalness: 0 }); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+      const grp = new T.Group(); grp.add(root); grp.scale.setScalar(scale); S.scene.add(grp);
+      Object.assign(MODEL, { ok: true, grp, R, rest, fwd, left });
+      body.visible = false;
+      return true;
+    }
+    const qa = new Q(), qb = new Q(), qp = new Q();
+    function aim(k, dT, uT) {
+      const b = MODEL.R[k], r = MODEL.rest[k]; if (!b || !r || dT.lengthSq() < 1e-6) return;
+      basisQ(dT, uT, qa); basisQ(r.d, r.u, qb); qa.multiply(qb.invert()).multiply(r.q);       // rotación nueva en el mundo
+      b.parent.getWorldQuaternion(qp); b.quaternion.copy(qp.invert().multiply(qa));
+      b.updateMatrixWorld(true);
+    }
+    function poseModel(J) {
+      const M = MODEL; M.grp.position.set(0, 0, 0); M.grp.updateMatrixWorld(true);
+      const hip = V2(J.hip, 0), shc = V2(J.shc, 0), up = shc.clone().sub(hip);
+      const tf = front ? FWD : D2(J.n);
+      for (const k of ['hips', 'spine1', 'spine2', 'spine3']) aim(k, up, tf);
+      const hd = V2(J.head, 0), nk = V2(J.neck, 0), hu = hd.clone().sub(nk);
+      aim('neck', hu, tf); aim('head', hu, tf);
+      const leftT = new V3().crossVectors(up, tf);
+      for (const i of [1, 2]) {
+        const s = PT(J, 'S' + i).sub(shc).dot(leftT) > 0 ? 'L' : 'R';
+        const Sh = PT(J, 'S' + i), E = PT(J, 'el' + i), W = PT(J, 'wr' + i), Hd = PT(J, 'hd' + i);
+        const ua = antOf(J['S' + i], J['el' + i]), fa = antOf(J['el' + i], J['wr' + i]);
+        aim('upper' + s, E.clone().sub(Sh), ua); aim('fore' + s, W.clone().sub(E), fa);
+        const hv = Hd.clone().sub(W); if (hv.lengthSq() > 0.5) aim('hand' + s, hv, fa);
+        const H = PT(J, 'H' + i), K = PT(J, 'kn' + i), An = PT(J, 'an' + i);
+        const ls = PT(J, 'H' + i).sub(hip).dot(leftT) > 0 ? 'L' : 'R';
+        aim('thigh' + ls, K.clone().sub(H), antOf(J['H' + i] || J.hip, J['kn' + i]));
+        aim('shin' + ls, An.clone().sub(K), antOf(J['kn' + i], J['an' + i]));
+        let to, fu;
+        if (front) { to = new V3(0, -0.3, 1); fu = new V3(0, 1, 0); }
+        else { const u = [J['to' + i][0] - J['he' + i][0], J['to' + i][1] - J['he' + i][1]], l = Math.hypot(...u) || 1; to = PT(J, 'to' + i).sub(An); fu = D2([u[1] / l, -u[0] / l]); }
+        aim('foot' + ls, to, fu);
+      }
+      // la cadera del modelo queda en la cadera de la animación
+      const hp = M.R.hips.getWorldPosition(new V3());
+      M.grp.position.copy(hip.clone().sub(hp)); M.grp.updateMatrixWorld(true);
+    }
+    if (T.GLTFLoader) new T.GLTFLoader().load(MODEL_URL, gl => { try { setupModel(gl); } catch (e) { console.warn('SM3D modelo', e); } }, undefined, () => { });
+
     // ---- implementos (reutiliza mallas cada cuadro)
     const PG = { cyl: new T.CylinderGeometry(1, 1, 1, 20), hex: new T.CylinderGeometry(1, 1, 1, 6), disc: new T.CylinderGeometry(1, 1, 1, 36), sph: sphG, box: new T.BoxGeometry(1, 1, 1) };
     const pool = {}, used = {};
@@ -492,7 +624,7 @@
       const k = 1 - Math.pow(0.0015, dt);
       cam.yaw += (cam.ty - cam.yaw) * k; cam.pitch += (cam.tp - cam.pitch) * k; cam.dist += (cam.td - cam.dist) * k;
       const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph), J = joints(R.J);
-      gripFix(J, R.tpl); poseBody(J); poseProps(J, R.tpl, P.clock);
+      gripFix(J, R.tpl); if (MODEL.ok) poseModel(J); else poseBody(J); poseProps(J, R.tpl, P.clock);
       placeCam();
       S.renderer.render(S.scene, S.cam);
     }

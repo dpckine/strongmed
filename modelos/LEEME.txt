@@ -1,0 +1,2 @@
+cuerpo.glb: cuerpo masculino base con esqueleto, de Orange Juice Games / BoQsc (github.com/BoQsc/Godot-3D-Male-Base-Mesh).
+Licencia: CC0 1.0 (dominio publico). Modelo de prueba: se reemplazara por uno musculoso (MakeHuman o con licencia).

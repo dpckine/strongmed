@@ -204,6 +204,7 @@
       metal: std(C.metal, 0.3, 0.85), plate: std(C.plate, 0.55, 0.3), pad: std(C.pad, 0.75, 0.05), padDark: std(C.padDark, 0.7, 0.2), cable: std(C.cable, 0.5, 0.5),
       band: std(C.band, 0.6, 0), wood: std(C.wood, 0.7, 0), teal: std(C.teal, 0.7, 0), ball: std(C.ball, 0.6, 0.05), rope: std(C.rope, 0.85, 0), orange: std(C.orange, 0.6, 0)
     };
+    MAT.wall = std(C.padDark, 0.8, 0.1); MAT.wall.transparent = true; MAT.wall.opacity = 0.55; MAT.wall.depthWrite = false;
     const body = new T.Group(), props = new T.Group(); S.scene.add(body); S.scene.add(props);
     const mesh = (g, m, parent) => { const o = new T.Mesh(g, typeof m === 'string' ? MAT[m] : m); o.matrixAutoUpdate = false; o.castShadow = true; o.receiveShadow = true; (parent || body).add(o); return o; };
     const hlMat = k => Ms[k] ? (Ms[k] < 1 ? MAT.hl2 : MAT.hl) : null;
@@ -542,7 +543,7 @@
     const HELD = /^(barbell|db|kb|stick|cable|handle)$/;
     function heldHands(J, tpl) {
       const h = {};
-      for (const o of tpl.props || []) {
+      for (const o of tpl.props3 || tpl.props || []) {
         if (!HELD.test(o.type) || o.band) continue;
         if (o.type === 'barbell') { let bp = null; try { bp = A.at(J, o.at || 'wr1'); } catch (e) { } if (bp) for (const i of [1, 2]) if (J['wr' + i] && d2(J['wr' + i], bp) <= 16) h[i] = 1; continue; }
         const a = o.type === 'cable' ? (o.to || 'hd1') : (o.at || 'hd1'); if (typeof a !== 'string') continue;
@@ -628,7 +629,10 @@
       },
       // de frente el cajón queda detrás (como respaldo) para no tapar el cuerpo
       box: (J, o) => front ? boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 34, 'pad', 8) : boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 38, 'pad'),
-      wall: (J, o) => boxS([o.x + (o.w || 8) / 2, (FLOOR - 40) / 2], o.w || 8, FLOOR + 40, 130, 'padDark'),
+      // pared: semitransparente y corrida hacia el lado contrario a la cámara para no tapar el cuerpo
+      wall: (J, o) => boxS([o.x + (o.w || 8) / 2, (FLOOR - 40) / 2], o.w || 8, FLOOR + 40, 110, 'wall', front ? 0 : -38),
+      // paralelas para fondos: dos barras a los lados del cuerpo
+      pbars: (J, o) => { for (const z of [-23, 23]) { cyl(V2([o.x1, o.y], z), V2([o.x2, o.y], z), 2, 'metal'); for (const x of [o.x1 + 4, o.x2 - 4]) cyl(V2([x, o.y], z), V2([x, FLOOR], z), 2.2, 'padDark'); } },
       table: (J, o) => { boxS([o.x + o.w / 2, o.y], o.w, 5, 40, 'pad'); for (const x of [o.x + 4, o.x + o.w - 4]) for (const z of [-15, 15]) cyl(V2([x, o.y], z), V2([x, FLOOR], z), 1.6, 'padDark'); },
       rails: (J, o) => { const p = at3(J, o.at, 'wr1').p; for (const z of [-24, 24]) { cyl(V2([p[0], p[1] + 2], z), V2([p[0], FLOOR], z), 1.6, 'padDark'); cyl(V2([p[0] - 22, p[1] + 2], z), V2([p[0] + 22, p[1] + 2], z), 1.8, 'metal'); } },
       twistball: (J, o) => { const c = [(J.hd1[0] + J.hd2[0]) / 2 + 3, (J.hd1[1] + J.hd2[1]) / 2 - 1]; sph(V2(c), 7 + 2 * (J.p.bs ?? 1), 'ball'); },
@@ -700,7 +704,7 @@
     };
     function poseProps(J, tpl, Tm) {
       for (const k in used) used[k] = 0;
-      for (const o of tpl.props || []) { const f = PROP3[o.type]; if (f) { try { f(J, o, Tm); } catch (e) { } } }
+      for (const o of tpl.props3 || tpl.props || []) { const f = PROP3[o.type]; if (f) { try { f(J, o, Tm); } catch (e) { } } }
       for (const k in pool) for (let i = used[k] || 0; i < pool[k].length; i++) pool[k][i].visible = false;
     }
 
@@ -712,8 +716,10 @@
     box.expandByScalar(8); box.min.y = Math.min(box.min.y, 0);
     const ctr = box.getCenter(new T.Vector3()), size = box.getSize(new T.Vector3());
     const rad = Math.max(size.y, Math.hypot(size.x, size.z) * 0.85) * 0.54 + 6;
-    const VIEWS = front ? { front: 0, side: -90, back: 180, def: 28 } : { front: 0, side: -90, back: 180, def: -58 };
-    const cam = { yaw: VIEWS.def, pitch: 12, dist: rad / Math.tan(16 * Math.PI / 180), ty: VIEWS.def, tp: 12, td: 0 };
+    // cuerpo acostado o en plancha: cámara más de perfil y algo más alta para que se entienda la postura
+    const lying = !front && Math.abs(Math.cos((first.J.t || 180) * Math.PI / 180)) < 0.5, p0 = lying ? 20 : 12;
+    const VIEWS = front ? { front: 0, side: -90, back: 180, def: 28 } : { front: 0, side: -90, back: 180, def: lying ? -76 : -58 };
+    const cam = { yaw: VIEWS.def, pitch: p0, dist: rad / Math.tan(16 * Math.PI / 180), ty: VIEWS.def, tp: p0, td: 0 };
     cam.td = cam.dist; S.scene.fog.near = cam.dist * 1.4; S.scene.fog.far = cam.dist * 3.4;
     S.glow.scale.setScalar(Math.max(size.x, size.z) * 0.9 + 40); S.glow.position.x = ctr.x; S.glow.position.z = ctr.z;
     const sc = S.key.shadow.camera, R0 = rad * 1.6; sc.left = -R0; sc.right = R0; sc.top = R0; sc.bottom = -R0; sc.near = 1; sc.far = rad * 8; sc.updateProjectionMatrix();

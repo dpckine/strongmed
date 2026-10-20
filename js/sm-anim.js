@@ -914,6 +914,7 @@
   add('legpress', 'Prensa de piernas', {
     base: { x: 72, y: 150, t: 222, h: -10, H1: [80, 158], F1: [112, 108], F2: [108, 110], pf: true, f1: 30, f2: 30 },
     props: [{ type: 'pad', a: [34, 104], b: [62, 152], w: 10 }, { type: 'pad', a: [56, 160], b: [96, 160], w: 8 }, { type: 'platform', at: J => A.mv(J.an1, 30, 6), a: 125 }, { type: 'pad', a: [60, 164], b: [40, 184], w: 4 }],
+    props3: [{ type: 'pad', a: [25, 109], b: [53, 157], w: 6 }, { type: 'pad', a: [56, 165], b: [96, 165], w: 6 }, { type: 'platform', at: J => A.mv(J.an1, 30, 6), a: 125 }, { type: 'pad', a: [60, 168], b: [40, 184], w: 4 }],
     frames: [{}, { F1: [140, 82], F2: [136, 84] }]
   });
   add('hack', 'Hack squat', {
@@ -933,7 +934,7 @@
   });
   add('leg_curl_seated', 'Curl femoral sentado', {
     base: { x: 82, y: 118, t: 186, pf: false, l1: 90, k1: 86, H1: [96, 116] },
-    props: [seat, { type: 'pad', a: [62, 126], b: [56, 72], w: 8 }, { type: 'roller', at: J => A.mv(J.an1, J.k1 + 90, 6), r: 5 }, { type: 'pad', a: [96, 112], b: [112, 112], w: 6 }],
+    props: [seat, { type: 'pad', a: [62, 126], b: [56, 72], w: 8 }, { type: 'roller', at: J => A.mv(J.an1, J.k1 - 90, 6), r: 5 }, { type: 'pad', a: [96, 112], b: [112, 112], w: 6 }],
     frames: [{}, { k1: -6 }]
   });
   add('leg_curl_lying', 'Curl femoral tumbado', {
@@ -1314,7 +1315,7 @@
   });
   add('dips', 'Fondos en paralelas', {
     base: { x: 100, y: 102, t: 176, H1: [106, 104], e1s: -1, pf: false, l1: 20, k1: -50 },
-    props: [{ type: 'pad', a: [94, 106], b: [126, 106], w: 4 }, { type: 'pad', a: [122, 106], b: [122, 184], w: 3 }],
+    props: [{ type: 'pad', a: [94, 106], b: [126, 106], w: 4 }, { type: 'pad', a: [122, 106], b: [122, 184], w: 3 }], props3: [{ type: 'pbars', x1: 84, x2: 130, y: 106 }],
     frames: [{}, { x: 94, y: 130, t: 162 }]
   });
   add('dips_bench', 'Fondos en banco', {
@@ -1395,7 +1396,7 @@
     props: DB, frames: [{}, { a1: -50, e1: -40, us1: 0.7, fs1: 0.7 }]
   });
   add('reverse_fly_front', 'Pájaros (vista frontal)', {
-    base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: -18, e1: -12 },
+    base: { view: 'front', x: 100, y: 99, t: 180, sh: -22, F1: [112, AY], a1: -18, e1: -12 },
     props: DBF, frames: [{}, { a1: 86, e1: 90 }]
   });
   add('rear_delt_machine', 'Pájaros en máquina (reverse pec deck)', {
@@ -1772,7 +1773,7 @@
     frames: [{ d: 0.5 }, { H1: [100, 170], H2: [102, 168], bs: 1, t: 218, d: 0.9 }, { d: 0.5 }, { H1: [94, 160], H2: [92, 161], bs: 0, t: 226, d: 0.9 }], free: true, dur: 2.8
   });
   add('landmine_twist', 'Landmine twist / rainbows', {
-    base: { view: 'front', x: 100, y: 99, t: 180, F1: [124, AY], F2: [76, AY], a1: 150, e1: 150, a2: 150, e2: 150 },
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [124, AY], F2: [76, AY], a1: 150, e1: 150, a2: 150, e2: 150, us1: 0.6, fs1: 0.6, us2: 0.6, fs2: 0.6 },
     props: [{ type: 'landmine', pivot: [100, 184], at: J => [(J.hd1[0] + J.hd2[0]) / 2, (J.hd1[1] + J.hd2[1]) / 2] }],
     frames: [{ a1: 140, e1: 140, a2: 140, e2: 140 }, { a1: -140, e1: -140, a2: -140, e2: -140 }]
   });
@@ -1851,8 +1852,8 @@
     frames: [{}, { H1: [70, 90], t: 176 }], pulse: true
   });
   add('cross_arm_stretch', 'Estiramiento de hombro cruzando el brazo', {
-    base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: 92, e1: 92, H2: [118, 68] },
-    frames: [{ a1: 80, e1: 80 }, { a1: 64, e1: 64 }], pulse: true
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: -84, e1: -84, us1: 0.85, fs1: 0.85, H2: [92, 62] },
+    frames: [{ a1: -84, e1: -84 }, { a1: -96, e1: -96 }], pulse: true
   });
   add('triceps_stretch', 'Estiramiento de tríceps sobre la cabeza', {
     base: S({ a1: 172, e1: -10, H2: [96, 40] }),
@@ -1880,7 +1881,7 @@
     frames: [{}, { l1: 165, k1: 70, l2: 160, k2: 40 }], pulse: true
   });
   add('butterfly_stretch', 'Estiramiento de aductores (mariposa)', {
-    base: { view: 'front', x: 100, y: 166, t: 180, l1: 62, k1: 160, l2: -62, k2: -160, ts1: 0.95, pf: false, H1: [110, 178] },
+    base: { view: 'front', x: 100, y: 166, t: 180, l1: 72, k1: -80, l2: -72, k2: 80, ts1: 0.75, ss1: 0.75, ts2: 0.75, ss2: 0.75, pf: false, H1: [106, 174] },
     frames: [{ t: 180 }, { t: 186, y: 167 }], pulse: true
   });
   add('lying_twist', 'Rotación lumbar acostado', {

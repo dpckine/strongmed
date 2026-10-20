@@ -169,6 +169,12 @@
     const fd = p.pf === false ? 85 : 78;
     if (out.f1 === undefined) out.f1 = fd;
     if (out.f2 === undefined) out.f2 = ('l2' in p || p.F2) ? fd : out.f1;
+    // vista lateral: si la extremidad lejana copia a la cercana que va a un apoyo (mano o pie fijos),
+    // sigue copiándola en la mezcla; sus ángulos quedan aparte solo para transiciones con poses que sí los definen
+    if (p.view !== 'front') {
+      if (!('a2' in p) && !p.H2 && !p.h2 && (p.H1 || p.h1)) { out._a2 = out.a2; out._e2 = out.e2; delete out.a2; delete out.e2; }
+      if (!('l2' in p) && !p.F2 && p.F1) { out._l2 = out.l2; out._k2 = out.k2; delete out.l2; delete out.k2; }
+    }
     if (p.view === 'front') {      // en frontal se conservan los objetivos de pie (rodilla proyectada)
       if (p.F1) { delete out.l1; delete out.k1; }
       if (p.F2 || (p.F1 && !('l2' in p))) { delete out.l2; delete out.k2; }
@@ -177,6 +183,10 @@
   }
   const SCALE = /^(us|fs|ts|ss)[12]$/;
   function mix(A, B, u) {
+    for (const k of ['a2', 'e2', 'l2', 'k2']) {
+      if (A[k] === undefined && B[k] !== undefined && A['_' + k] !== undefined) A = Object.assign({}, A, { [k]: A['_' + k] });
+      if (B[k] === undefined && A[k] !== undefined && B['_' + k] !== undefined) B = Object.assign({}, B, { [k]: B['_' + k] });
+    }
     const out = {};
     const keys = new Set([...Object.keys(A), ...Object.keys(B)]);
     for (const k of keys) {

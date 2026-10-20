@@ -3205,9 +3205,9 @@ window.sheetPro = id => { const x=S.pros.find(y=>y.id===id)||{org:'sm', activo:t
   <div class="grid2"><label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="pr-r" value="${esc(ag.rut||'')}"></label><label class="field"><span class="lbl">Link de pago</span><input class="inp" id="pr-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label></div>
   <label class="check"><input type="checkbox" id="pr-d" ${ag.disponible?'checked':''}><span>Aparece como profesional disponible para agendar</span></label>
   <label class="check"><input type="checkbox" id="pr-a" ${x.activo!==false?'checked':''}><span>Cuenta activa (puede ingresar)</span></label>
-  <button class="btn pri block" onclick="guardarPro(${q(x.id||'')})">Guardar</button>${x.id?`<button class="btn danger block" onclick="borrarPro(${q(x.id)})">${ic('trash','s')} Eliminar</button>`:''}</div>`); };
-window.sheetAgendaBuiltin = id => { const ag=agendaOf(id);
-  sheet(`<h2 class="disp h2">${esc(ag.nombre)}</h2><div class="stack" style="margin-top:16px">${agendaFields(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(id)})">Guardar</button></div>`); };
+  <button class="btn pri block" onclick="guardarPro(${q(x.id||'')})">Guardar</button>${x.id?`<button class="btn sec block" onclick="sheetAgendaBuiltin(${q(x.id)})">${ic('sliders','s')} Color, centros, pago y servicios</button>`:''}${x.id?`<button class="btn danger block" onclick="borrarPro(${q(x.id)})">${ic('trash','s')} Eliminar</button>`:''}</div>`); };
+window.sheetAgendaBuiltin = id => { const px=S.pros.find(y=>y.id===id), ag=agendaOf(id)||{id, nombre:px?.nombre||'', titulo:px?.titulo||'', orgs:px?.org==='all'?['sm','kah']:[px?.org||'sm'], servicio:px?.esp==='odonto'?'oral':'', disponible:false, slots:{}, bloqueos:[], centros:[], domicilio:true, online:false};
+  sheet(`<h2 class="disp h2">${esc(ag.nombre)}</h2><div class="stack" style="margin-top:16px">${agendaFields(ag)}${esPrinc(id)?'':svcChecks(ag)}<button class="btn pri block" onclick="guardarAgendaCampos(${q(id)})">Guardar</button></div>`); };
 const agendaFields = ag => `<label class="field"><span class="lbl">Mi nombre (como lo ven los pacientes y en los informes)</span><input class="inp" id="ag-n" value="${esc(ag.nombre||'')}" placeholder="Ej: David Ponce Caro"></label>
   <label class="field"><span class="lbl">Título en la firma de informes</span><input class="inp" id="ag-tf" value="${esc(ag.tituloFirma??(servAg(ag)==='oral'?'Cirujano dentista Dra.':'Kinesiólogo'))}" placeholder="Kinesiólogo · Klgo. · Dra. (o vacío)"></label>
   <label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
@@ -3241,6 +3241,7 @@ window.guardarAgendaCampos = async id => { const ag={...(agendaOf(id)||myAgenda(
   if($('#ag-pm')){ ag.pagoModo=$('#ag-pm').dataset.v||'link'; ag.transf={titular:val('ag-tt'), rut:val('ag-trut'), banco:val('ag-tb'), tipo:val('ag-ttc'), numero:val('ag-tn'), email:val('ag-tm')};
     if(ag.pagoModo==='transferencia' && (!ag.transf.titular || !ag.transf.banco || !ag.transf.numero)) return toast('Completa titular, banco y N° de cuenta para recibir transferencias','err'); }
   if($('#ag-col')) ag.color=$('#ag-col').dataset.v||ag.color||'';
+  if($('#svc-ck')) ag.servIds=[...document.querySelectorAll('#svc-ck input:checked')].map(i=>i.value);
   const nn=val('ag-n'); if($('#ag-n') && !nn) return toast('Escribe tu nombre','err'); if(nn) ag.nombre=nn; if($('#ag-tf')) ag.tituloFirma=val('ag-tf');
   if(nn && ag.id===S.pro.id){ S.pro.nombre=nn; if(S.pro.builtin){ try{ const k='sm_pro_'+S.pro.usuario, o=JSON.parse(localStorage.getItem(k))||{}; o.nombre=nn; localStorage.setItem(k, JSON.stringify(o)); }catch(e){} } }
   Object.assign(ag,{whatsapp:val('ag-w'), titulo:val('ag-t'), rut:val('ag-r'), contacto:val('ag-c'), disponible:$('#ag-d').checked, centros, domicilio:$('#ag-dom').checked, online:$('#ag-onl').checked});
@@ -3902,7 +3903,14 @@ function placesOf(a, conServicio){ const out=(a?.centros||[]).map(c=>({code:'C:'
 const MODS = [['centro','Centro','pin'],['domicilio','Domicilio','home'],['online','Online','video']];
 const modOf = l => String(l||'').startsWith('C:') ? 'centro' : l==='Domicilio' ? 'domicilio' : l==='Online' ? 'online' : '';
 const modsDe = a => MODS.filter(([m])=> m==='centro' ? (a?.centros||[]).length : m==='domicilio' ? a && a.domicilio!==false : !!(a && a.online));
-const svcsAg = a => (a?.servicios||[]).filter(x=>x && x.nombre);
+/* Servicios y valores: los definen solo los 3 perfiles principales; cada profesional marca cuáles de esos hace (servIds) */
+const PRINC = ['b-sm','b-kah','b-oral'];
+const esPrinc = id => PRINC.includes(id);
+const svcCat = a => { const ids = servAg(a)==='oral' ? ['b-oral'] : (a?.orgs||['sm']).map(o=>o==='kah'?'b-kah':'b-sm'); return [...new Set(ids)].flatMap(id=>(agendaOf(id)?.servicios||[]).filter(x=>x && x.nombre)); };
+const svcsAg = a => { if(!a) return []; if(esPrinc(a.id) || !Array.isArray(a.servIds)) return (a.servicios||[]).filter(x=>x && x.nombre); return svcCat(a).filter(x=>a.servIds.includes(x.id)); };
+const svcModTxt = x => Object.entries(x.mod||{}).filter(([,v])=>v&&v.on).map(([m,v])=>`{centro:'Centro',domicilio:'Domicilio',online:'Online'}[m]||m}${+v.precio?' '+clpTxt(v.precio):''}`).join(' · ');
+const svcChecks = a => { const cat=svcCat(a), on=svcsAg(a).map(x=>x.id);
+  return `<div class="field"><span class="lbl">Servicios que hace</span><div class="list" id="svc-ck" style="margin-top:6px">${cat.map(x=>`<label class="li"><input type="checkbox" value="${esc(x.id)}" ${on.includes(x.id)?'checked':''}><div class="grow"><div class="b sm">${esc(x.nombre)}</div><div class="xs muted">${esc(svcModTxt(x))}</div></div></label>`).join('')||'<div class="empty">Aún no hay servicios definidos por StrongMed / Kin At Home.</div>'}</div><div class="xs muted" style="margin-top:6px">Los servicios y sus valores los definen los perfiles principales.</div></div>`; };
 const svcsLugar = (a, l) => svcsAg(a).filter(x=>x.mod?.[modOf(l)]?.on);
 const clpTxt = n => +n ? '$'+(+n).toLocaleString('es-CL') : '';
 const SVC_SUGERIDOS = { kine:[['Evaluación kinésica','Primera evaluación y plan de tratamiento',60],['Sesión kinésica','Rehabilitación y kinesiología',45],['Entrenamiento personalizado','Fuerza y acondicionamiento',60],['Recovery','Masoterapia, movilidad y recuperación',45]],
@@ -4111,7 +4119,7 @@ function vAgendaPro(){
   const ags=agendasVisibles(); if(!S.agId || !ags.find(a=>a&&a.id===S.agId)) S.agId=(ags.find(a=>a&&a.id===S.pro.id)||ags[0])?.id;
   const a=ags.find(x=>x.id===S.agId)||myAgenda(), seg=S.agSeg||'dia';
   const sol=allCitas().filter(x=>x.c.estado==='solicitada');
-  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas'], ...(canEditAgenda(a)?[['servicios','Servicios y precios'],['ingresos','Ingresos']]:[])];
+  const segs=[['dia','Día'],['mes','Mes'],['solicitudes',`Solicitudes${sol.length?` (${sol.length})`:''}`],['disponibilidad','Disponibilidad'],['horas','Horas trabajadas'], ...(canEditAgenda(a)?[['servicios',esPrinc(a.id)?'Servicios y precios':'Mis servicios'],['ingresos','Ingresos']]:[])];
   S.after.push(async()=>{ if(!S._jorLoaded){ S._jorLoaded=true; await loadJornadas(); if(S.proTab==='agenda') keepScroll(render); } });
   const body = seg==='dia'?agDia(a): seg==='mes'?agMes(a): seg==='solicitudes'?agSolicitudes(sol): seg==='disponibilidad'?agDisp(a): seg==='ingresos'&&canEditAgenda(a)?agIngresos(a): seg==='servicios'&&canEditAgenda(a)?agServicios(a): agHoras(a);
   return `${proHead('Mi agenda','Agenda',`<button class="btn pri sm" onclick="sheetCita(null,null,{proId:${q(a.id)}})">${ic('plus','s')} Agendar</button>`)}<div class="stack">
@@ -4186,7 +4194,9 @@ window.guardarDisp = async (silencio) => { if(!S.dispDraft) return; const ags=ag
   if(await saveAgenda(a)){ S.dispDraft=null; if(silencio===true){ keepScroll(render); const st=$('#disp-st'); if(st) st.innerHTML=`${ic('check','s')} <b style="color:var(--green)">Guardado</b> · se repite todas las semanas.`; } else { toast('Disponibilidad guardada'); render(); } } };
 
 /* servicios y precios del profesional */
-function agServicios(a){ if(!S.svDraft || S.svDraft.id!==a.id) S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a)))};
+window.guardarServElegidos = async id => { const a={...(agendaOf(id)||myAgenda())}; a.servIds=[...document.querySelectorAll('#svc-ck input:checked')].map(i=>i.value); if(await saveAgenda(a)){ toast('Servicios guardados'); keepScroll(render); } };
+function agServicios(a){ if(!esPrinc(a.id)) return `<section class="card stack">${svcChecks(a)}<button class="btn pri block" onclick="guardarServElegidos(${q(a.id)})">${ic('check','s')} Guardar servicios</button></section>`;
+  if(!S.svDraft || S.svDraft.id!==a.id) S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a)))};
   const L=S.svDraft.list, ms=modsDe(a), oral=servAg(a)==='oral', tr=a.pagoModo==='transferencia';
   return `<div class="note">${ic('info','s')}<span>Define qué servicios ofreces y en qué modalidad. Cada modalidad tiene su propio valor${tr?'':' y link de pago'} (por ejemplo, domicilio y online cuestan distinto). Las personas solo verán lo que actives aquí.${tr?' Cobras por <b>transferencia</b>: la persona verá el valor y tus datos bancarios.':''}</span></div>
   ${ms.length?'':`<div class="note">${ic('alert','s')}<span>Primero activa tus lugares de atención (centros, domicilio u online) en Ajustes → Mi agenda.</span></div>`}

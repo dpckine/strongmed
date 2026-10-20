@@ -470,6 +470,10 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .wo-time.sm{font-size:18px}
 .jex{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .thumb.sm{width:40px;height:40px;flex:none}
+.csw{width:32px;height:32px;border-radius:10px;background:var(--c);border:3px solid transparent;flex:none}.csw.on{border-color:var(--tx)}
+.csq{display:inline-block;width:12px;height:12px;border-radius:4px;background:var(--c);flex:none;vertical-align:middle}
+.jtile,.jcard,.jfila{border-left:4px solid var(--c,transparent)}
+.tbox{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13.5px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}.tbox span{color:var(--mu)}.tbox b{word-break:break-all}
 .tmin{width:70px;min-height:38px;padding:6px 8px;text-align:center;flex:none}
 .otras3{gap:8px}.otras3 .btn{flex-direction:column;gap:4px;padding:10px 4px;height:auto;min-height:58px;white-space:normal;line-height:1.15;font-size:12.5px;text-align:center}
 .sring{position:relative;width:120px;height:120px;flex:none}
@@ -1777,7 +1781,7 @@ const presPlanN = (p, id) => presSes(p).filter(s=>s.planId===id).length;
 const presPlanTxt = (p, pl) => pl ? `${pl.nombre} · ${presPlanN(p,pl.id)}${+pl.meta?`/${pl.meta}`:''} sesiones` : '';
 const presSetIni = e => ({kg:e.kg||e.kilos||'', reps:String(e.reps||'').includes('-')?String(parseInt(e.reps)||''):(e.reps||''), rir:String(e.rir||'').includes('-')?String(parseInt(e.rir)||''):(e.rir||''), done:false, t:0});
 function presNueva(p, rid, tipo, planId, abre){ const x=spOf(p), r=x.rutinas.find(y=>String(y.id)===String(rid));
-  x.enCurso={id:String(uid()), inicio:Date.now(), rid:r?r.id:'', titulo:r?r.titulo:'Sesión presencial', tipo:tipo||'entrenamiento', planId:planId||'', abre, pro:S.role==='pro'?S.pro.nombre:(p.klgo||''),
+  x.enCurso={id:String(uid()), inicio:Date.now(), rid:r?r.id:'', titulo:r?r.titulo:'Sesión presencial', tipo:tipo||'entrenamiento', planId:planId||'', abre, pro:S.role==='pro'?S.pro.nombre:(p.klgo||''), proId:S.role==='pro'?S.pro.id:'',
     ex:(r?r.ejercicios:[]).map(e=>({n:e.ejercicio, exId:e.exId||'', rest:parseRest(e.descanso), obj:presObj(e), sets:Array.from({length:Math.max(1,Math.min(10,+e.series||3))},()=>presSetIni(e))}))};
   p.presActiva=true; return x.enCurso; }
 /* Si llega una versión remota de la misma sesión, conserva la serie editada más reciente de cada lado */
@@ -1873,35 +1877,51 @@ function jorHoy(){ const td=todayISO(), m={}, add=(p,o)=>{ if(!p || isPending(p)
   allCitas().filter(x=>toISO(x.c.fecha)===td && ['confirmada','realizada'].includes(x.c.estado) && enSalaL(x.c.lugar)).forEach(x=>add(x.p,{hora:x.c.hora||'', cita:x.c, ...(x.c.sala?{sala:x.c.sala}:{})}));
   jorManual().forEach(k=>add(prof(k),{manual:true}));
   people().forEach(p=>{ if(presEnCurso(p)) add(p,{}); const f=presSes(p).filter(s=>s.fecha===td); if(f.length) add(p,{fin:f}); });
-  return Object.values(m).sort((a,b)=>String(a.hora||'99').localeCompare(String(b.hora||'99')) || String(a.p.nombre).localeCompare(String(b.p.nombre))); }
+  return Object.values(m).sort((a,b)=>(jorMio(b)-jorMio(a)) || String(a.hora||'99').localeCompare(String(b.hora||'99')) || String(a.p.nombre).localeCompare(String(b.p.nombre))); }
 /* en Sala solo atenciones en el centro: no online ni a domicilio */
 const enSalaL = l => l!=='Online' && l!=='Domicilio';
+/* cada profesional ve primero a quienes atiende; el color dice quién atiende a cada uno. Cierra la sesión quien la inició, a quien él le dé permiso, o el administrador */
+const jorProId = x => { const w=presEnCurso(x.p); return w ? (w.proId||'') : (x.cita?.proId||''); };
+const jorMio = x => jorProId(x)===S.pro?.id ? 1 : 0;
+const presPuede = w => !!w && (S.role!=='pro' || isAdmin() || !w.proId || w.proId===S.pro.id || (w.permisos||[]).includes(S.pro.id));
+const presDueno = w => !!w && S.role==='pro' && (isAdmin() || w.proId===S.pro.id);
+const presNoPuede = w => { if(presPuede(w)) return false; toast(`Solo ${w.pro||'quien inició la sesión'} puede cerrarla, o darte permiso`,'err'); return true; };
 /* tipo con que parte: el que se eligió al agendar hoy, o el de su plan/perfil */
 const salaTipo = p => { const c=(p.citas||[]).find(c=>toISO(c.fecha)===todayISO() && c.sala && enSalaL(c.lugar) && c.estado!=='cancelada'); return c ? c.sala : presTipoDef(p); };
 /* en qué va: primer ejercicio con series sin marcar */
 function jorAhora(w){ const i=w.ex.findIndex(e=>e.sets.some(s=>!s.done)); if(i<0) return w.ex.length?'Completó todas las series':(w.ter||[]).length?presTerTxt(w.ter):'Sin ejercicios aún';
   const e=w.ex[i], j=e.sets.findIndex(s=>!s.done), s=e.sets[j]; return `${e.n} · serie ${j+1}/${e.sets.length}${s.kg?` · ${s.kg} kg`:''}`; }
 function jorTile(p){ const k=keyOf(p), w=presEnCurso(p), c=presCuenta(w);
-  return `<button class="jtile" onclick="jorIr(${q(k)})"><div class="row between" style="gap:6px"><span class="b sm trunc">${esc(first(p.nombre))}</span><span class="wo-time xs" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span></div>
+  return `<button class="jtile" style="--c:${proColor(w.proId)}" title="${esc(w.pro||'')}" onclick="jorIr(${q(k)})"><div class="row between" style="gap:6px"><span class="b sm trunc">${csq(w.proId)} ${esc(first(p.nombre))}</span><span class="wo-time xs" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span></div>
     <span class="badge ${presTipoC(w.tipo)}" style="margin-top:6px">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span><div class="xs" style="margin-top:6px;min-height:2.4em">${esc(jorAhora(w))}</div>
     <div class="bar" style="margin-top:6px;height:5px"><i style="width:${c.t?c.d/c.t*100:0}%"></i></div><div class="xs muted b" style="margin-top:4px">${c.d}/${c.t} series</div></button>`; }
 function jorFila(x){ const p=x.p, k=x.k, w=presEnCurso(p), r=presSig(p);
   const est = w ? `<span class="badge ${presTipoC(w.tipo)}">En sala</span>` : x.fin ? `<span class="badge">✓ Terminó</span>` : '';
   const sub = w ? esc(jorAhora(w)) : x.fin ? x.fin.map(s=>`${esc(s.titulo||'Sesión')} · ${esc(PRES_TIPO[s.tipo]||'')}`).join(' + ') : `${esc(PRES_TIPO[salaTipo(p)]||'')} · ${r?`le toca ${esc(r.titulo)}`:salaTipo(p)==='rehabilitacion'?`sesión ${rehabDone(p)+1}${rehabPlan(p)?' de '+rehabPlan(p):''}`:'sin rutina presencial'}`;
   const acc = w ? `<button class="btn sec sm" onclick="jorIr(${q(k)})">Anotar</button>` : `<button class="btn ${x.fin?'ghost':'pri'} sm" onclick="${r||salaTipo(p)==='rehabilitacion'?`presIniciarYa(${q(k)})`:`sheetPresIniciar(${q(k)})`}">${ic('play','s')} ${x.fin?'Otra':'Iniciar'}</button>${r&&!x.fin?`<button class="ibtn" onclick="sheetPresIniciar(${q(k)})" aria-label="Elegir rutina y tipo">${ic('sliders','s')}</button>`:''}`;
-  return `<div class="li jfila ${w?'on':''}"><span class="jhora">${x.hora?esc(x.hora):'—'}</span><div class="grow" style="min-width:0"><div class="row" style="gap:6px"><span class="b sm trunc">${esc(p.nombre)}</span>${est}</div><div class="xs muted trunc">${sub}</div></div>${acc}${x.manual&&!w&&!x.fin?`<button class="ibtn" onclick="jorQuitar(${q(k)})" aria-label="Quitar de la jornada">${ic('x','s')}</button>`:''}</div>`; }
+  return `<div class="li jfila ${w?'on':''}" style="--c:${proColor(jorProId(x))}"><span class="jhora">${x.hora?esc(x.hora):'—'}</span><div class="grow" style="min-width:0"><div class="row" style="gap:6px"><span class="b sm trunc">${esc(p.nombre)}</span>${est}</div><div class="xs muted trunc">${sub}</div></div>${acc}${x.manual&&!w&&!x.fin?`<button class="ibtn" onclick="jorQuitar(${q(k)})" aria-label="Quitar de la jornada">${ic('x','s')}</button>`:''}</div>`; }
 function jorCard(p){ const k=keyOf(p), d=presDom(k), w=presEnCurso(p), col=!!(S.jCol||{})[k], pl=presPlanes(p).find(y=>y.id===w.planId), c=presCuenta(w);
-  let h=`<section class="card jcard on" id="jc-${d}"><button class="row jhead" onclick="jorToggle(${q(k)})">${avatar(p,40)}<div class="grow" style="min-width:0;text-align:left"><div class="b trunc">${esc(p.nombre)}</div><div class="xs muted trunc">${esc(w.titulo)}</div></div><span class="badge acc" title="Series hechas">${c.d}/${c.t}</span><span class="wo-time sm" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span>${ic('chevr','s chev '+(col?'':'rot'))}</button>`;
+  let h=`<section class="card jcard on" style="--c:${proColor(w.proId)}" id="jc-${d}"><button class="row jhead" onclick="jorToggle(${q(k)})">${avatar(p,40)}<div class="grow" style="min-width:0;text-align:left"><div class="b trunc">${esc(p.nombre)}</div><div class="xs muted trunc">${esc(w.titulo)}${w.pro?` · ${csq(w.proId)} ${esc(w.pro)}`:''}</div></div><span class="badge acc" title="Series hechas">${c.d}/${c.t}</span><span class="wo-time sm" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span>${ic('chevr','s chev '+(col?'':'rot'))}</button>`;
   if(col) return h+'</section>';
   return h+`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px"><span class="badge ${presTipoC(w.tipo)}">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span>${pl?`<span class="badge">${esc(presPlanTxt(p,pl))}</span>`:''}</div>
       <div class="bar" style="margin-top:10px"><i id="psb-${d}" style="width:${c.t?c.d/c.t*100:0}%"></i></div><div class="xs muted b" style="margin-top:6px" id="pss-${d}">${c.d} de ${c.t} series</div>
       ${presEditorHTML(p,true)}
-      <div class="grid2" style="margin-top:12px"><button class="btn sec sm" onclick="psGuardar(${q(k)})">${ic('check','s')} Guardar</button><button class="btn pri sm" onclick="sheetPresFin(${q(k)})">Finalizar sesión</button></div>
-      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn ghost sm" onclick="sheetPresIniciar(${q(k)})">${ic('swap','s')} Cambiar rutina o tipo</button><button class="btn ghost sm" onclick="openPersona(${q(k)},'presencial')">${ic('user','s')} Ficha</button><button class="btn ghost sm" style="color:var(--red)" onclick="presCancelar(${q(k)})">Descartar</button></div></section>`; }
+      ${presPuede(w)?`<div class="grid2" style="margin-top:12px"><button class="btn sec sm" onclick="psGuardar(${q(k)})">${ic('check','s')} Guardar</button><button class="btn pri sm" onclick="sheetPresFin(${q(k)})">Finalizar sesión</button></div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn ghost sm" onclick="sheetPresIniciar(${q(k)})">${ic('swap','s')} Cambiar rutina o tipo</button><button class="btn ghost sm" onclick="openPersona(${q(k)},'presencial')">${ic('user','s')} Ficha</button>${presDueno(w)?`<button class="btn ghost sm" onclick="sheetPresPerm(${q(k)})">${ic('user','s')} Permisos</button>`:''}<button class="btn ghost sm" style="color:var(--red)" onclick="presCancelar(${q(k)})">Descartar</button></div>`
+      :`<button class="btn sec sm block" style="margin-top:12px" onclick="psGuardar(${q(k)})">${ic('check','s')} Guardar</button><div class="note" style="margin-top:8px">${ic('info','s')}<span>La atiende <b>${esc(w.pro||'otro profesional')}</b>. Puedes anotar, pero solo quien la inició puede finalizarla o darte permiso.</span></div>`}</section>`; }
+/* el profesional que inició la sesión (o el administrador) da permiso a otros para cerrarla */
+const prosSala = () => { const m={}; [...BUILTIN_PROS, ...(S.pros||[]), ...(S.agendas||[])].forEach(x=>{ if(x && x.id && !m[x.id] && x.esp!=='odonto' && x.servicio!=='oral' && x.rol!=='oral' && x.activo!==false) m[x.id]={id:x.id, nombre:x.nombre||x.id}; }); return Object.values(m); };
+window.sheetPresPerm = k => { const p=prof(k), w=presEnCurso(p); if(!w || !presDueno(w)) return; const ps=prosSala().filter(x=>x.id!==w.proId);
+  sheet(`<h2 class="disp h2">Permisos</h2><p class="muted sm" style="margin-top:6px">Quién más puede finalizar, cambiar o descartar la sesión de ${esc(first(p.nombre))}. Todos pueden verla y anotar.</p>
+  <div class="list" style="margin-top:12px">${ps.map(x=>`<label class="li"><input type="checkbox" class="pp" value="${esc(x.id)}" ${(w.permisos||[]).includes(x.id)?'checked':''}>${csq(x.id)}<span class="grow b sm">${esc(x.nombre)}</span></label>`).join('')||'<div class="empty">No hay otros profesionales</div>'}</div>
+  <button class="btn pri block" style="margin-top:12px" onclick="presPermGuardar(${q(k)})">Guardar permisos</button>`); };
+window.presPermGuardar = async k => { const w=presW(k); if(!w) return; w.permisos=[...document.querySelectorAll('.pp:checked')].map(i=>i.value); if(await presSave(k,true)){ closeSheet(); toast('Permisos guardados'); keepScroll(render); } };
 function vJornada(){ S.after.push(()=>{ loadLib(); watchJornada(); });
   const L=jorHoy(), sala=L.filter(x=>presEnCurso(x.p)).map(x=>x.p), nF=L.filter(x=>x.fin&&!presEnCurso(x.p)).length, porT={}; sala.forEach(p=>{ const t=presEnCurso(p).tipo||'entrenamiento'; porT[t]=(porT[t]||0)+1; });
   let h=`${proHead(fmtLong(new Date()),'Sala',`<button class="btn pri sm" onclick="sheetPresAgregar()">${ic('plus','s')} Agregar</button>`)}<div class="stack">`;
   h+=`<div class="grid3"><div class="stat acc"><b>${sala.length}</b><span>En sala</span></div><div class="stat"><b>${L.length-sala.length-nF}</b><span>Por llegar</span></div><div class="stat"><b>${nF}</b><span>Terminaron</span></div></div>`;
+  const pros=[...new Map(sala.map(p=>{ const w=presEnCurso(p); return [w.proId||'', w.pro||'Sin asignar']; })).entries()];
+  if(pros.length>1 || (pros[0] && pros[0][0]!==S.pro.id)) h+=`<div class="row" style="gap:12px;flex-wrap:wrap">${pros.map(([id,n])=>`<span class="xs b row" style="gap:6px">${csq(id)} ${esc(id===S.pro.id?'Tú':n)}</span>`).join('')}</div>`;
   h+=`<div class="sec-t"><h2>La sala ahora</h2><span class="xs muted">${Object.entries(porT).map(([t,n])=>`${n} ${esc(PRES_TIPO[t]||t).toLowerCase()}`).join(' · ')}</span></div>`;
   h+= sala.length ? `<div class="jsala">${sala.map(jorTile).join('')}</div>` : `<div class="card empty">No hay nadie entrenando en este momento.</div>`;
   h+=`<div class="sec-t"><h2>Agenda de hoy (${L.length})</h2><button class="xs b acc-t" onclick="sheetPresAgregar('agendar')">+ Agendar hora</button></div>`;
@@ -1936,13 +1956,13 @@ window.piTerBox = () => { const b=$('#pi-ter'); if(!b) return; if(S.piTipo!=='re
 window.piTerT = n => { S.piTer=S.piTer||[]; if(!n){ n=(prompt('Nombre de la terapia')||'').trim(); if(!n) return; } const i=S.piTer.findIndex(y=>y.n===n); if(i>-1) S.piTer.splice(i,1); else S.piTer.push({n, min:''}); piTerBox(); };
 window.piTerM = (n,v) => { const x=(S.piTer||[]).find(y=>y.n===n); if(x) x.min=v; };
 const piTerSet = w => { if(S.piTipo!=='recovery' || !w) return; w.ter=(S.piTer||[]).map(x=>({n:x.n, min:x.min||''})); w.terT=Date.now(); };
-window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p);
+window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p); if(w && presNoPuede(w)) return;
   if(w && String(val('pi-r'))===String(w.rid||'')){ w.tipo=S.piTipo||w.tipo; w.planId=val('pi-p'); piTerSet(w); if(await save(p)){ closeSheet(); toast('Sesión actualizada'); keepScroll(render); } return; }
   if(w && presCuenta(w).d && !confirm('Ya hay series marcadas en esta sesión. ¿Cambiar la rutina igual? Se pierden.')) return;
-  const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; if(w.ter) nw.ter=w.ter; } piTerSet(nw);
+  const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; nw.pro=w.pro; nw.proId=w.proId||''; nw.permisos=w.permisos||[]; if(w.ter) nw.ter=w.ter; } piTerSet(nw);
   if(await save(p)){ closeSheet(); S.jSel=k; toast(w?'Rutina cambiada':`Sesión de ${first(p.nombre)} iniciada`); pgo('jornada'); } };
-window.presCancelar = async k => { const p=prof(k); if(!p || !confirm(`¿Descartar la sesión en curso de ${first(p.nombre)}? No se guardará.`)) return; spOf(p).enCurso=null; p.presActiva=false; if(await save(p)){ toast('Sesión descartada'); keepScroll(render); } };
-window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w) return; const c=presCuenta(w), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'); S.piTipo=w.tipo||'entrenamiento'; S.rpe=null; const rh=S.piTipo==='rehabilitacion', n=rehabDone(p)+1, m=rehabPlan(p);
+window.presCancelar = async k => { const p=prof(k); if(!p || presNoPuede(presEnCurso(p)) || !confirm(`¿Descartar la sesión en curso de ${first(p.nombre)}? No se guardará.`)) return; spOf(p).enCurso=null; p.presActiva=false; if(await save(p)){ toast('Sesión descartada'); keepScroll(render); } };
+window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w || presNoPuede(w)) return; const c=presCuenta(w), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'); S.piTipo=w.tipo||'entrenamiento'; S.rpe=null; const rh=S.piTipo==='rehabilitacion', n=rehabDone(p)+1, m=rehabPlan(p);
   sheet(`<h2 class="disp h2">Finalizar sesión</h2><p class="muted sm" style="margin-top:6px">${esc(p.nombre)} · ${c.d} de ${c.t} series · ${fmtClock((Date.now()-w.inicio)/1000)}</p><div class="stack" style="margin-top:14px">
     <div><div class="lbl">Tipo de sesión</div><div class="pills" id="pf-t" style="margin-top:6px">${Object.entries(PRES_TIPO).filter(([t])=>t!=='mixto').map(([t,l])=>`<button class="pill ${S.piTipo===t?'on':''}" data-t="${t}" onclick="salaFinTipo('${t}')">${l}</button>`).join('')}</div></div>
     <div id="pf-rh" class="stack ${rh?'':'hidden'}"><div class="note">${ic('steth','s')}<span><b>Sesión ${n}${m?` de ${m}`:''}</b> de su programa de rehabilitación${p.diagnostico?` · ${esc(p.diagnostico)}`:''}. Queda en su registro clínico.</span></div>
@@ -1955,7 +1975,7 @@ window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w) return; c
       <label class="check"><input type="checkbox" id="pf-v" checked><span>${esc(first(p.nombre))} puede ver este comentario</span></label></div>
     <button class="btn pri block" onclick="presFinalizar(${q(k)})">${ic('check','s')} Finalizar y guardar</button></div>`); };
 window.salaFinTipo = t => { S.piTipo=t; document.querySelectorAll('#pf-t .pill').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); const rh=t==='rehabilitacion'; $('#pf-rh')?.classList.toggle('hidden',!rh); $('#pf-en')?.classList.toggle('hidden',rh); };
-window.presFinalizar = async k => { const p=prof(k), x=spOf(p), w=x.enCurso; if(!w) return; const tipo=S.piTipo||w.tipo||'entrenamiento', rh=tipo==='rehabilitacion';
+window.presFinalizar = async k => { const p=prof(k), x=spOf(p), w=x.enCurso; if(!w || presNoPuede(w)) return; const tipo=S.piTipo||w.tipo||'entrenamiento', rh=tipo==='rehabilitacion';
   const ej=w.ex.map(e=>{ const use=e.sets.filter(s=>s.done); if(!use.length) return null; const top=use.reduce((a,b)=> est1RM(+b.kg||0,+b.reps||0) > est1RM(+a.kg||0,+a.reps||0) ? b : a);
     return {ejercicio:e.n, exId:e.exId||'', series:use.length, reps:top.reps||'', kilos:top.kg||0, rir:top.rir||'', sets:use.map(s=>({kg:s.kg,reps:s.reps,rir:s.rir}))}; }).filter(Boolean);
   const evo=val('pf-ev'); if(rh && !evo) return toast('Escribe la evolución de la sesión','err');
@@ -3191,7 +3211,8 @@ window.sheetAgendaBuiltin = id => { const ag=agendaOf(id);
 const agendaFields = ag => `<label class="field"><span class="lbl">Mi nombre (como lo ven los pacientes y en los informes)</span><input class="inp" id="ag-n" value="${esc(ag.nombre||'')}" placeholder="Ej: David Ponce Caro"></label>
   <label class="field"><span class="lbl">Título en la firma de informes</span><input class="inp" id="ag-tf" value="${esc(ag.tituloFirma??(servAg(ag)==='oral'?'Cirujano dentista Dra.':'Kinesiólogo'))}" placeholder="Kinesiólogo · Klgo. · Dra. (o vacío)"></label>
   <label class="field"><span class="lbl">Especialidad visible</span><input class="inp" id="ag-t" value="${esc(ag.titulo||'')}"></label>
-  <div class="grid2"><label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="ag-r" value="${esc(ag.rut||'')}"></label><label class="field"><span class="lbl">Link de pago</span><input class="inp" id="ag-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label></div>
+  <label class="field"><span class="lbl">RUT (firma de informes)</span><input class="inp" id="ag-r" value="${esc(ag.rut||'')}"></label>
+  ${agPagoFields(ag)}
   <label class="field"><span class="lbl">WhatsApp para pacientes (opcional)</span><input class="inp" id="ag-w" inputmode="tel" value="${esc(ag.whatsapp||'')}" placeholder="+56 9 …"></label>
   <label class="field"><span class="lbl">Link fijo de videollamada (opcional)</span><input class="inp" id="ag-v" value="${esc(ag.linkVideo||'')}" placeholder="https://meet.google.com/… (vacío = sala Jitsi nueva)"></label>
   <label class="field"><span class="lbl">Pie del informe (dirección · correo · teléfono)</span><input class="inp" id="ag-c" value="${esc(ag.contacto||'')}" placeholder="Concepción · contacto@… · +569…"></label>
@@ -3200,11 +3221,26 @@ const agendaFields = ag => `<label class="field"><span class="lbl">Mi nombre (co
   <label class="check"><input type="checkbox" id="ag-dom" ${ag.domicilio!==false?'checked':''}><span>Atiendo a domicilio</span></label>
   <label class="check"><input type="checkbox" id="ag-onl" ${ag.online?'checked':''}><span>Atiendo online (videollamada)</span></label>
   <label class="check"><input type="checkbox" id="ag-d" ${ag.disponible!==false?'checked':''}><span>Aparezco como profesional disponible para agendar</span></label>`;
+/* pago anticipado: cada profesional elige link de pago (uno por servicio) o transferencia con sus datos; y su color en la Sala */
+const TIPO_CTA = ['Cuenta corriente','Cuenta vista / CuentaRUT','Cuenta de ahorro'];
+const agPagoFields = ag => { const m=ag.pagoModo||'link', t=ag.transf||{}, cl=ag.color||'';
+  return `<div class="field"><span class="lbl">Cómo te pagan por adelantado (domicilio y online)</span><div class="pills" id="ag-pm" data-v="${m}" style="margin-top:6px">${[['link','Link de pago'],['transferencia','Transferencia']].map(([v,l])=>`<button type="button" class="pill ${m===v?'on':''}" onclick="agPm('${v}')">${l}</button>`).join('')}</div></div>
+  <div id="ag-pm-link" class="stack ${m==='link'?'':'hidden'}" style="gap:6px"><label class="field"><span class="lbl">Link de pago general</span><input class="inp" id="ag-pg" value="${esc(ag.pagoLink||'')}" placeholder="https://mpago.la/…"></label><div class="xs muted">Si cada servicio tiene otro valor, pon un link por servicio en Ajustes › Servicios. Este se usa cuando el servicio no tiene link propio.</div></div>
+  <div id="ag-pm-tr" class="stack ${m==='transferencia'?'':'hidden'}" style="gap:8px"><div class="xs muted">La persona verá el monto del servicio y estos datos para transferir.</div>
+    <div class="grid2"><label class="field"><span class="lbl">Titular</span><input class="inp" id="ag-tt" value="${esc(t.titular||'')}"></label><label class="field"><span class="lbl">RUT titular</span><input class="inp" id="ag-trut" value="${esc(t.rut||'')}"></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">Banco</span><input class="inp" id="ag-tb" value="${esc(t.banco||'')}" placeholder="Banco Estado, BCI…"></label><label class="field"><span class="lbl">Tipo de cuenta</span><select class="inp" id="ag-ttc">${TIPO_CTA.map(x=>`<option ${t.tipo===x?'selected':''}>${x}</option>`).join('')}</select></label></div>
+    <div class="grid2"><label class="field"><span class="lbl">N° de cuenta</span><input class="inp" id="ag-tn" inputmode="numeric" value="${esc(t.numero||'')}"></label><label class="field"><span class="lbl">Correo para el comprobante</span><input class="inp" id="ag-tm" inputmode="email" value="${esc(t.email||'')}"></label></div></div>
+  <div class="field"><span class="lbl">Mi color en la Sala</span><div class="row" id="ag-col" data-v="${esc(cl)}" style="gap:8px;flex-wrap:wrap;margin-top:6px">${PRO_COLS.map(c=>`<button type="button" class="csw ${cl===c?'on':''}" style="--c:${c}" onclick="agCol('${c}')" aria-label="Color"></button>`).join('')}</div></div>`; };
+window.agPm = v => { const b=$('#ag-pm'); b.dataset.v=v; b.querySelectorAll('.pill').forEach((x,i)=>x.classList.toggle('on', (i?'transferencia':'link')===v)); $('#ag-pm-link').classList.toggle('hidden', v!=='link'); $('#ag-pm-tr').classList.toggle('hidden', v!=='transferencia'); };
+window.agCol = c => { const b=$('#ag-col'); b.dataset.v=c; b.querySelectorAll('.csw').forEach(x=>x.classList.toggle('on', x.style.getPropertyValue('--c')===c)); };
 const cenRow = c => `<div class="exrow cenrow" data-id="${esc(c.id||'')}"><div class="row" style="gap:8px"><input class="inp c-n" placeholder="Nombre del centro (ej: MDkine)" value="${esc(c.nombre||'')}"><button type="button" class="ibtn red" onclick="this.closest('.cenrow').remove()">${ic('x','s')}</button></div><input class="inp c-d" placeholder="Dirección" value="${esc(c.direccion||'')}"></div>`;
 window.cenRow = cenRow;
 window.guardarAgendaCampos = async id => { const ag={...(agendaOf(id)||myAgenda())};
   for(const [k,f] of [['pagoLink','ag-pg'],['linkVideo','ag-v']]){ const v=val(f); if(v && !/^https?:\/\//.test(v)) return toast('Los links deben empezar con https://','err'); ag[k]=v; }
   const centros=[...document.querySelectorAll('.cenrow')].map(e=>({id:e.dataset.id||('c'+uid().toString(36)), nombre:e.querySelector('.c-n').value.trim(), direccion:e.querySelector('.c-d').value.trim()})).filter(c=>c.nombre);
+  if($('#ag-pm')){ ag.pagoModo=$('#ag-pm').dataset.v||'link'; ag.transf={titular:val('ag-tt'), rut:val('ag-trut'), banco:val('ag-tb'), tipo:val('ag-ttc'), numero:val('ag-tn'), email:val('ag-tm')};
+    if(ag.pagoModo==='transferencia' && (!ag.transf.titular || !ag.transf.banco || !ag.transf.numero)) return toast('Completa titular, banco y N° de cuenta para recibir transferencias','err'); }
+  if($('#ag-col')) ag.color=$('#ag-col').dataset.v||ag.color||'';
   const nn=val('ag-n'); if($('#ag-n') && !nn) return toast('Escribe tu nombre','err'); if(nn) ag.nombre=nn; if($('#ag-tf')) ag.tituloFirma=val('ag-tf');
   if(nn && ag.id===S.pro.id){ S.pro.nombre=nn; if(S.pro.builtin){ try{ const k='sm_pro_'+S.pro.usuario, o=JSON.parse(localStorage.getItem(k))||{}; o.nombre=nn; localStorage.setItem(k, JSON.stringify(o)); }catch(e){} } }
   Object.assign(ag,{whatsapp:val('ag-w'), titulo:val('ag-t'), rut:val('ag-r'), contacto:val('ag-c'), disponible:$('#ag-d').checked, centros, domicilio:$('#ag-dom').checked, online:$('#ag-onl').checked});
@@ -3890,6 +3926,10 @@ async function loadAgendas(){
 }
 async function loadJornadas(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'jornadas')); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.jornadas=a; }catch(e){ console.warn(e); } }
 const agendaOf = id => S.agendas.find(a=>a.id===id);
+/* color de cada profesional en la Sala (lo elige en Ajustes; si no, uno fijo según su id) */
+const PRO_COLS = ['#22c55e','#3b82f6','#f97316','#a855f7','#ec4899','#eab308','#14b8a6','#ef4444'];
+const proColor = id => agendaOf(id)?.color || (id ? PRO_COLS[[...String(id)].reduce((a,c)=>a+c.charCodeAt(0),0)%PRO_COLS.length] : 'var(--line2)');
+const csq = id => `<i class="csq" style="--c:${proColor(id)}"></i>`;
 function myAgenda(){ if(!S.pro) return null; return agendaOf(S.pro.id) || {id:S.pro.id, nombre:S.pro.nombre, titulo:S.pro.titulo||'', orgs:S.pro.org==='all'?['sm','kah']:[S.pro.org], disponible:false, slots:{}, bloqueos:[], centros:[], domicilio:true, online:false}; }
 async function saveAgenda(a){ const i=S.agendas.findIndex(x=>x.id===a.id); if(i>-1) S.agendas[i]=a; else S.agendas.push(a); return fsSet('agendas', a.id, a); }
 const hasSlots = a => !!(a && a.slots && Object.values(a.slots).some(o=>o && Object.keys(o).length));
@@ -3984,9 +4024,14 @@ function buildCita(p){
     estado:'solicitada', creadaPor:'persona', creada:Date.now(), pago: efectivo ? {requerido:false, medio:'efectivo', compromiso:Date.now(), estado:'pendiente'} : (pago?{...pago, medio:'transferencia'}:null)};
 }
 function pagoBox(c, own){ if(esCentroCita(c) && !(c.pago && c.pago.requerido)) return `<div class="note">${ic('info','s')}<span>${PAGO_CENTRO}</span></div>`; if(pagoEfe(c)) return `<div class="note">${ic('info','s')}<span>Pago en <b>efectivo</b> al inicio de la sesión, antes de comenzar la atención.</span></div>`; if(!pagoPend(c)) return c.pago?.requerido?`<div class="xs b" style="color:var(--green)">${ic('check','s')} Pago recibido</div>`:'';
-  const lk=safeUrl(c.pago.link||agendaOf(c.proId)?.pagoLink||'');
-  return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:(c.lugar==='Online'?'Para confirmar tu atención online debes pagar la sesión.':'Para confirmar tu atención a domicilio debes pagar la primera sesión.')}${!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>
-  <div class="row" style="gap:8px">${lk?`<a class="btn pri sm" href="${lk}" target="_blank" rel="noopener">Ir a pagar</a>`:''}${own && c.pago.estado!=='informado'?`<button class="btn sec sm" onclick="yaPague(${c.id})">Ya pagué</button>`:''}</div></div>`; }
+  const ag=agendaOf(c.proId), tr=ag?.pagoModo==='transferencia', t=ag?.transf||{}, okT=tr && t.numero, lk=tr?'':safeUrl(c.pago.link||ag?.pagoLink||''), mo=pagoMonto(c);
+  const datos=okT?`<div class="tbox">${mo?`<span>Monto</span><b>${clp(mo)}</b>`:''}${[['Titular',t.titular],['RUT',t.rut],['Banco',t.banco],['Cuenta',t.tipo],['N°',t.numero],['Correo',t.email]].filter(x=>x[1]).map(([l,v])=>`<span>${l}</span><b>${esc(v)}</b>`).join('')}</div>`:'';
+  return `<div class="note" style="flex-direction:column;gap:8px">${ic('info','s')}<span>${c.servicio==='oral'?`<b>${ORAL_PAGO}</b> ${ORAL_PRECIO}`:(c.lugar==='Online'?'Para confirmar tu atención online debes pagar la sesión.':'Para confirmar tu atención a domicilio debes pagar la primera sesión.')}${tr?(okT?' Transfiere a estos datos y envía el comprobante.':` ${esc(c.pro||'Tu profesional')} te enviará los datos de transferencia.`):!lk?` ${esc(c.pro||'Tu profesional')} te enviará el link de pago.`:''}${c.pago.estado==='informado'?' <b>Informaste tu pago: el profesional lo revisará.</b>':''}</span>${datos}
+  <div class="row" style="gap:8px;flex-wrap:wrap">${lk?`<a class="btn pri sm" href="${lk}" target="_blank" rel="noopener">Ir a pagar</a>`:''}${okT?`<button class="btn sec sm" onclick="copiarTransf(${q(c.proId)},${mo||0})">${ic('clip','s')} Copiar datos</button>`:''}${own && c.pago.estado!=='informado'?`<button class="btn ${okT?'pri':'sec'} sm" onclick="yaPague(${c.id})">${tr?'Ya transferí':'Ya pagué'}</button>`:''}</div></div>`; }
+/* monto del pago anticipado: el de la cita o el valor del servicio en esa modalidad */
+const pagoMonto = c => +c.precio || +c.pago?.monto || +(svcsAg(agendaOf(c.proId)).find(x=>x.id===c.servId)?.mod?.[modOf(c.lugar)]?.precio) || 0;
+window.copiarTransf = (id, mo) => { const t=agendaOf(id)?.transf||{}; const s=[mo?`Monto: ${clp(mo)}`:'', t.titular, t.rut, t.banco, t.tipo, t.numero, t.email].filter(Boolean).join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast('Datos copiados')).catch(()=>toast('No se pudo copiar','err')); };
 window.yaPague = async id => { const p=me(); const c=(p.citas||[]).find(x=>x.id===id); if(!c) return; c.pago.estado='informado'; await save(p); toast('Avisamos a tu profesional'); keepScroll(render); };
 
 /* ---- reservar sin cuenta (pantalla inicial) ---- */
@@ -4142,16 +4187,16 @@ window.guardarDisp = async (silencio) => { if(!S.dispDraft) return; const ags=ag
 
 /* servicios y precios del profesional */
 function agServicios(a){ if(!S.svDraft || S.svDraft.id!==a.id) S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a)))};
-  const L=S.svDraft.list, ms=modsDe(a), oral=servAg(a)==='oral';
-  return `<div class="note">${ic('info','s')}<span>Define qué servicios ofreces y en qué modalidad. Cada modalidad tiene su propio valor y link de pago (por ejemplo, domicilio y online cuestan distinto). Las personas solo verán lo que actives aquí.</span></div>
+  const L=S.svDraft.list, ms=modsDe(a), oral=servAg(a)==='oral', tr=a.pagoModo==='transferencia';
+  return `<div class="note">${ic('info','s')}<span>Define qué servicios ofreces y en qué modalidad. Cada modalidad tiene su propio valor${tr?'':' y link de pago'} (por ejemplo, domicilio y online cuestan distinto). Las personas solo verán lo que actives aquí.${tr?' Cobras por <b>transferencia</b>: la persona verá el valor y tus datos bancarios.':''}</span></div>
   ${ms.length?'':`<div class="note">${ic('alert','s')}<span>Primero activa tus lugares de atención (centros, domicilio u online) en Ajustes → Mi agenda.</span></div>`}
-  <div class="stack" id="sv-list">${L.map((x,i)=>svcCard(x,i,ms,oral)).join('')||`<div class="card empty">Aún no tienes servicios. Las personas verán los tipos de sesión generales.</div>`}</div>
+  <div class="stack" id="sv-list">${L.map((x,i)=>svcCard(x,i,ms,oral,tr)).join('')||`<div class="card empty">Aún no tienes servicios. Las personas verán los tipos de sesión generales.</div>`}</div>
   <div class="grid2"><button class="btn sec" onclick="svAdd()">${ic('plus','s')} Agregar servicio</button>${L.length?`<span></span>`:`<button class="btn sec" onclick="svSugeridos()">${ic('spark','s')} Cargar sugeridos</button>`}</div>
   <button class="btn pri block" onclick="guardarServicios()">${ic('check','s')} Guardar servicios</button>`; }
-const svcCard = (x,i,ms,oral) => `<section class="card stack sv" data-id="${esc(x.id)}"><div class="row" style="gap:6px"><input class="inp sv-n" placeholder="Nombre del servicio" value="${esc(x.nombre||'')}"><button class="ibtn red" onclick="svDel(${i})" aria-label="Quitar">${ic('trash','s')}</button></div>
+const svcCard = (x,i,ms,oral,tr) => `<section class="card stack sv" data-id="${esc(x.id)}"><div class="row" style="gap:6px"><input class="inp sv-n" placeholder="Nombre del servicio" value="${esc(x.nombre||'')}"><button class="ibtn red" onclick="svDel(${i})" aria-label="Quitar">${ic('trash','s')}</button></div>
   <div class="grid2"><input class="inp sv-d" placeholder="Descripción breve (opcional)" value="${esc(x.desc||'')}"><input class="inp sv-t" inputmode="numeric" placeholder="Duración (min)" value="${esc(x.dur||'')}"></div>
   ${ms.map(([m,l,icn])=>{ const v=x.mod?.[m]||{}; return `<div class="trow sv-m" data-m="${m}"><label class="check"><input type="checkbox" class="sv-on" ${v.on?'checked':''}><span><b style="color:var(--tx)">${ic(icn,'s')} ${l}</b>${m==='centro'&&!oral?' · se paga en el centro':''}</span></label>
-    <div class="${m==='centro'&&!oral?'':'g2'}" style="${m==='centro'&&!oral?'':'display:grid;grid-template-columns:1fr 1.6fr;gap:6px'}"><input class="inp sv-p" inputmode="numeric" placeholder="Valor $" value="${esc(v.precio||'')}">${m==='centro'&&!oral?'':`<input class="inp sv-l" placeholder="Link de pago (Mercado Pago, Flow…)" value="${esc(v.link||'')}">`}</div></div>`; }).join('')}</section>`;
+    <div class="${m==='centro'&&!oral||tr?'':'g2'}" style="${m==='centro'&&!oral||tr?'':'display:grid;grid-template-columns:1fr 1.6fr;gap:6px'}"><input class="inp sv-p" inputmode="numeric" placeholder="Valor $" value="${esc(v.precio||'')}">${m==='centro'&&!oral?'':tr?`<input type="hidden" class="sv-l" value="${esc(v.link||'')}">`:`<input class="inp sv-l" placeholder="Link de pago (Mercado Pago, Flow…)" value="${esc(v.link||'')}">`}</div></div>`; }).join('')}</section>`;
 function svCollect(){ S.svDraft.list=[...document.querySelectorAll('#sv-list .sv')].map(c=>{ const g=k=>c.querySelector(k)?.value.trim()||''; const mod={};
   c.querySelectorAll('.sv-m').forEach(r=>{ mod[r.dataset.m]={on:r.querySelector('.sv-on').checked, precio:parseInt(String(r.querySelector('.sv-p').value).replace(/\D/g,''))||'', link:(r.querySelector('.sv-l')?.value||'').trim()}; });
   return {id:c.dataset.id, nombre:g('.sv-n'), desc:g('.sv-d'), dur:parseInt(g('.sv-t'))||'', mod}; }); return S.svDraft.list; }
@@ -4875,7 +4920,7 @@ function vOralInicio(){
   <div class="sec-t"><h2>Pacientes de hoy</h2><button class="xs b acc-t" onclick="S.agSeg='dia';S.agDate=todayISO();pgo('agenda')">Agenda</button></div>
   ${hoy.length?`<div class="list">${hoy.map(({c,p})=>`<button class="li" onclick="openPersona(${q(keyOf(p))})"><div class="tbig">${esc(c.hora)}</div><div class="grow"><div class="b">${esc(p.nombre)}</div><div class="xs muted">${esc(c.tipo)} · ${esc(lugarLabel(c))}${pagoPend(c)?' · pago pendiente':''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`:`<div class="card empty">Sin pacientes con hora hoy.</div>`}
   ${sol.length?`<div class="sec-t"><h2>Solicitudes por confirmar</h2></div><div class="list">${sol.map(({c,p})=>`<button class="li" onclick="sheetCita(${q(keyOf(p))},${c.id})">${citaHTML(c,{who:p.nombre})}</button>`).join('')}</div>`:''}
-  ${!agendaOf(S.pro.id)?.pagoLink?`<div class="note">${ic('info','s')}<span>Agrega tu <b>link de pago</b> en Ajustes para que tus pacientes puedan pagar antes de confirmar su hora.</span></div>`:''}</div>`;
+  ${!(agendaOf(S.pro.id)?.pagoLink || agendaOf(S.pro.id)?.transf?.numero)?`<div class="note">${ic('info','s')}<span>Agrega tu <b>link de pago</b> o tus <b>datos de transferencia</b> en Ajustes para que tus pacientes puedan pagar antes de confirmar su hora.</span></div>`:''}</div>`;
 }
 function vNuevaOral(){
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Pacientes</button><h1 class="disp h1" style="margin-top:4px">Nuevo paciente</h1></header><div class="stack" style="max-width:660px">

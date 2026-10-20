@@ -855,7 +855,7 @@
     frames: [{}, { x: 84, y: 141, t: 156 }]
   });
   add('squat_goblet', 'Sentadilla goblet', {
-    base: S({ t: 178, h1: [-12, 11] }), props: [{ type: 'kb', at: 'hd1', up: false }],
+    base: S({ t: 178, h1: [-5, 10] }), props: [{ type: 'kb', at: 'hd1', up: false }],
     frames: [{}, { x: 82, y: 142, t: 150 }]
   });
   add('squat_bw', 'Sentadilla peso corporal', {
@@ -1527,7 +1527,7 @@
   });
   add('muscleup', 'Muscle-up', {
     base: { x: 100, y: 156, S: [102, 110], pf: false, l1: 30, k1: -40, H1: [104, 60] },
-    props: [{ type: 'pullbar', x: 104, y: 59 }],
+    props: [{ type: 'pullbar', x: 104, y: 59 }], lift3: 62,
     frames: [{ d: 0.5 }, { d: 1 }, { x: 98, y: 112, S: [106, 66], e1s: 1, d: 0.6  }, { x: 100, y: 96, S: [112, 52], e1s: -1, d: 0.6 }, { x: 102, y: 56, S: [104, 10], e1s: -1, d: 0.9 }, { x: 102, y: 56, S: [104, 10], d: 0.6 }], free: true, dur: 3.6
   });
   add('front_lever', 'Front lever', {
@@ -2126,7 +2126,7 @@
     frames: [{}, { a1: 30, e1: 60, a2: 150, e2: 160 }], dur: 3
   });
   add('sleeper', 'Sleeper stretch', {
-    base: { x: 104, y: 166, t: -90, pf: false, l1: 120, k1: 60, l2: 122, k2: 62, a1: 180, e1: 180, us1: 0.2, a2: 120, e2: 160 },
+    base: { x: 104, y: 166, t: -90, pf: false, l1: 120, k1: 60, l2: 122, k2: 62, a1: 180, e1: 180, us1: 0.2, a2: 120, e2: 160 }, roll3: 90,
     frames: [{}, { e1: 110 }], dur: 3
   });
   add('table_slide', 'Deslizamientos en mesa', {

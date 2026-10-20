@@ -186,7 +186,9 @@
     if (first.custom) return false;
     const front = first.front, cx = first.cx;
     const LAT = front ? new T.Vector3(0, 0, 1) : new T.Vector3(1, 0, 0);
-    const V2 = (p, z) => front ? new T.Vector3(p[0] - cx, FLOOR - p[1], z || 0) : new T.Vector3(-(z || 0), FLOOR - p[1], p[0] - cx);
+    // lift3: sube todo (cuerpo e implementos) sin despegar del suelo lo que está apoyado en él (p. ej. una barra alta)
+    const LIFT = tpl0.lift3 || 0, yOf = y => FLOOR - y + (LIFT && y < FLOOR - 0.5 ? LIFT : 0);
+    const V2 = (p, z) => front ? new T.Vector3(p[0] - cx, yOf(p[1]), z || 0) : new T.Vector3(-(z || 0), yOf(p[1]), p[0] - cx);
     const D2 = v => front ? new T.Vector3(v[0], -v[1], 0) : new T.Vector3(0, -v[1], v[0]);   // dirección 2D → 3D
     const FWD = new T.Vector3(0, 0, 1);
 
@@ -563,7 +565,7 @@
       return J;
     }
     function poseModel(J, tpl) {
-      const M = MODEL; M.grp.position.set(0, 0, 0); M.grp.updateMatrixWorld(true);
+      const M = MODEL; M.grp.position.set(0, 0, 0); M.grp.quaternion.identity(); M.grp.updateMatrixWorld(true);
       const held = tpl ? heldHands(J, tpl) : {}, hs = {};
       const hip = V2(J.hip, 0), shc = PT(J, 'shc'), up = shc.clone().sub(hip);
       const tf = front ? FWD : D2(J.n);
@@ -594,6 +596,14 @@
       // la cadera del modelo queda en la cadera de la animación
       const hp = M.R.hips.getWorldPosition(new V3());
       M.grp.position.copy(hip.clone().sub(hp)); M.grp.updateMatrixWorld(true);
+      // roll3: gira el cuerpo sobre el eje del tronco (p. ej. acostado de lado) y lo apoya en el suelo
+      const roll = tpl && tpl.roll3;
+      if (roll) {
+        const q = new Q().setFromAxisAngle(up.clone().normalize(), roll * Math.PI / 180);
+        M.grp.position.sub(hip).applyQuaternion(q).add(hip); M.grp.quaternion.premultiply(q); M.grp.updateMatrixWorld(true);
+        let lo = 1e9; for (const k of ['upperL', 'upperR', 'thighL', 'thighR']) if (M.R[k]) lo = Math.min(lo, M.R[k].getWorldPosition(new V3()).y);
+        M.grp.position.y += 9 - lo; M.grp.updateMatrixWorld(true);
+      }
       M.grip = {}; M.held = held; for (const i in hs) M.grip[i] = gripPt(hs[i]);
     }
     if (T.GLTFLoader) new T.GLTFLoader().load(MODEL_URL, gl => { try { setupModel(gl); } catch (e) { console.warn('SM3D modelo', e); } }, undefined, () => { });

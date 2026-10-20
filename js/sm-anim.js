@@ -1855,7 +1855,7 @@
   });
   add('plank_saw', 'Body saw', {
     base: plank([132, 156], [12, 179], { a1: 0, e1: 92, h: -6 }),
-    frames: [{}, plank([118, 156], [-2, 179], { h: -6 })]
+    frames: [{}, plank([125, 156], [5, 179], { h: -6 })]
   });
   add('side_plank', 'Plancha lateral', {
     base: { view: 'front', x: 108, y: 157, t: -112, pf: false, l1: 68, k1: 68, l2: 68, k2: 68, a2: 0, e2: -90, fs2: 0.6, a1: 158, e1: 158 },

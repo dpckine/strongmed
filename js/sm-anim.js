@@ -1299,9 +1299,9 @@
     frames: [{ f1: 70 }, { l1: 150, k1: 150, f1: 120 }]
   });
   add('heel_slide', 'Deslizamiento de talón', {
-    base: { x: 104, y: 175, t: -90, pf: false, l1: 92, k1: 92, l2: 92, k2: 92, a1: 92, e1: 92 },
+    base: { x: 104, y: 175, t: -90, pf: true, f1: 177, f2: 177, l1: 92, k1: 92, l2: 92, k2: 92, a1: 92, e1: 92 },
     props: [{ type: 'roller', at: J => [J.an1[0] + 4, 182], r: 3 }],
-    frames: [{}, { F1: [138, 178], pf: true }]
+    frames: [{}, { F1: [138, 178], f1: 100 }]
   });
   add('heel_prop', 'Extensión pasiva (heel prop)', {
     base: { x: 104, y: 175, t: -90, pf: false, l1: 88, k1: 92, l2: 90, k2: 90, a1: 92, e1: 92 },
@@ -1450,7 +1450,7 @@
     frames: [{}, { x: 94, y: 130, t: 162 }]
   });
   add('dips_bench', 'Fondos en banco', {
-    base: { x: 68, y: 124, t: 178, H1: [62, 134], e1s: -1, F1: [140, AY], F2: [136, AY], pf: true, f1: 50 },
+    base: { x: 68, y: 124, t: 178, H1: [62, 134], e1s: -1, F1: [140, 178], F2: [136, 178], pf: true, f1: 150, f2: 150 },
     props: [{ type: 'bench', a: [20, 140], b: [70, 140], legs: [26, 64] }],
     frames: [{}, { x: 72, y: 150 }]
   });

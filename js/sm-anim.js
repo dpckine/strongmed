@@ -1606,7 +1606,7 @@
     base: S({ F1: [104, AY], F2: [80, AY], H1: [150, 56] }),
     // cuerda con agarre neutro; termina con codos altos y abiertos a la altura del hombro y manos al lado de las orejas
     props: [{ type: 'tower', x: 176, top: 6, pulleys: [44] }, { type: 'cable', from: [176, 44], to: 'hd1', rope: true }],
-    frames: [{ fi: true }, { H1: null, a1: -40, us1: 0.3, e1: 175, fs1: 0.81, fi: true }]
+    frames: [{ fi: true }, { H1: null, a1: -30, us1: 0.38, e1: 172, fs1: 0.78, fi: true }]
   });
   add('y_raise', 'Y-raise', {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: 14, e1: 14 },

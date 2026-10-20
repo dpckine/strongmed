@@ -678,7 +678,9 @@
         const two = !front && o.fz === undefined && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
         // cuerda: el cable llega a un nudo y de ahí salen dos cabos, uno a cada mano
         if (two && o.rope) {
-          const k = [b.p[0] + (a.p[0] - b.p[0]) * 0.12, b.p[1] + (a.p[1] - b.p[1]) * 0.12], kn = V2(k, 0);
+          // nudo a 18 unidades delante de las manos: la cuerda pasa por delante de la cara, no a través de ella
+          const ab = Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1]) || 1, kf = Math.min(0.5, 18 / ab);
+          const k = [b.p[0] + (a.p[0] - b.p[0]) * kf, b.p[1] + (a.p[1] - b.p[1]) * kf], kn = V2(k, 0);
           for (const i of [1, 2]) { const h = at3(J, 'hd' + i); const hz = h.z || (i === 1 ? ZARM : -ZARM); cyl(kn, V2(h.p, hz), 1.3, 'rope'); sph(V2(h.p, hz), 1.8, 'rope'); }
           cyl(V2(a.p, a.z), kn, 0.7, 'cable'); return;
         }

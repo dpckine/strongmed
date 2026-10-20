@@ -439,6 +439,13 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .tbig{font-family:"Barlow Condensed",sans-serif;font-size:24px;font-weight:800;width:58px;flex:none;font-variant-numeric:tabular-nums}
 /* ---- pasos ---- */
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.jboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;align-items:start}
+@media (max-width:420px){ .jboard{grid-template-columns:1fr} }
+.jcard{scroll-margin-top:12px}.jcard.on{border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.jhead{width:100%;gap:10px}.jhead .chev{transition:transform .2s}.jhead .chev.rot{transform:rotate(90deg)}
+.wo-time.sm{font-size:18px}
+.jex{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.thumb.sm{width:40px;height:40px;flex:none}
 .otras3{gap:8px}.otras3 .btn{flex-direction:column;gap:4px;padding:10px 4px;height:auto;min-height:58px;white-space:normal;line-height:1.15;font-size:12.5px;text-align:center}
 .sring{position:relative;width:120px;height:120px;flex:none}
 .sring svg{width:100%;height:100%}
@@ -1764,12 +1771,12 @@ window.psAddEx = k => { const w=presW(k), inp=$(`#psn-${presDom(k)}`), n=inp?inp
   const x=libFind(n); w.ex.push({n, exId:x?x.i:'', rest:90, obj:'', sets:[{kg:'',reps:'',rir:'',done:false,t:Date.now()}]}); presSave(k,true); keepScroll(render); };
 window.psGuardar = async k => { if(await presSave(k,true)) toast('Cambios guardados'); };
 /* series de una sesión (la usan la persona y el profesional) */
-function presEditorHTML(p){ const k=keyOf(p), w=presEnCurso(p), d=presDom(k); if(!w) return '';
-  return `${w.ex.length?'':`<div class="card empty">Esta sesión aún no tiene ejercicios. Agrégalos abajo.</div>`}${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<section class="card"><div class="row" style="align-items:flex-start">${x?`<button class="thumb" style="background-image:url('${ejThumb(x)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="h3">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${e.obj?`Meta ${esc(e.obj)} · `:''}${pv?`Anterior: ${esc(pv)}`:'Primera vez'}</div></div><button class="ibtn" onclick="psDelEx(${q(k)},${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
+function presEditorHTML(p, cmp){ const k=keyOf(p), w=presEnCurso(p), d=presDom(k); if(!w) return ''; const box=cmp?'div class="jex"':'section class="card"', boxC=cmp?'div':'section';
+  return `${w.ex.length?'':`<div class="${cmp?'xs muted':'card empty'}" style="${cmp?'padding:10px 0':''}">Esta sesión aún no tiene ejercicios. Agrégalos abajo.</div>`}${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<${box}><div class="row" style="align-items:flex-start">${x?`<button class="thumb${cmp?' sm':''}" style="background-image:url('${ejThumb(x)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="${cmp?'b':'h3'}">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${e.obj?`Meta ${esc(e.obj)} · `:''}${pv?`Anterior: ${esc(pv)}`:'Primera vez'}</div></div><button class="ibtn" onclick="psDelEx(${q(k)},${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
     <div class="setrow head"><span>#</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span></div>
     ${e.sets.map((s,j)=>`<div class="setrow ${s.done?'done':''}" id="ps-${d}-${i}-${j}"><span class="sn">${j+1}</span><input inputmode="decimal" value="${esc(s.kg)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'kg',this.value)"><input inputmode="numeric" value="${esc(s.reps)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'reps',this.value)"><input inputmode="numeric" value="${esc(s.rir)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'rir',this.value)"><button class="chk" onclick="psToggle(${q(k)},${i},${j})" aria-label="Serie hecha">${ic('check')}</button></div>`).join('')}
-    <div class="row" style="margin-top:8px;gap:6px"><button class="btn ghost sm" onclick="psAddSet(${q(k)},${i})">${ic('plus','s')} Serie</button>${e.sets.length>1?`<button class="btn ghost sm" style="color:var(--mu)" onclick="psDelSet(${q(k)},${i})">Quitar última</button>`:''}</div></section>`; }).join('')}
-  <section class="card stack"><input class="inp" list="dl-ej" id="psn-${d}" placeholder="Buscar o escribir ejercicio…"><button class="btn sec block" onclick="psAddEx(${q(k)})">${ic('plus','s')} Añadir ejercicio</button></section>`; }
+    <div class="row" style="margin-top:8px;gap:6px"><button class="btn ghost sm" onclick="psAddSet(${q(k)},${i})">${ic('plus','s')} Serie</button>${e.sets.length>1?`<button class="btn ghost sm" style="color:var(--mu)" onclick="psDelSet(${q(k)},${i})">Quitar última</button>`:''}</div></${boxC}>`; }).join('')}
+  ${cmp?`<div class="row" style="gap:8px;margin-top:10px"><input class="inp" list="dl-ej" id="psn-${d}" placeholder="Añadir ejercicio…"><button class="btn sec" onclick="psAddEx(${q(k)})" aria-label="Añadir ejercicio">${ic('plus','s')}</button></div>`:`<section class="card stack"><input class="inp" list="dl-ej" id="psn-${d}" placeholder="Buscar o escribir ejercicio…"><button class="btn sec block" onclick="psAddEx(${q(k)})">${ic('plus','s')} Añadir ejercicio</button></section>`}`; }
 function presCabecera(p, pro){ const w=presEnCurso(p), d=presDom(keyOf(p)), c=presCuenta(w), pl=presPlanes(p).find(x=>x.id===w.planId);
   return `<div class="row between"><div class="grow" style="min-width:0"><div class="eyebrow">${pro?esc(p.nombre):'Sesión presencial en curso'}</div><h2 class="disp h2 trunc" style="margin-top:4px">${esc(w.titulo)}</h2></div><div class="wo-time" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</div></div>
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><span class="badge ${w.tipo==='recovery'?'blue':'acc'}">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span>${pl?`<span class="badge">${esc(presPlanTxt(p,pl))}</span>`:''}${w.pro?`<span class="badge">${ic('steth','s')} ${esc(w.pro)}</span>`:''}</div>
@@ -1814,20 +1821,47 @@ function watchJornada(){ if(jorUnsubs || !S.fb) return; const F=S.fb; jorUnsubs=
     if(ch && S.proTab==='jornada') softRender(); })); }catch(e){ console.warn('jornada', e); } }); }
 function unwatchJornada(){ (jorUnsubs||[]).forEach(u=>{ try{u()}catch(e){} }); jorUnsubs=null; }
 const enSala = () => people().filter(p=>presEnCurso(p));
+/* La jornada del día: quienes tienen hora presencial hoy, quienes agregaste a mano, quienes están en sala y quienes ya terminaron.
+   Cada persona es una tarjeta del tablero y se anotan varias a la vez. */
+const jorKey = () => `sm_jor_${S.pro?.id||''}_${todayISO()}`;
+const jorManual = () => { try{ return JSON.parse(localStorage.getItem(jorKey()))||[]; }catch(e){ return []; } };
+const jorManualSet = a => { try{ localStorage.setItem(jorKey(), JSON.stringify([...new Set(a)])); }catch(e){} };
+function jorHoy(){ const td=todayISO(), m={}, add=(p,o)=>{ if(!p || isPending(p)) return; const k=keyOf(p); m[k]=Object.assign(m[k]||{p, k}, o); };
+  allCitas().filter(x=>toISO(x.c.fecha)===td && ['confirmada','realizada'].includes(x.c.estado) && x.c.lugar!=='Online').forEach(x=>add(x.p,{hora:x.c.hora||''}));
+  jorManual().forEach(k=>add(prof(k),{manual:true}));
+  people().forEach(p=>{ if(presEnCurso(p)) add(p,{}); const f=presSes(p).filter(s=>s.fecha===td); if(f.length) add(p,{fin:f}); });
+  const est=x=>presEnCurso(x.p)?0:x.fin?2:1;
+  return Object.values(m).sort((a,b)=>est(a)-est(b) || String(a.hora||'99').localeCompare(String(b.hora||'99')) || String(a.p.nombre).localeCompare(String(b.p.nombre))); }
+function jorCard(x){ const p=x.p, k=x.k, d=presDom(k), w=presEnCurso(p), col=!!(S.jCol||{})[k], r=presSig(p), pa=presPlanAct(p);
+  const tag = w ? (()=>{ const c=presCuenta(w); return `<span class="badge acc">En sala · ${c.d}/${c.t}</span>`; })() : x.fin ? `<span class="badge">✓ Terminó</span>` : `<span class="badge mixto">${x.hora?esc(x.hora):'Por iniciar'}</span>`;
+  let h=`<section class="card jcard ${w?'on':''}" id="jc-${d}"><button class="row jhead" onclick="jorToggle(${q(k)})">${avatar(p,40)}<div class="grow" style="min-width:0;text-align:left"><div class="b trunc">${esc(p.nombre)}</div><div class="xs muted trunc">${w?esc(w.titulo):r?`Le toca ${esc(r.titulo)}`:'Sin rutinas presenciales'}${x.hora&&w?` · ${esc(x.hora)}`:''}</div></div>${tag}${w?`<span class="wo-time sm" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span>`:''}${ic('chevr','s chev '+(col?'':'rot'))}</button>`;
+  if(col) return h+'</section>';
+  if(w){ const pl=presPlanes(p).find(y=>y.id===w.planId), c=presCuenta(w);
+    h+=`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px"><span class="badge ${w.tipo==='recovery'?'blue':''}">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span>${pl?`<span class="badge">${esc(presPlanTxt(p,pl))}</span>`:''}</div>
+      <div class="bar" style="margin-top:10px"><i id="psb-${d}" style="width:${c.t?c.d/c.t*100:0}%"></i></div><div class="xs muted b" style="margin-top:6px" id="pss-${d}">${c.d} de ${c.t} series</div>
+      ${presEditorHTML(p,true)}
+      <div class="grid2" style="margin-top:12px"><button class="btn sec sm" onclick="psGuardar(${q(k)})">${ic('check','s')} Guardar</button><button class="btn pri sm" onclick="sheetPresFin(${q(k)})">Finalizar sesión</button></div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn ghost sm" onclick="sheetPresIniciar(${q(k)})">${ic('swap','s')} Cambiar rutina</button><button class="btn ghost sm" onclick="openPersona(${q(k)},'presencial')">${ic('user','s')} Ficha</button><button class="btn ghost sm" style="color:var(--red)" onclick="presCancelar(${q(k)})">Descartar</button></div>`; }
+  else if(x.fin && !r){ h+=''; }
+  else { const ex=r?(r.ejercicios||[]):[];
+    h+=`${r?`<div class="xs muted b" style="margin-top:10px">Rutina ${presSigIdx(p)+1} de ${presRut(p).length}${pa?` · ${esc(presPlanTxt(p,pa))}`:''}</div><div class="stack" style="gap:4px;margin-top:6px">${ex.map(e=>`<div class="row between sm"><span class="trunc">${esc(e.ejercicio)}</span><span class="muted b" style="flex:none">${esc(presObj(e))}</span></div>`).join('')}</div>`:''}
+      <div class="row" style="gap:8px;margin-top:12px">${r?`<button class="btn pri sm grow" onclick="presIniciarYa(${q(k)})">${ic('play','s')} ${x.fin?'Otra sesión':'Iniciar'}</button>`:''}<button class="btn sec sm ${r?'':'grow'}" onclick="${r?`sheetPresIniciar(${q(k)})`:`openPersona(${q(k)},'presencial')`}">${r?'Elegir rutina':'Armar rutinas'}</button>${x.manual&&!x.fin?`<button class="ibtn" onclick="jorQuitar(${q(k)})" aria-label="Quitar de la jornada">${ic('x','s')}</button>`:''}</div>`; }
+  if(x.fin) h+=`<div class="stack" style="gap:6px;margin-top:10px">${x.fin.map(s=>`<button class="li" style="padding:8px 0" onclick="openPersona(${q(k)},'presencial')"><span class="ico ${s.tipo==='recovery'?'blue':''}">${ic('check','s')}</span><div class="grow"><div class="b sm trunc">${esc(s.titulo||'Sesión')}</div><div class="xs muted">${esc(PRES_TIPO[s.tipo]||'')}${s.dur?` · ${s.dur} min`:''}${s.comentario?` · ${esc(s.comentario).slice(0,60)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`;
+  return h+'</section>'; }
 function vJornada(){ S.after.push(()=>{ loadLib(); watchJornada(); });
-  const ps=enSala(), sel=ps.find(p=>keyOf(p)===S.jSel) || ps[0], td=todayISO();
-  const agenda=allCitas().filter(x=>toISO(x.c.fecha)===td && x.c.estado==='confirmada' && !presEnCurso(x.p)).filter((x,i,a)=>a.findIndex(y=>keyOf(y.p)===keyOf(x.p))===i);
-  const fin=[]; people().forEach(p=>presSes(p).filter(s=>s.fecha===td).forEach(s=>fin.push({p,s}))); fin.sort((a,b)=>(b.s.fin||0)-(a.s.fin||0));
-  let h=`${proHead(fmtLong(new Date()),'Jornada',`<button class="btn pri sm" onclick="sheetPresIniciar()">${ic('plus','s')} Iniciar sesión</button>`)}<div class="stack">`;
-  if(ps.length){ h+=`<div class="pills">${ps.map(p=>{ const c=presCuenta(presEnCurso(p)); return `<button class="pill ${p===sel?'on':''}" onclick="S.jSel=${q(keyOf(p))};render();scrollTo({top:0})">${esc(first(p.nombre))} · ${c.d}/${c.t}</button>`; }).join('')}</div>`;
-    const k=keyOf(sel);
-    h+=`<section class="card wo-head">${presCabecera(sel,true)}<div class="grid2" style="margin-top:12px"><button class="btn sec sm" onclick="psGuardar(${q(k)})">${ic('check','s')} Guardar cambios</button><button class="btn pri sm" onclick="sheetPresFin(${q(k)})">Finalizar sesión</button></div>
-      <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn ghost sm" onclick="sheetPresIniciar(${q(k)})">${ic('swap','s')} Cambiar rutina</button><button class="btn ghost sm" onclick="openPersona(${q(k)},'presencial')">${ic('user','s')} Ficha</button><button class="btn ghost sm" style="color:var(--red)" onclick="presCancelar(${q(k)})">Descartar</button></div></section>${presEditorHTML(sel)}`; }
-  else h+=`<section class="card empty">No hay sesiones presenciales en curso.<br><button class="btn pri" style="margin-top:12px" onclick="sheetPresIniciar()">${ic('plus','s')} Iniciar sesión</button></section>`;
-  if(agenda.length) h+=`<div class="sec-t"><h2>Hoy en agenda</h2></div><div class="list">${agenda.map(({c,p})=>`<div class="li">${avatar(p,40)}<div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${esc(c.hora||'')} · ${presSig(p)?`Le toca ${esc(presSig(p).titulo)}`:'Sin rutinas presenciales'}</div></div><button class="btn sec sm" onclick="sheetPresIniciar(${q(keyOf(p))})">${ic('play','s')} Iniciar</button></div>`).join('')}</div>`;
-  if(fin.length) h+=`<div class="sec-t"><h2>Finalizadas hoy (${fin.length})</h2></div><div class="list">${fin.map(({p,s})=>`<button class="li" onclick="openPersona(${q(keyOf(p))},'presencial')">${avatar(p,40)}<div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${esc(s.titulo||'Sesión')} · ${esc(PRES_TIPO[s.tipo]||'')}${s.dur?` · ${s.dur} min`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')}</div>`;
-  h+=`<div class="note">${ic('info','s')}<span>Cada persona sigue sus rutinas presenciales en orden: al finalizar, le toca la siguiente. Las arma en su ficha › <b>Presencial</b>, aparte de las rutinas enviadas.</span></div>`;
+  const L=jorHoy(), nS=L.filter(x=>presEnCurso(x.p)).length, nF=L.filter(x=>x.fin&&!presEnCurso(x.p)).length;
+  let h=`${proHead(fmtLong(new Date()),'Jornada',`<button class="btn pri sm" onclick="sheetPresIniciar()">${ic('plus','s')} Agregar persona</button>`)}<div class="stack">`;
+  h+=`<div class="grid3"><div class="stat acc"><b>${nS}</b><span>En sala</span></div><div class="stat"><b>${L.length-nS-nF}</b><span>Por iniciar</span></div><div class="stat"><b>${nF}</b><span>Terminaron</span></div></div>`;
+  if(L.length>1) h+=`<div class="pills">${L.map(x=>`<button class="pill ${presEnCurso(x.p)?'on':''}" onclick="jorIr(${q(x.k)})">${esc(first(x.p.nombre))}</button>`).join('')}</div>`;
+  h+= L.length ? `<div class="jboard">${L.map(jorCard).join('')}</div>` : `<section class="card empty">Aún no hay nadie en la jornada de hoy.<br>Aparecen solas las personas con hora presencial hoy; también puedes agregarlas.<br><button class="btn pri" style="margin-top:12px" onclick="sheetPresIniciar()">${ic('plus','s')} Agregar persona</button></section>`;
+  h+=`<div class="note">${ic('info','s')}<span>Anota y modifica a varias personas a la vez: cada cambio se guarda solo y la persona lo ve en su teléfono. Las rutinas rotan en orden; se arman en su ficha › <b>Presencial</b>.</span></div>`;
   return h+'</div>'; }
+window.jorToggle = k => { S.jCol=S.jCol||{}; S.jCol[k]=!S.jCol[k]; keepScroll(render); };
+window.jorIr = k => { if(S.jCol && S.jCol[k]){ S.jCol[k]=false; render(); } const el=document.getElementById('jc-'+presDom(k)); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); };
+window.jorAgregar = k => { jorManualSet(jorManual().concat([k])); closeSheet(); if(S.proTab==='jornada') keepScroll(render); else pgo('jornada'); toast('Agregada a la jornada de hoy'); };
+window.jorQuitar = k => { jorManualSet(jorManual().filter(x=>x!==k)); keepScroll(render); };
+window.presIniciarYa = async k => { const p=prof(k), r=presSig(p), pa=presPlanAct(p); if(!p || !r) return; if(presEnCurso(p)) return;
+  presNueva(p, r.id, pa&&pa.tipo!=='mixto'?pa.tipo:'entrenamiento', pa?pa.id:'', 'pro'); if(S.jCol) S.jCol[k]=false; if(await save(p)){ toast(`${first(p.nombre)}: ${r.titulo}`); keepScroll(render); } };
 window.sheetPresIniciar = k => { if(!k){ const ps=people().filter(p=>!isPending(p)).sort((a,b)=>(presRut(b).length?1:0)-(presRut(a).length?1:0) || String(a.nombre).localeCompare(String(b.nombre)));
     return sheet(`<h2 class="disp h2">Iniciar sesión presencial</h2><div class="searchbox" style="margin-top:12px">${ic('search','s')}<input class="inp" placeholder="Buscar persona…" oninput="document.querySelectorAll('#pi-l .li').forEach(l=>l.style.display=l.dataset.n.includes(this.value.toLowerCase())?'':'none')"></div>
     <div class="list" id="pi-l" style="margin-top:10px;max-height:55dvh;overflow:auto">${ps.map(p=>`<button class="li" data-n="${esc(String(p.nombre).toLowerCase())}" onclick="sheetPresIniciar(${q(keyOf(p))})">${avatar(p,36)}<div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${presEnCurso(p)?'En sesión ahora':presSig(p)?`Le toca ${esc(presSig(p).titulo)}`:'Sin rutinas presenciales'}</div></div>${ic('chevr','s chev')}</button>`).join('')||'<div class="empty">No hay personas activas</div>'}</div>`); }
@@ -1837,7 +1871,7 @@ window.sheetPresIniciar = k => { if(!k){ const ps=people().filter(p=>!isPending(
     <div><div class="lbl">Tipo de sesión</div><div class="pills" id="pi-t" style="margin-top:6px">${Object.entries(PRES_TIPO).filter(([t])=>t!=='mixto').map(([t,l])=>`<button class="pill ${S.piTipo===t?'on':''}" onclick="S.piTipo='${t}';document.querySelectorAll('#pi-t .pill').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div></div>
     <label class="field"><span class="lbl">Plan de entrenamiento</span><select class="inp" id="pi-p"><option value="">Sin plan (sesión suelta)</option>${pls.map(x=>`<option value="${esc(x.id)}" ${(w?w.planId===x.id:pa&&pa.id===x.id)?'selected':''}>${esc(presPlanTxt(p,x))}</option>`).join('')}</select></label>
     ${rs.length?'':`<div class="note">${ic('info','s')}<span>${esc(first(p.nombre))} aún no tiene rutinas presenciales. Puedes armarlas en su ficha › Presencial.</span></div>`}
-    <button class="btn pri block" onclick="presIniciar(${q(k)})">${ic('play','s')} ${w?'Cambiar rutina':'Comenzar'}</button></div>`); };
+    <button class="btn pri block" onclick="presIniciar(${q(k)})">${ic('play','s')} ${w?'Cambiar rutina':'Comenzar ahora'}</button>${w?'':`<button class="btn sec block" onclick="jorAgregar(${q(k)})">Solo agregar a la jornada de hoy</button>`}</div>`); };
 window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p);
   if(w && presCuenta(w).d && !confirm('Ya hay series marcadas en esta sesión. ¿Cambiar la rutina igual? Se pierden.')) return;
   const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; }

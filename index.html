@@ -268,6 +268,29 @@ button.stat{text-align:left}
   .pro .wrap.chatmode .chat{height:calc(100dvh - 60px)}
   .pro .restbar{bottom:20px}
 }
+@media(min-width:1440px){ .pro .wrap{max-width:1280px} }
+/* persona en tablet: columna más ancha y barra del mismo ancho, centrada */
+@media(min-width:700px) and (max-width:899px){
+  .pat .wrap{max-width:680px;padding-left:24px;padding-right:24px}
+  .pat .tabbar{left:50%;right:auto;width:min(680px,100%);transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0}
+  .pat .restbar{left:50%;right:auto;width:min(680px,100%);transform:translateX(-50%)}
+}
+/* persona en escritorio: la barra de abajo pasa a menú lateral */
+@media(min-width:900px){
+  .pat .tabbar{top:0;bottom:0;right:auto;width:220px;height:auto;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:2px;padding:calc(84px + env(safe-area-inset-top)) 14px 24px;border-top:0;border-right:1px solid var(--line);background:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .pat .tab{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 12px;border-radius:12px;font-size:14px;text-align:left}
+  .pat .tab:hover{background:var(--card2)}
+  .pat .tab.on{background:var(--card2);color:var(--tx)}
+  .pat .tab.fab{order:-1}
+  .pat .fabc{width:auto;height:auto;margin:0;border:0;background:none;box-shadow:none;display:inline-grid}
+  .pat .tab.fab .icon{color:var(--mu)!important;width:23px;height:23px}
+  .pat .tab.fab.on .icon{color:var(--acc-tx)!important}
+  .pat .tab .nbadge{position:static;margin-left:auto}
+  .pat .wrap{max-width:none;margin:0 0 0 220px;padding-left:max(32px,calc((100vw - 220px - 820px)/2));padding-right:max(32px,calc((100vw - 220px - 820px)/2));padding-bottom:48px}
+  .pat .wrap.chatmode .chat{height:calc(100dvh - 60px)}
+  .pat .restbar{left:220px;bottom:20px}
+  .pat .kbar{bottom:10px}
+}
 .side .nav{display:flex;flex-direction:column;gap:2px;margin-top:26px}
 .side .nav button{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;font-weight:600;color:var(--mu)}
 .side .nav button.on{background:var(--card2);color:var(--tx)}.side .nav button.on .icon{color:var(--acc-tx)}

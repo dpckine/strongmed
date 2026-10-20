@@ -1314,7 +1314,7 @@
     frames: [{}, plank([148, 136], [26, 179], { h: -6 })]
   });
   add('dips', 'Fondos en paralelas', {
-    base: { x: 100, y: 102, t: 176, H1: [106, 104], e1s: -1, pf: false, l1: 20, k1: -50 },
+    base: { x: 100, y: 102, t: 176, H1: [106, 104], e1s: -1, pf: false, l1: 20, k1: -95 },
     props: [{ type: 'pad', a: [94, 106], b: [126, 106], w: 4 }, { type: 'pad', a: [122, 106], b: [122, 184], w: 3 }], props3: [{ type: 'pbars', x1: 84, x2: 130, y: 106 }],
     frames: [{}, { x: 94, y: 130, t: 162 }]
   });

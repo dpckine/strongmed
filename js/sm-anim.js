@@ -772,7 +772,8 @@
     const tpl = tplOf(tplName);
     if (tpl.custom) return { tpl, custom: true };
     const J = lockJ(tpl, phase, solve(poseAt(tpl, phase).spec));
-    if (!J.front) for (const k of [...ARMK, ...LEGK]) { const q = J[k + '2']; if (q) J[k + '2'] = [q[0] - OFF[0], q[1] - OFF[1]]; }
+    // sin el desfase del lado lejano; en la pierna solo el horizontal, para que ambos pies pisen el mismo suelo
+    if (!J.front) for (const k of [...ARMK, ...LEGK]) { const q = J[k + '2'], dy = LEGK.includes(k) && k !== 'H' ? 0 : OFF[1]; if (q) J[k + '2'] = [q[0] - OFF[0], q[1] - dy]; }
     return { tpl, J, front: !!J.front, cx: tplCx(tpl) };
   }
   G.SMAnim = { pose3, muscleSet, at: (J, a) => at(J, a), PROPS_LAYER: defaultLayer, yawAt, badgeSVG, tpl: tplOf, mount, unmount, unmountWithin, fullSVG, frameSVG, solve, L, FLOOR, COL, dir, mv, ang, lerp, circ, line, poly, pt, f1, DEFS, BG, VB };
@@ -1255,8 +1256,8 @@
     frames: [{ l1: 0, k1: 0 }, { l1: 104, k1: 4, pf: true }]
   });
   add('knee_raise', 'Elevación de rodilla / marcha', {
-    base: S({ a1: 4, e1: 8 }),
-    frames: [{ l1: 0, k1: 0 }, { l1: 96, k1: 0 }, { l1: 0, k1: 0, l2: 0, k2: 0 }, { l2: 96, k2: 0 }], dur: 2.4
+    base: S({ y: 99, a1: 4, e1: 8 }),
+    frames: [{ l1: 0, k1: 0, l2: 0, k2: 0 }, { l1: 96, k1: 0 }, { l1: 0, k1: 0 }, { l2: 96, k2: 0 }], dur: 2.4
   });
   add('psoas_march', 'Psoas march en supino', {
     base: { x: 100, y: 175, t: -90, h: 0, pf: false, l1: 180, k1: 90, l2: 180, k2: 90, a1: 92, e1: 92 },
@@ -1317,7 +1318,8 @@
   });
   add('star_excursion', 'Y-Balance / Star excursion', {
     base: { x: 100, y: 104, t: 180, F1: [104, AY], a1: 60, e1: 70 },
-    frames: [{ F2: [100, AY] }, { x: 92, y: 118, t: 158, F2: [150, 180], pf: true }, { F2: [100, AY], x: 100, y: 104, t: 180 }, { x: 110, y: 118, t: 132, F2: [46, 180] }], dur: 4
+    frames: [{ F2: [100, AY] }, { x: 96, y: 110, t: 168, F2: [126, 168], pf: true }, { x: 92, y: 118, t: 158, F2: [150, 180] }, { x: 96, y: 110, t: 168, F2: [126, 168] },
+      { F2: [100, AY], x: 100, y: 104, t: 180 }, { x: 106, y: 110, t: 156, F2: [72, 168] }, { x: 110, y: 118, t: 132, F2: [46, 180] }, { x: 106, y: 110, t: 156, F2: [72, 168] }], ease: 'linear', dur: 5
   });
   add('alphabet', 'Alfabeto con el pie', {
     base: { x: 72, y: 172, t: 184, pf: false, l1: 110, k1: 100, l2: 90, k2: 90, H1: [62, 182], f1: 85 },
@@ -1819,8 +1821,8 @@
     frames: [{}, { l1: 178, k1: 178 }]
   });
   add('legraise_chair', 'Elevación de rodillas en paralelas', {
-    base: { x: 100, y: 94, t: 180, pf: false, l1: 2, k1: 2, a1: 20, e1: 92, f1: 40 },
-    props: [{ type: 'pad', a: [90, 66], b: [112, 66], w: 6 }, { type: 'pad', a: [80, 42], b: [80, 184], w: 6 }],
+    base: { x: 100, y: 90, t: 180, pf: false, l1: 2, k1: 2, a1: 20, e1: 92, f1: 40 },
+    props: [{ type: 'pad', a: [90, 62], b: [112, 62], w: 6 }, { type: 'pad', a: [80, 38], b: [80, 184], w: 6 }],
     frames: [{}, { l1: 104, k1: 10 }]
   });
   add('dragonflag', 'Dragon flag', {
@@ -1846,7 +1848,8 @@
   });
   add('birddog', 'Bird dog', {
     base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, H1: [118, 182], H2: [118, 182], h: -6 },
-    frames: [{ d: 0.45 }, { d: 0.8 }, { a1: 94, e1: 94, l2: -94, k2: -94, h: -2, d: 0.5 }, { d: 0.8 }, { H1: [118, 182], l2: 0, k2: -90, h: -6, d: 0.45 }, { d: 0.8 }, { a2: 94, e2: 94, l1: -94, k1: -94, h: -2, d: 0.5 }, { d: 0.8 }], dur: 5.1
+    frames: [{ d: 0.45 }, { d: 0.4, ease: 'in' }, { a1: 45, e1: 100, l2: -45, k2: -110, h: -4, d: 0.35, ease: 'out' }, { a1: 94, e1: 94, l2: -94, k2: -94, h: -2, d: 0.8 }, { d: 0.4, ease: 'in' }, { a1: 45, e1: 100, l2: -45, k2: -110, h: -4, d: 0.35, ease: 'out' },
+      { H1: [118, 182], l2: 0, k2: -90, h: -6, d: 0.45 }, { d: 0.4, ease: 'in' }, { a2: 45, e2: 100, l1: -45, k1: -110, h: -4, d: 0.35, ease: 'out' }, { a2: 94, e2: 94, l1: -94, k1: -94, h: -2, d: 0.8 }, { d: 0.4, ease: 'in' }, { a2: 45, e2: 100, l1: -45, k1: -110, h: -4, d: 0.35, ease: 'out' }], dur: 5.5
   });
   add('quadruped_rock', 'Transferencias en cuadrupedia', {
     base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, a1: 0, e1: 0, h: -6, H1: [118, 182] },
@@ -1918,8 +1921,8 @@
     frames: [{}, { t: 138 }]
   });
   add('reverse_hyper', 'Reverse hyper', {
-    base: { x: 84, y: 98, t: 92, h: -6, pf: false, l1: 2, k1: 2, f1: 40, H1: [148, 108] },
-    props: [{ type: 'bench', a: [86, 107], b: [156, 107] }],
+    base: { x: 84, y: 90, t: 92, h: -6, pf: false, l1: 2, k1: 2, f1: 40, H1: [148, 100] },
+    props: [{ type: 'bench', a: [86, 99], b: [156, 99] }],
     frames: [{}, { l1: -84, k1: -84 }]
   });
   add('jefferson', 'Jefferson curl', {
@@ -2002,8 +2005,8 @@
     frames: [{ t: 74 }, { t: 82, x: 72 }], pulse: true
   });
   add('cat_cow', 'Gato-camello', {
-    base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, a1: 0, e1: 0, h: -6 },
-    frames: [{ t: 84, h: 10 }, { t: 100, h: -20 }], dur: 3.2
+    base: { x: 72, y: 138, t: 92, pf: false, l1: 0, k1: -90, f1: 0, H1: [118, 182], h: -6 },
+    frames: [{ t: 88, h: 12 }, { t: 97, h: -20 }], dur: 3.2
   });
   add('inchworm', 'Gusano (inchworm)', {
     base: S({}),
@@ -2594,7 +2597,7 @@
     frames: [{}, { x: 60, y: 118, t: 182 }], dur: 3.2
   });
   add('step_in_place', 'Marcha en el lugar con apoyo', {
-    base: S({ x: 104, H1: [142, 104], H2: [142, 106] }), props: chairFront(140),
-    frames: [{ l1: 0, k1: 0 }, { l1: 66, k1: -6 }, { l1: 0, k1: 0, l2: 0, k2: 0 }, { l2: 66, k2: -6 }], dur: 2.6
+    base: S({ x: 104, y: 99, H1: [142, 104], H2: [142, 106] }), props: chairFront(140),
+    frames: [{ l1: 0, k1: 0, l2: 0, k2: 0 }, { l1: 66, k1: -6 }, { l1: 0, k1: 0 }, { l2: 66, k2: -6 }], dur: 2.6
   });
 })(window);

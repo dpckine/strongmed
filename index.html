@@ -470,6 +470,7 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 .wo-time.sm{font-size:18px}
 .jex{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .thumb.sm{width:40px;height:40px;flex:none}
+.tmin{width:70px;min-height:38px;padding:6px 8px;text-align:center;flex:none}
 .otras3{gap:8px}.otras3 .btn{flex-direction:column;gap:4px;padding:10px 4px;height:auto;min-height:58px;white-space:normal;line-height:1.15;font-size:12.5px;text-align:center}
 .sring{position:relative;width:120px;height:120px;flex:none}
 .sring svg{width:100%;height:100%}
@@ -1781,7 +1782,8 @@ function presNueva(p, rid, tipo, planId, abre){ const x=spOf(p), r=x.rutinas.fin
   p.presActiva=true; return x.enCurso; }
 /* Si llega una versión remota de la misma sesión, conserva la serie editada más reciente de cada lado */
 function presMerge(old, nu){ const a=presEnCurso(old), b=presEnCurso(nu); if(!a || !b || a.id!==b.id) return;
-  (b.ex||[]).forEach((e,i)=>{ const o=(a.ex||[])[i]; if(!o || o.n!==e.n) return; (e.sets||[]).forEach((s,j)=>{ const l=(o.sets||[])[j]; if(l && (l.t||0)>(s.t||0)) e.sets[j]=l; }); }); }
+  (b.ex||[]).forEach((e,i)=>{ const o=(a.ex||[])[i]; if(!o || o.n!==e.n) return; (e.sets||[]).forEach((s,j)=>{ const l=(o.sets||[])[j]; if(l && (l.t||0)>(s.t||0)) e.sets[j]=l; }); });
+  if((a.terT||0)>(b.terT||0)){ b.ter=a.ter; b.terT=a.terT; } }
 const presT={};
 function presSave(k, ya){ clearTimeout(presT[k]); const run=async()=>{ delete presT[k]; const p=prof(k); return p ? save(p) : false; }; if(ya) return run(); presT[k]=setTimeout(run, 900); }
 const presW = k => presEnCurso(prof(k));
@@ -1796,9 +1798,22 @@ window.psDelEx = (k,i) => { const w=presW(k); if(!w || !confirm(`¿Quitar ${w.ex
 window.psAddEx = k => { const w=presW(k), inp=$(`#psn-${presDom(k)}`), n=inp?inp.value.trim():''; if(!w) return; if(!n) return toast('Escribe el nombre del ejercicio','err');
   const x=libFind(n); w.ex.push({n, exId:x?x.i:'', rest:90, obj:'', sets:[{kg:'',reps:'',rir:'',done:false,t:Date.now()}]}); presSave(k,true); keepScroll(render); };
 window.psGuardar = async k => { if(await presSave(k,true)) toast('Cambios guardados'); };
+/* terapias de recovery: las elige el profesional en la sesión (no al agendar), cada una con sus minutos */
+const PRES_TER = ['Presoterapia','Masoterapia','Electroterapia','Punción seca','Terapia manual'];
+const presTerOk = w => !!w && (w.tipo==='recovery' || (w.ter||[]).length>0);
+const presTerTxt = t => (t||[]).map(x=>`${x.n}${x.min?` ${x.min} min`:''}`).join(' · ');
+window.psTerAdd = (k,n) => { const w=presW(k); if(!w) return; if(!n){ n=(prompt('Nombre de la terapia')||'').trim(); if(!n) return; } (w.ter=w.ter||[]).push({n, min:''}); w.terT=Date.now(); presSave(k,true); keepScroll(render); };
+window.psTerMin = (k,i,v) => { const w=presW(k); if(!w || !w.ter[i]) return; w.ter[i].min=v; w.terT=Date.now(); presSave(k); };
+window.psTerDel = (k,i) => { const w=presW(k); if(!w) return; w.ter.splice(i,1); w.terT=Date.now(); presSave(k,true); keepScroll(render); };
+function presTerHTML(p, cmp){ const k=keyOf(p), w=presEnCurso(p); if(!presTerOk(w)) return ''; const pro=S.role==='pro', t=w.ter||[], tot=t.reduce((a,x)=>a+(+x.min||0),0);
+  if(!pro && !t.length) return '';
+  const rows=t.map((x,i)=> pro ? `<div class="row" style="gap:8px"><span class="grow b sm">${esc(x.n)}</span><input class="inp tmin" inputmode="numeric" value="${esc(x.min)}" placeholder="—" oninput="psTerMin(${q(k)},${i},this.value)"><span class="xs muted">min</span><button class="ibtn" onclick="psTerDel(${q(k)},${i})" aria-label="Quitar terapia">${ic('x','s')}</button></div>`
+    : `<div class="row between"><span class="b sm">${esc(x.n)}</span><span class="sm b muted">${x.min?`${esc(x.min)} min`:''}</span></div>`).join('');
+  const add=pro?`<div class="pills" style="flex-wrap:wrap;margin-top:10px">${PRES_TER.map(n=>`<button type="button" class="pill" onclick="psTerAdd(${q(k)},${q(n)})">+ ${esc(n)}</button>`).join('')}<button type="button" class="pill" onclick="psTerAdd(${q(k)})">+ Otra</button></div>`:'';
+  return `<${cmp?'div class="jex"':'section class="card"'}><div class="row between"><div class="${cmp?'b':'h3'}">Terapias</div>${tot?`<span class="badge">${tot} min</span>`:''}</div><div class="stack" style="gap:8px;margin-top:8px">${rows||'<div class="xs muted">Agrega las terapias de hoy y sus minutos.</div>'}</div>${add}</${cmp?'div':'section'}>`; }
 /* series de una sesión (la usan la persona y el profesional) */
 function presEditorHTML(p, cmp){ const k=keyOf(p), w=presEnCurso(p), d=presDom(k); if(!w) return ''; const box=cmp?'div class="jex"':'section class="card"', boxC=cmp?'div':'section';
-  return `${w.ex.length?'':`<div class="${cmp?'xs muted':'card empty'}" style="${cmp?'padding:10px 0':''}">Esta sesión aún no tiene ejercicios. Agrégalos abajo.</div>`}${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<${box}><div class="row" style="align-items:flex-start">${x?`<button class="thumb${cmp?' sm':''}" style="background-image:url('${ejThumb(x)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="${cmp?'b':'h3'}">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${e.obj?`Meta ${esc(e.obj)} · `:''}${pv?`Anterior: ${esc(pv)}`:'Primera vez'}</div></div><button class="ibtn" onclick="psDelEx(${q(k)},${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
+  return `${presTerHTML(p,cmp)}${w.ex.length?'':`<div class="${cmp?'xs muted':'card empty'}" style="${cmp?'padding:10px 0':''}">Esta sesión aún no tiene ejercicios. Agrégalos abajo.</div>`}${w.ex.map((e,i)=>{ const pv=prevPerf(p,e.n), x=libFind(e.n,e.exId); return `<${box}><div class="row" style="align-items:flex-start">${x?`<button class="thumb${cmp?' sm':''}" style="background-image:url('${ejThumb(x)}')" onclick="verEj(${q(x.i)})" aria-label="Ver técnica"></button>`:''}<div class="grow"><div class="${cmp?'b':'h3'}">${esc(e.n)}</div><div class="xs muted" style="margin-top:2px">${e.obj?`Meta ${esc(e.obj)} · `:''}${pv?`Anterior: ${esc(pv)}`:'Primera vez'}</div></div><button class="ibtn" onclick="psDelEx(${q(k)},${i})" aria-label="Quitar ejercicio">${ic('trash','s')}</button></div>
     <div class="setrow head"><span>#</span><span>Kg</span><span>Reps</span><span>RIR</span><span></span></div>
     ${e.sets.map((s,j)=>`<div class="setrow ${s.done?'done':''}" id="ps-${d}-${i}-${j}"><span class="sn">${j+1}</span><input inputmode="decimal" value="${esc(s.kg)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'kg',this.value)"><input inputmode="numeric" value="${esc(s.reps)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'reps',this.value)"><input inputmode="numeric" value="${esc(s.rir)}" placeholder="—" oninput="psSet(${q(k)},${i},${j},'rir',this.value)"><button class="chk" onclick="psToggle(${q(k)},${i},${j})" aria-label="Serie hecha">${ic('check')}</button></div>`).join('')}
     <div class="row" style="margin-top:8px;gap:6px"><button class="btn ghost sm" onclick="psAddSet(${q(k)},${i})">${ic('plus','s')} Serie</button>${e.sets.length>1?`<button class="btn ghost sm" style="color:var(--mu)" onclick="psDelSet(${q(k)},${i})">Quitar última</button>`:''}</div></${boxC}>`; }).join('')}
@@ -1809,7 +1824,7 @@ function presCabecera(p, pro){ const w=presEnCurso(p), d=presDom(keyOf(p)), c=pr
     <div class="bar" style="margin-top:12px"><i id="psb-${d}" style="width:${c.t?c.d/c.t*100:0}%"></i></div><div class="xs muted b" style="margin-top:8px" id="pss-${d}">${c.d} de ${c.t} series</div>`; }
 function presSesHTML(p, s, pro){ const pl=presPlanes(p).find(x=>x.id===s.planId);
   return `<details class="li" style="display:block"><summary class="row"><span class="ico ${presTipoC(s.tipo)==='acc'?'':presTipoC(s.tipo)}">${ic(s.tipo==='entrenamiento'||!s.tipo?'dumbbell':'heart','s')}</span><div class="grow" style="min-width:0"><div class="b sm trunc">${esc(s.titulo||'Sesión presencial')}</div><div class="xs muted trunc">${fmtDate(s.fecha)} · ${esc(PRES_TIPO[s.tipo]||'Entrenamiento')}${s.dur?` · ${s.dur} min`:''}${pl?` · ${esc(pl.nombre)}`:''}${s.pro?` · ${esc(s.pro)}`:''}</div></div>${ic('chevr','s chev')}</summary>
-    <div class="stack" style="padding:10px 0 4px 48px">${(s.ejercicios||[]).map(e=>`<div class="sm"><div class="b trunc">${esc(e.ejercicio)}</div><div class="xs muted">${(e.sets||[]).map(x=>`${x.kg||0} kg × ${x.reps||'—'}${x.rir!==''&&x.rir!=null?` · RIR ${x.rir}`:''}`).join(' &nbsp;|&nbsp; ')}</div></div>`).join('')||'<div class="xs muted">Sin series registradas</div>'}
+    <div class="stack" style="padding:10px 0 4px 48px">${(s.terapias||[]).length?`<div class="sm"><div class="b">Terapias</div><div class="xs muted">${esc(presTerTxt(s.terapias))}</div></div>`:''}${(s.ejercicios||[]).map(e=>`<div class="sm"><div class="b trunc">${esc(e.ejercicio)}</div><div class="xs muted">${(e.sets||[]).map(x=>`${x.kg||0} kg × ${x.reps||'—'}${x.rir!==''&&x.rir!=null?` · RIR ${x.rir}`:''}`).join(' &nbsp;|&nbsp; ')}</div></div>`).join('')||((s.terapias||[]).length?'':'<div class="xs muted">Sin series registradas</div>')}
     ${s.comentario&&(pro||s.verPersona!==false)?`<div class="note">${ic('chat','s')}<span>${esc(s.comentario)}</span></div>`:''}${s.rpe?`<div class="xs muted">RPE ${esc(s.rpe)}</div>`:''}
     ${pro?`<div class="row" style="gap:8px"><button class="btn danger sm" onclick="presBorrarSes(${q(keyOf(p))},${q(s.id)})">${ic('trash','s')} Eliminar del registro</button></div>`:''}</div></details>`; }
 
@@ -1864,7 +1879,7 @@ const enSalaL = l => l!=='Online' && l!=='Domicilio';
 /* tipo con que parte: el que se eligió al agendar hoy, o el de su plan/perfil */
 const salaTipo = p => { const c=(p.citas||[]).find(c=>toISO(c.fecha)===todayISO() && c.sala && enSalaL(c.lugar) && c.estado!=='cancelada'); return c ? c.sala : presTipoDef(p); };
 /* en qué va: primer ejercicio con series sin marcar */
-function jorAhora(w){ const i=w.ex.findIndex(e=>e.sets.some(s=>!s.done)); if(i<0) return w.ex.length?'Completó todas las series':'Sin ejercicios aún';
+function jorAhora(w){ const i=w.ex.findIndex(e=>e.sets.some(s=>!s.done)); if(i<0) return w.ex.length?'Completó todas las series':(w.ter||[]).length?presTerTxt(w.ter):'Sin ejercicios aún';
   const e=w.ex[i], j=e.sets.findIndex(s=>!s.done), s=e.sets[j]; return `${e.n} · serie ${j+1}/${e.sets.length}${s.kg?` · ${s.kg} kg`:''}`; }
 function jorTile(p){ const k=keyOf(p), w=presEnCurso(p), c=presCuenta(w);
   return `<button class="jtile" onclick="jorIr(${q(k)})"><div class="row between" style="gap:6px"><span class="b sm trunc">${esc(first(p.nombre))}</span><span class="wo-time xs" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span></div>
@@ -1937,13 +1952,14 @@ window.presFinalizar = async k => { const p=prof(k), x=spOf(p), w=x.enCurso; if(
   const ej=w.ex.map(e=>{ const use=e.sets.filter(s=>s.done); if(!use.length) return null; const top=use.reduce((a,b)=> est1RM(+b.kg||0,+b.reps||0) > est1RM(+a.kg||0,+a.reps||0) ? b : a);
     return {ejercicio:e.n, exId:e.exId||'', series:use.length, reps:top.reps||'', kilos:top.kg||0, rir:top.rir||'', sets:use.map(s=>({kg:s.kg,reps:s.reps,rir:s.rir}))}; }).filter(Boolean);
   const evo=val('pf-ev'); if(rh && !evo) return toast('Escribe la evolución de la sesión','err');
-  if(!rh && !ej.length && !confirm('No hay series marcadas con ✓. ¿Guardar la sesión igual?')) return;
+  const ter=(w.ter||[]).filter(t=>t.n).map(t=>({n:t.n, min:t.min||''}));
+  if(!rh && !ej.length && !ter.length && !confirm('No hay series marcadas con ✓. ¿Guardar la sesión igual?')) return;
   const ev=val('pf-e'), eva=rh&&ev!==''&&!isNaN(+ev)?Math.max(0,Math.min(10,+ev)):'', tol=rh?val('pf-tol'):'', planId=rh?'':val('pf-p'), com=rh?evo:val('pf-c'), ver=rh?true:!!$('#pf-v')?.checked, dur=Math.max(1,Math.round((Date.now()-w.inicio)/60000)), fecha=todayISO();
-  x.sesiones.push({id:w.id, fecha, inicio:w.inicio, fin:Date.now(), dur, rid:w.rid, titulo:w.titulo, tipo, planId, pro:S.pro.nombre, proId:S.pro.id, ejercicios:ej, comentario:com, verPersona:ver, ...(!rh&&S.rpe?{rpe:S.rpe}:{}), ...(eva!==''?{eva}:{}), ...(tol?{tolerancia:tol}:{})});
-  let nR=0; if(rh){ p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), fecha, eva, klgo:S.pro.nombre, tolerancia:tol, nota:evo+(ej.length?`\nEjercicios: ${ej.map(e=>`${e.ejercicio} ${e.series}×${e.reps}${+e.kilos?` ${e.kilos} kg`:''}`).join(', ')}`:''), presencialId:w.id}); nR=p.sesionesRehab.length; try{ marcarSeguimiento(p, true, 'Registró una sesión', S.pro.nombre); }catch(e){}
+  x.sesiones.push({id:w.id, fecha, inicio:w.inicio, fin:Date.now(), dur, rid:w.rid, titulo:w.titulo, tipo, planId, pro:S.pro.nombre, proId:S.pro.id, ejercicios:ej, ...(ter.length?{terapias:ter}:{}), comentario:com, verPersona:ver, ...(!rh&&S.rpe?{rpe:S.rpe}:{}), ...(eva!==''?{eva}:{}), ...(tol?{tolerancia:tol}:{})});
+  let nR=0; if(rh){ p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), fecha, eva, klgo:S.pro.nombre, tolerancia:tol, nota:evo+(ter.length?`\nTerapias: ${presTerTxt(ter)}`:'')+(ej.length?`\nEjercicios: ${ej.map(e=>`${e.ejercicio} ${e.series}×${e.reps}${+e.kilos?` ${e.kilos} kg`:''}`).join(', ')}`:''), presencialId:w.id}); nR=p.sesionesRehab.length; try{ marcarSeguimiento(p, true, 'Registró una sesión', S.pro.nombre); }catch(e){}
     const ta=val('pf-ta'); if(ta){ p.tareasClinicas=tareas(p); p.tareasClinicas.push({id:'t'+uid(), texto:ta, fecha, hecha:false}); addAviso(p,'tarea',`Nueva tarea para la casa: ${ta}`); } }
   const ri=x.rutinas.findIndex(r=>String(r.id)===String(w.rid)); if(ri>-1) x.sig=(ri+1)%x.rutinas.length;
-  if(ej.length && !rh){ p.diarios=p.diarios||[]; p.diarios.push({id:uid(), fecha, duracion:dur, ...(S.rpe?{rpe:S.rpe}:{}), ejercicios:ej, nombreSesion:w.titulo, comentarios:ver?com:'', presencial:{estado:'aprobada', origen:'sala', proId:S.pro.id, por:S.pro.nombre, sesionId:w.id}}); }
+  if(ej.length && !rh){ p.diarios=p.diarios||[]; p.diarios.push({id:uid(), fecha, duracion:dur, ...(S.rpe?{rpe:S.rpe}:{}), ejercicios:ej, nombreSesion:w.titulo, ...(ter.length?{terapias:ter}:{}), comentarios:ver?com:'', presencial:{estado:'aprobada', origen:'sala', proId:S.pro.id, por:S.pro.nombre, sesionId:w.id}}); }
   x.enCurso=null; p.presActiva=false; if(planId) x.plan=planId;
   const pl=x.planes.find(y=>y.id===planId), sig=presSig(p), m=rehabPlan(p);
   addAviso(p, rh?'evaluacion':'rutina', rh ? `Sesión ${nR}${m?` de ${m}`:''} de tu rehabilitación registrada.` : `Tu sesión presencial quedó registrada${pl?` · ${presPlanTxt(p,pl)}`:''}.${sig?` La próxima vez te toca: ${sig.titulo}.`:''}`);

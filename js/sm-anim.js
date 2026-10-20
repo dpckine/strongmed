@@ -1955,7 +1955,7 @@
   add('hyper', 'Hiperextensión a 45°', {
     // banco a la altura real (apoyo bajo la cadera a ~1 m): abajo el tronco cuelga sin tocar el suelo
     // y arriba queda en línea con las piernas (45°), sin hiperextender la zona lumbar
-    base: { x: 106, y: 94, t: 38, pf: true, F1: [53, 147], F2: [49, 149], f1: 34, f2: 34, h1: [-8, 10] },
+    base: { x: 106, y: 94, t: 46, pf: true, F1: [53, 147], F2: [49, 149], f1: 34, f2: 34, h1: [-8, 10] },
     props: [{ type: 'pad', a: [113, 96], b: [101, 109], w: 9 }, { type: 'pad', a: [104, 108], b: [94, 184], w: 4 }, { type: 'pad', a: [48, 153], b: [64, 168], w: 4 }, { type: 'pad', a: [49, 155], b: [42, 184], w: 4 }, { type: 'pad', a: [38, 184], b: [104, 184], w: 4 }],
     frames: [{}, { t: 136 }]
   });

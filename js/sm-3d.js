@@ -278,9 +278,24 @@
     const zk = key => OV[key + 'z'] ?? (front ? 0 : zOf(key));
     const PT = (J, key) => OV[key] ? OV[key].clone() : V2(J[key], zk(key));
     const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    // vista frontal: lo que en 2D se dibujó acortado (brazo hacia adelante, muslo de alguien sentado, tronco
+    // inclinado) se convierte en profundidad real hacia la cámara
+    const dep = (a, b, L) => { if (!a || !b) return 0; const l = d2(a, b); return l < L * 0.96 ? Math.sqrt(L * L - l * l) : 0; };
+    function frontDepth(J) {
+      const L = A.L, zt = dep(J.hip, J.shc, L.torso);
+      for (const k of ['shc', 'neck', 'head']) OV[k + 'z'] = zt;
+      for (const i of [1, 2]) {
+        const ze = zt + dep(J['S' + i], J['el' + i], L.ua), zw = ze + dep(J['el' + i], J['wr' + i], L.fa);
+        OV['S' + i + 'z'] = zt; OV['el' + i + 'z'] = ze; for (const k of ['wr', 'hd', 'tg']) OV[k + i + 'z'] = zw;
+        const zn = dep(J['H' + i] || J.hip, J['kn' + i], L.th), ds = dep(J['kn' + i], J['an' + i], L.sh);
+        // canilla acortada: con el pie en el suelo va hacia atrás (sentadilla); con el pie en el aire, hacia adelante
+        const za = J['an' + i] && J['an' + i][1] < FLOOR - 10 ? zn + ds : Math.max(0, zn - ds);
+        OV['kn' + i + 'z'] = zn; for (const k of ['an', 'to', 'he']) OV[k + i + 'z'] = za;
+      }
+    }
     function gripFix(J, tpl) {
       OV = {};
-      if (front) return;
+      if (front) { frontDepth(J); return; }
       const bb = (tpl.props || []).find(o => o.type === 'barbell'); if (!bb) return;
       let bp; try { bp = A.at(J, bb.at || 'wr1'); } catch (e) { return; }
       if (!bp) return;
@@ -549,10 +564,10 @@
     function poseModel(J, tpl) {
       const M = MODEL; M.grp.position.set(0, 0, 0); M.grp.updateMatrixWorld(true);
       const held = tpl ? heldHands(J, tpl) : {}, hs = {};
-      const hip = V2(J.hip, 0), shc = V2(J.shc, 0), up = shc.clone().sub(hip);
+      const hip = V2(J.hip, 0), shc = PT(J, 'shc'), up = shc.clone().sub(hip);
       const tf = front ? FWD : D2(J.n);
       for (const k of ['hips', 'spine1', 'spine2', 'spine3']) aim(k, up, tf);
-      const hd = V2(J.head, 0), nk = V2(J.neck, 0), hu = hd.clone().sub(nk);
+      const hd = PT(J, 'head'), nk = PT(J, 'neck'), hu = hd.clone().sub(nk);
       aim('neck', hu, tf); aim('head', hu, tf);
       const leftT = new V3().crossVectors(up, tf);
       for (const i of [1, 2]) {
@@ -597,7 +612,13 @@
     function boxAB(a, b, th, wd, mat) { const m = prim('box', mat), d = b.clone().sub(a), l = d.length() || 0.01, y = d.clone().normalize(); const z = new T.Vector3().crossVectors(LAT, y).normalize(); m.matrix.makeBasis(LAT.clone().multiplyScalar(wd), y.multiplyScalar(l), z.multiplyScalar(th)).setPosition(a.clone().addScaledVector(d, 0.5)); m.matrixWorldNeedsUpdate = true; }
     function boxS(c2, along, h, lat, mat, z) { const m = prim('box', mat), c = V2(c2, z || 0); if (front) m.matrix.makeScale(along, h, lat); else m.matrix.makeScale(lat, h, along); m.matrix.setPosition(c); m.matrixWorldNeedsUpdate = true; }
     const latAt = (p2, z) => V2(p2, z);
-    function at3(J, a, def) { a = a ?? def; if (typeof a === 'string') return { p: J[a], z: zk(a) }; if (typeof a === 'function') return { p: a(J), z: 0 }; return { p: a, z: 0 }; }
+    function at3(J, a, def) { a = a ?? def; if (typeof a === 'string') return { p: J[a], z: zk(a) }; if (typeof a === 'function') { const p = a(J); return { p, z: nearZ(J, p) }; } return { p: a, z: 0 }; }
+    // profundidad de un punto calculado: la de la articulación más cercana (solo vista frontal)
+    function nearZ(J, p) {
+      if (!front || !p) return 0; let best = 1e9, z = 0;
+      for (const k in OV) { if (!k.endsWith('z')) continue; const q = J[k.slice(0, -1)]; if (!q) continue; const d = d2(q, p); if (d < best) { best = d; z = OV[k]; } }
+      return best < 25 ? z : 0;
+    }
     const lerp = (a, b, u) => a + (b - a) * u;
     const PROP3 = {
       bench: (J, o) => {
@@ -606,7 +627,7 @@
         if (o.back) boxAB(V2(o.back[0]), V2(o.back[1]), 8, 26, 'pad');
       },
       // de frente el cajón queda detrás (como respaldo) para no tapar el cuerpo
-      box: (J, o) => front ? boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 12, 'pad', -16) : boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 38, 'pad'),
+      box: (J, o) => front ? boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 34, 'pad', 8) : boxS([o.x + o.w / 2, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, 38, 'pad'),
       wall: (J, o) => boxS([o.x + (o.w || 8) / 2, (FLOOR - 40) / 2], o.w || 8, FLOOR + 40, 130, 'padDark'),
       table: (J, o) => { boxS([o.x + o.w / 2, o.y], o.w, 5, 40, 'pad'); for (const x of [o.x + 4, o.x + o.w - 4]) for (const z of [-15, 15]) cyl(V2([x, o.y], z), V2([x, FLOOR], z), 1.6, 'padDark'); },
       rails: (J, o) => { const p = at3(J, o.at, 'wr1').p; for (const z of [-24, 24]) { cyl(V2([p[0], p[1] + 2], z), V2([p[0], FLOOR], z), 1.6, 'padDark'); cyl(V2([p[0] - 22, p[1] + 2], z), V2([p[0] + 22, p[1] + 2], z), 1.8, 'metal'); } },
@@ -650,7 +671,7 @@
         cyl(pv, e, 1.6, 'metal'); disc(e, d, 10, 4, 'plate'); sph(pv, 3.5, 'padDark');
       },
       platform: (J, o) => { const p = at3(J, o.at, 'an1').p, d = A.dir(o.a); boxAB(V2([p[0] - d[0] * 18, p[1] - d[1] * 18]), V2([p[0] + d[0] * 18, p[1] + d[1] * 18]), 5, 30, 'pad'); },
-      pad: (J, o) => { const a = at3(J, o.a).p, b = at3(J, o.b).p; boxAB(V2(a), V2(b), o.w || 7, 24, 'pad'); },
+      pad: (J, o) => { const a = at3(J, o.a), b = at3(J, o.b), bk = front && o.layer === 'back' ? -14 : null; boxAB(V2(a.p, bk ?? a.z), V2(b.p, bk ?? b.z), o.w || 7, 24, 'pad'); },
       rope: (J, o, Tm) => {
         const a = at3(J, o.from), b = at3(J, o.to);
         for (const z of (front ? [0] : [-10, 10])) {

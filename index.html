@@ -3908,7 +3908,7 @@ const PRINC = ['b-sm','b-kah','b-oral'];
 const esPrinc = id => PRINC.includes(id);
 const svcCat = a => { const ids = servAg(a)==='oral' ? ['b-oral'] : (a?.orgs||['sm']).map(o=>o==='kah'?'b-kah':'b-sm'); return [...new Set(ids)].flatMap(id=>(agendaOf(id)?.servicios||[]).filter(x=>x && x.nombre)); };
 const svcsAg = a => { if(!a) return []; if(esPrinc(a.id) || !Array.isArray(a.servIds)) return (a.servicios||[]).filter(x=>x && x.nombre); return svcCat(a).filter(x=>a.servIds.includes(x.id)); };
-const svcModTxt = x => Object.entries(x.mod||{}).filter(([,v])=>v&&v.on).map(([m,v])=>`{centro:'Centro',domicilio:'Domicilio',online:'Online'}[m]||m}${+v.precio?' '+clpTxt(v.precio):''}`).join(' · ');
+const svcModTxt = x => Object.entries(x.mod||{}).filter(([,v])=>v&&v.on).map(([m,v])=>`${{centro:'Centro',domicilio:'Domicilio',online:'Online'}[m]||m}${+v.precio?' '+clpTxt(v.precio):''}`).join(' · ');
 const svcChecks = a => { const cat=svcCat(a), on=svcsAg(a).map(x=>x.id);
   return `<div class="field"><span class="lbl">Servicios que hace</span><div class="list" id="svc-ck" style="margin-top:6px">${cat.map(x=>`<label class="li"><input type="checkbox" value="${esc(x.id)}" ${on.includes(x.id)?'checked':''}><div class="grow"><div class="b sm">${esc(x.nombre)}</div><div class="xs muted">${esc(svcModTxt(x))}</div></div></label>`).join('')||'<div class="empty">Aún no hay servicios definidos por StrongMed / Kin At Home.</div>'}</div><div class="xs muted" style="margin-top:6px">Los servicios y sus valores los definen los perfiles principales.</div></div>`; };
 const svcsLugar = (a, l) => svcsAg(a).filter(x=>x.mod?.[modOf(l)]?.on);

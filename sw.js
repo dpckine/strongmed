@@ -1,7 +1,7 @@
 /* StrongMed — service worker: la app abre sin internet.
    Los datos (Firestore) los guarda Firebase en el teléfono y los sincroniza solo. */
-const V = 'sm-v74';
-const SHELL = ['./', './index.html', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json?v=34', './js/sm-anim.js?v=39', './js/sm-3d.js?v=39', 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js'];
+const V = 'sm-v75';
+const SHELL = ['./', './index.html', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json?v=34', './js/sm-anim.js?v=40', './js/sm-3d.js?v=40', 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'sm-media' && k !== 'sm-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 const isData = u => /firestore\.googleapis\.com|googleapis\.com\/(google\.firestore|identitytoolkit)|firebaseinstallations|securetoken/.test(u);

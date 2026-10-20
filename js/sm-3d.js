@@ -311,7 +311,8 @@
       OV = {};
       if (front) { frontDepth(J); return; }
       sideDepth(J);
-      const bb = (tpl.props || []).find(o => o.type === 'barbell'); if (!bb) return;
+      // barra o implemento tomado con las dos manos a un ancho dado (grip: landmine con ambas manos en la punta)
+      const bb = (tpl.props || []).find(o => o.type === 'barbell' || o.grip !== undefined); if (!bb) return;
       let bp; try { bp = A.at(J, bb.at || 'wr1'); } catch (e) { return; }
       if (!bp) return;
       for (const i of [1, 2]) {
@@ -554,7 +555,7 @@
       const c = new V3(), t = new V3(); for (const b of L) c.add(b.getWorldPosition(t)); return c.multiplyScalar(1 / L.length);
     }
     // qué manos sujetan un implemento con mango transversal
-    const HELD = /^(barbell|db|kb|stick|cable|handle)$/;
+    const HELD = /^(barbell|db|kb|stick|cable|handle|landmine)$/;
     function heldHands(J, tpl) {
       const h = {};
       for (const o of tpl.props3 || tpl.props || []) {
@@ -564,7 +565,7 @@
         const m = /^(hd|wr|tg)([12])$/.exec(a); if (!m || !J[a]) continue; h[m[2]] = 1;
         const oth = m[2] === '1' ? 2 : 1;
         // cable con polea propia a un costado (fz): cada mano tira de su cable, no hay barra entre ambas
-        if ((o.type === 'stick' || (o.type === 'cable' && o.fz === undefined)) && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 10) h[oth] = h.two = 1;
+        if ((o.type === 'stick' || o.grip !== undefined || (o.type === 'cable' && o.fz === undefined)) && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 10) h[oth] = h.two = 1;
       }
       return h;
     }

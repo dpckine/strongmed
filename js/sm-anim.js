@@ -1124,7 +1124,7 @@
   });
   add('calf', 'Elevación de talones de pie', {
     base: S({ a1: 2, e1: 2, f1: 78 }), props: DB,
-    frames: [{}, { y: 90, F1: [104, 169], F2: [99, 169], f1: 30, f2: 30 }]
+    frames: [{}, { x: 103.5, y: 91, F1: [107.6, 170.4], F2: [102.6, 170.4], f1: 30, f2: 30 }]
   });
   add('calf_machine', 'Elevación de talones en máquina', {
     base: S({ h1: [4, 6], f1: 78 }),
@@ -2604,7 +2604,7 @@
   });
   add('chair_calf', 'Elevación de talones con apoyo', {
     base: S({ x: 104, f1: 78, H1: [142, 104], H2: [142, 106] }), props: chairFront(140),
-    frames: [{}, { y: 90, F1: [104, 169], F2: [99, 169], f1: 30, f2: 30, H1: [142, 104], H2: [142, 106] }], dur: 3
+    frames: [{}, { x: 107.5, y: 91, F1: [107.6, 170.4], F2: [102.6, 170.4], f1: 30, f2: 30, H1: [142, 104], H2: [142, 106] }], dur: 3
   });
   add('chair_hip_ext', 'Extensión de cadera de pie con apoyo', {
     base: S({ x: 104, t: 174, H1: [142, 104], H2: [142, 106], F2: [104, AY] }), props: chairFront(140),

@@ -1833,7 +1833,7 @@ function jorHoy(){ const td=todayISO(), m={}, add=(p,o)=>{ if(!p || isPending(p)
   const est=x=>presEnCurso(x.p)?0:x.fin?2:1;
   return Object.values(m).sort((a,b)=>est(a)-est(b) || String(a.hora||'99').localeCompare(String(b.hora||'99')) || String(a.p.nombre).localeCompare(String(b.p.nombre))); }
 function jorCard(x){ const p=x.p, k=x.k, d=presDom(k), w=presEnCurso(p), col=!!(S.jCol||{})[k], r=presSig(p), pa=presPlanAct(p);
-  const tag = w ? (()=>{ const c=presCuenta(w); return `<span class="badge acc">En sala · ${c.d}/${c.t}</span>`; })() : x.fin ? `<span class="badge">✓ Terminó</span>` : `<span class="badge mixto">${x.hora?esc(x.hora):'Por iniciar'}</span>`;
+  const tag = w ? (()=>{ const c=presCuenta(w); return `<span class="badge acc" title="Series hechas">${c.d}/${c.t}</span>`; })() : x.fin ? `<span class="badge">✓ Terminó</span>` : `<span class="badge mixto">${x.hora?esc(x.hora):'Por iniciar'}</span>`;
   let h=`<section class="card jcard ${w?'on':''}" id="jc-${d}"><button class="row jhead" onclick="jorToggle(${q(k)})">${avatar(p,40)}<div class="grow" style="min-width:0;text-align:left"><div class="b trunc">${esc(p.nombre)}</div><div class="xs muted trunc">${w?esc(w.titulo):r?`Le toca ${esc(r.titulo)}`:'Sin rutinas presenciales'}${x.hora&&w?` · ${esc(x.hora)}`:''}</div></div>${tag}${w?`<span class="wo-time sm" data-t0="${w.inicio}">${fmtClock((Date.now()-w.inicio)/1000)}</span>`:''}${ic('chevr','s chev '+(col?'':'rot'))}</button>`;
   if(col) return h+'</section>';
   if(w){ const pl=presPlanes(p).find(y=>y.id===w.planId), c=presCuenta(w);

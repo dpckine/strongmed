@@ -1015,10 +1015,10 @@
   // sumo en déficit con landmine: un pie en cada cajón, la barra pasa entre las piernas desde el pivote
   // de atrás y las manos toman la punta, con los discos adelante
   add('squat_sumo_landmine', 'Sentadilla sumo en déficit con Landmine', {
-    base: { x: 98, y: 88, t: 180, F1: [104, 165], F2: [99, 165], H1: [106, 128], ts1: 0.92, ss1: 0.95, ts2: 0.92, ss2: 0.95, pf: true, f1: 78 },
+    base: { x: 98, y: 100, t: 180, F1: [104, 165], F2: [99, 165], H1: [106, 134], ts1: 0.8, ss1: 0.85, ts2: 0.8, ss2: 0.85, pf: true, f1: 78 },
     props: [{ type: 'landmine', pivot: [6, 182] }, { type: 'box', x: 84, y: 170, w: 34 }],
     props3: [{ type: 'landmine', pivot: [6, 182] }, { type: 'footbox', y: 170, w: 30, d: 18 }],
-    frames: [{ d: 1 }, { x: 84, y: 136, t: 156, H1: [108, 152], ts1: 0.78, ss1: 0.9, ts2: 0.78, ss2: 0.9, d: 1.2 }]
+    frames: [{ d: 1 }, { x: 84, y: 136, t: 156, H1: [108, 152], ts1: 0.7, ss1: 0.85, ts2: 0.7, ss2: 0.85, d: 1.2 }]
   });
   add('squat_banded', 'Sentadilla con bandas / cadenas', {
     base: S({ t: 176, h1: [-3, -7], h: -4, F1: [97, AY], F2: [92, AY] }), props: [BBback, { type: 'band', from: J => A.mv(J.shc, J.t + 90, 7), to: [94, 184] }],

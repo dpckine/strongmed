@@ -702,10 +702,10 @@
         boxS([hx, (J.hip[1] + J.shc[1]) / 2 - 4], 40, J.hip[1] - J.shc[1] + 14, 7, 'pad', back - 3);
         boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 8);
         boxS([hx, FLOOR - 2], 70, 4, 60, 'padDark', kz / 2);
-        boxS([hx, 70], 50, 220, 10, 'padDark', back - 22);
+        boxS([hx, (40 + FLOOR) / 2], 50, FLOOR - 40, 10, 'padDark', back - 22);
         for (const i of [1, 2]) {
           const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sg = (kn[0] < hx ? -1 : 1) * (o.mode === 'out' ? 1 : -1), px = kn[0] + sg * 7;
-          boxS([px, kn[1] - 2], 5, 20, 14, 'pad', z);
+          boxS([px, kn[1] - 2], 6, 24, 20, 'pad', z);
           cyl(V2([px, kn[1] + 8], z), V2([hx + (kn[0] < hx ? -6 : 6), sy + 12], 0), 1.8, 'metal');
           cyl(V2([an[0] - 8, an[1] + 5], zk('an' + i)), V2([an[0] + 8, an[1] + 5], zk('an' + i)), 1.6, 'metal');
           const h = J['hd' + i]; if (h) cyl(V2([h[0], h[1] - 2], zk('hd' + i) - 6), V2([h[0], h[1] - 2], zk('hd' + i) + 6), 1.5, 'metal');

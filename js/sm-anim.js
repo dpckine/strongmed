@@ -940,9 +940,12 @@
   const S = o => Object.assign({ x: 100, y: 100, t: 180, F1: [104, AY], F2: [99, AY], a1: 4, e1: 8 }, o || {});
   const kneel = (kx, l1, o) => { const d = dir(l1); return Object.assign({ x: kx - d[0] * 40, y: 177 - d[1] * 40, l1, k1: -90, pf: false, f1: 0 }, o || {}); };
   const plank = (Sh, Ft, extra) => {
+    // en el suelo se apoya la punta del pie (pie casi vertical, talón arriba), no el empeine
+    const toes = Ft[1] >= 175 && Ft[0] < Sh[0];
+    if (toes) Ft = [Ft[0], Ft[1] - 9];
     const v = [Ft[0] - Sh[0], Ft[1] - Sh[1]], m = Math.hypot(v[0], v[1]), r = 46 + 79.6;
     const F = [Sh[0] + v[0] / m * r, Sh[1] + v[1] / m * r];      // cuerpo recto: sin rodillas dobladas hacia el suelo
-    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: F, F2: [F[0] - 3.5, F[1]] }, extra || {});
+    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: F, F2: [F[0] - 3.5, F[1]] }, toes ? { f1: 22, f2: 22 } : {}, extra || {});
   };
   const kneePlank = (Sh, K, extra) => {
     const v = [K[0] - Sh[0], K[1] - Sh[1]], m = Math.hypot(v[0], v[1]);
@@ -1780,7 +1783,7 @@
   });
   add('mountain_climber', 'Escalador (mountain climber)', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
-    frames: [{ F1: [104, 170], F2: [14, 179] }, { F1: [60, 162], F2: [58, 164] }, { F1: [12, 179], F2: [100, 170] }, { F1: [58, 164], F2: [60, 162] }], free: true, ease: 'linear', dur: 0.9
+    frames: [{ F1: [104, 168], F2: [14, 170] }, { F1: [60, 160], F2: [58, 162] }, { F1: [12, 170], F2: [100, 168] }, { F1: [58, 162], F2: [60, 160] }], free: true, ease: 'linear', dur: 0.9
   });
   add('burpee', 'Burpee', {
     base: S({ a1: 4, e1: 8 }),

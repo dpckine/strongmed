@@ -957,7 +957,7 @@
 
   // Implementos reutilizables
   const BB = { type: 'barbell', at: 'wr1' };
-  const BBback = { type: 'barbell', at: J => A.mv(A.mv(J.shc, J.t + 90, 10), J.t + 180, 3), r: 11, layer: 'mid' };
+  const BBback = { type: 'barbell', at: J => A.mv(A.mv(J.shc, J.t + 90, 7), J.t + 180, 3), r: 11, layer: 'mid' };
   const DB = [{ type: 'db', at: 'hd2', layer: 'mid', dim: true }, { type: 'db', at: 'hd1' }];
   const DB1 = [{ type: 'db', at: 'hd1' }];
   const DBF = [{ type: 'db', at: 'hd1' }, { type: 'db', at: 'hd2' }];        // vista frontal
@@ -967,8 +967,8 @@
 
   /* ============================== TREN INFERIOR ============================== */
   add('squat', 'Sentadilla con barra trasera', {
-    base: S({ t: 178, h1: [-3, -9], h: -4 }), props: [BBback],
-    frames: [{}, { x: 79, y: 140, t: 136, h: 12 }]
+    base: S({ t: 176, h1: [-3, -7], h: -4, F1: [97, AY], F2: [92, AY] }), props: [BBback],
+    frames: [{}, { x: 73, y: 136, t: 140, h: 12 }]
   });
   add('squat_front', 'Sentadilla frontal', {
     base: S({ t: 178, a1: 102, e1: -112 }), props: [{ type: 'barbell', at: J => A.mv(J.shc, J.t - 90, 9) }],
@@ -1010,8 +1010,8 @@
     frames: [{}, { y: 138 }]
   });
   add('squat_banded', 'Sentadilla con bandas / cadenas', {
-    base: S({ t: 178, h1: [-3, -9], h: -4 }), props: [BBback, { type: 'band', from: J => A.mv(J.shc, J.t + 90, 7), to: [94, 184] }],
-    frames: [{}, { x: 79, y: 140, t: 136, h: 12 }]
+    base: S({ t: 176, h1: [-3, -7], h: -4, F1: [97, AY], F2: [92, AY] }), props: [BBback, { type: 'band', from: J => A.mv(J.shc, J.t + 90, 7), to: [94, 184] }],
+    frames: [{}, { x: 73, y: 136, t: 140, h: 12 }]
   });
   add('squat_spanish', 'Spanish squat (banda tras rodillas)', {
     base: S({ t: 180, a1: 92, e1: 92, F1: [110, AY], F2: [105, AY] }),
@@ -2060,11 +2060,11 @@
   /* ============================== POTENCIA / OLÍMPICOS ============================== */
   add('clean', 'Cargada (clean)', {
     base: { x: 80, y: 130, t: 124, F1: [104, AY], F2: [99, AY], H1: [106, 171] }, props: [BB],
-    frames: [{ d: 1 }, { x: 102, y: 96, t: 186, F1: [104, 174], F2: [99, 174], f1: 40, f2: 40, H1: [108, 106], d: .5 }, { x: 88, y: 122, t: 164, F1: [104, AY], F2: [99, AY], f1: 78, f2: 78, a1: 102, e1: -112, d: .5 }, { x: 100, y: 100, t: 178, d: 1 }], dur: 2.6
+    frames: [{ d: 0.9 }, { x: 102, y: 96, t: 186, F1: [104, 174], F2: [99, 174], f1: 40, f2: 40, H1: [108, 106], d: .3 }, { H1: [109, 76], e1s: 1, d: .3 }, { x: 88, y: 122, t: 164, F1: [104, AY], F2: [99, AY], f1: 78, f2: 78, a1: 102, e1: -112, d: .5 }, { x: 100, y: 100, t: 178, d: .5 }, { d: .6 }, { H1: [104, 104], e1s: -1, d: .9 }], dur: 4
   });
   add('snatch', 'Arrancada (snatch)', {
     base: { x: 80, y: 128, t: 120, F1: [104, AY], F2: [99, AY], H1: [104, 171] }, props: [BB],
-    frames: [{ d: 1 }, { x: 102, y: 96, t: 186, F1: [104, 174], F2: [99, 174], f1: 40, f2: 40, H1: [110, 102], d: .5 }, { x: 88, y: 128, t: 166, F1: [104, AY], F2: [99, AY], f1: 78, f2: 78, a1: 174, e1: 176, d: .5 }, { x: 100, y: 100, t: 180, a1: 176, e1: 178, d: 1 }], dur: 2.8
+    frames: [{ d: 0.9 }, { x: 102, y: 96, t: 186, F1: [104, 174], F2: [99, 174], f1: 40, f2: 40, H1: [110, 102], d: .3 }, { H1: [111, 72], e1s: 1, d: .3 }, { x: 88, y: 128, t: 166, F1: [104, AY], F2: [99, AY], f1: 78, f2: 78, a1: 174, e1: 176, d: .5 }, { x: 100, y: 100, t: 180, a1: 176, e1: 178, d: .5 }, { d: .6 }, { H1: [104, 104], e1s: -1, d: 1 }], dur: 4.1
   });
   add('highpull', 'High pull', {
     base: { x: 84, y: 112, t: 140, F1: [104, AY], F2: [99, AY], H1: [106, 140] }, props: [BB],

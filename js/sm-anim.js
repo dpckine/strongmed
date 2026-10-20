@@ -988,7 +988,7 @@
     frames: [{}, { x: 82, y: 140, t: 148, a1: 4, e1: 4 }]
   });
   add('squat_machine', 'Sentadilla en máquina (hack / pendular)', {
-    base: S({ t: 166, h1: [-2, -6], F1: [114, AY], F2: [109, AY] }),
+    base: S({ t: 166, h1: [-2, -6], us1: 0.6, F1: [114, AY], F2: [109, AY] }),
     props: [{ type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 7, layer: 'back' }],
     frames: [{}, { x: 86, y: 140, t: 150 }]
   });
@@ -1039,7 +1039,7 @@
     frames: [{}, { F1: [140, 82], F2: [136, 84] }]
   });
   add('hack', 'Hack squat', {
-    base: { x: 100, y: 96, t: 164, F1: [120, 168], F2: [116, 168], h1: [-2, -7], f1: 70 },
+    base: { x: 100, y: 96, t: 164, F1: [120, 168], F2: [116, 168], h1: [-2, -7], us1: 0.6, f1: 70 },
     props: [{ type: 'slant', x: 96, w: 50, h: 14 }, { type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 8 }],
     frames: [{}, { x: 86, y: 132, t: 160 }]
   });
@@ -1128,7 +1128,7 @@
     frames: [{}, { x: 103.5, y: 91, F1: [107.6, 170.4], F2: [102.6, 170.4], f1: 30, f2: 30 }]
   });
   add('calf_machine', 'Elevación de talones en máquina', {
-    base: S({ h1: [4, 6], f1: 78 }),
+    base: S({ h1: [4, 6], us1: 0.6, f1: 78 }),
     props: [{ type: 'pad', a: J => A.mv(J.shc, J.t + 90, 4), b: J => A.mv(J.shc, J.t - 90, 16), w: 7, layer: 'hand' }, { type: 'box', x: 92, y: 178, w: 30 }],
     frames: [{ y: 94, F1: [104, 173], F2: [99, 173] }, { y: 84, F1: [104, 163], F2: [99, 163], f1: 30, f2: 30 }]
   });
@@ -1187,15 +1187,15 @@
     frames: [{}, { x: 104, y: 126 }]
   });
   add('bridge', 'Puente de glúteo', {
-    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [97, 181], pf: true },
     frames: [{}, { x: 81, y: 147 }]
   });
   add('bridge_iso', 'Puente de glúteo isométrico', {
-    base: { x: 81, y: 147, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
+    base: { x: 81, y: 147, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [97, 181], pf: true },
     frames: [{}, { y: 147 }], pulse: true, dur: 2
   });
   add('bridge_single', 'Puente de glúteo a una pierna', {
-    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [97, 181], pf: true },
     frames: [{ l2: 150, k2: 150 }, { x: 81, y: 147, l2: 120, k2: 120 }]
   });
   add('kickback_glute', 'Patada de glúteo en polea', {
@@ -1358,8 +1358,8 @@
     frames: [{}, { H1: [74, 85] }]
   });
   add('bench_db', 'Press con mancuernas en banco', {
-    base: Object.assign({}, benchBody, { H1: [78, 124] }), props: [flatBench, ...DB],
-    frames: [{}, { H1: [74, 85] }]
+    base: Object.assign({}, benchBody, { H1: [78, 124], us1: 0.55, fs1: 0.95 }), props: [flatBench, ...DB],
+    frames: [{}, { H1: [74, 85], us1: 1, fs1: 1 }]
   });
   add('bench_incline', 'Press inclinado', {
     base: { x: 116, y: 140, S: [80, 110], h: 6, F1: [154, AY], F2: [150, AY], H1: [86, 106] },
@@ -1367,9 +1367,9 @@
     frames: [{}, { H1: [96, 66] }]
   });
   add('bench_incline_db', 'Press inclinado con mancuernas', {
-    base: { x: 116, y: 140, S: [80, 110], h: 6, F1: [154, AY], F2: [150, AY], H1: [88, 104] },
+    base: { x: 116, y: 140, S: [80, 110], h: 6, F1: [154, AY], F2: [150, AY], H1: [88, 104], us1: 0.55, fs1: 0.95 },
     props: [{ type: 'bench', a: [104, 146], b: [138, 146], legs: [112, 132], back: [[106, 146], [66, 112]] }, ...DB],
-    frames: [{}, { H1: [96, 66] }]
+    frames: [{}, { H1: [96, 66], us1: 1, fs1: 1 }]
   });
   add('bench_decline', 'Press declinado', {
     base: { x: 116, y: 122, S: [74, 140], h: 6, pf: false, l1: 120, k1: 20, H1: [80, 132] },
@@ -1644,7 +1644,7 @@
   add('pulldown_kneel', 'Jalón unilateral arrodillado', {
     base: { x: 94, y: 137, t: 182, pf: false, l1: 0, k1: -90, f1: 0, H1: [112, 34] },
     props: [{ type: 'cable', from: [112, 0], to: 'hd1' }],
-    frames: [{}, { H1: [100, 92] }]
+    frames: [{}, { H1: [102, 100] }]
   });
   add('pullup', 'Dominadas', {
     base: { x: 98, y: 102, t: 182, pf: false, l1: 20, k1: -40, H1: [104, 6] },
@@ -1720,12 +1720,12 @@
     frames: [{}, { e1: 170 }]
   });
   add('pushdown', 'Extensión de tríceps en polea alta', {
-    base: S({ a1: -6, e1: 150 }),
+    base: S({ a1: -6, e1: 100 }),
     props: [{ type: 'tower', x: 132, top: 6, pulleys: [14] }, { type: 'cable', from: [132, 14], to: 'hd1' }],
     frames: [{}, { e1: 6 }]
   });
   add('oh_ext', 'Extensión de tríceps sobre la cabeza', {
-    base: S({ a1: 172, e1: -18 }), props: [{ type: 'db', at: 'hd1', k: 1.2 }],
+    base: S({ a1: 172, e1: -43 }), props: [{ type: 'db', at: 'hd1', k: 1.2 }],
     frames: [{}, { e1: 176 }]
   });
   add('oh_ext_cable', 'Extensión sobre la cabeza en polea', {
@@ -1759,7 +1759,7 @@
     frames: [{}, { t: -126, h: -18 }]
   });
   add('crunch_small', 'Curl-up de McGill', {
-    base: { x: 100, y: 175, t: -90, h: -4, F1: [134, AY], l2: 90, k2: 90, pf: true, H1: [100, 180], e1s: 1 },
+    base: { x: 100, y: 175, t: -90, h: -4, F1: [134, AY], l2: 90, k2: 90, pf: true, H1: [104, 180] },
     frames: [{}, { t: -104, h: -6 }], pulse: true
   });
   add('bicycle_crunch', 'Crunch bicicleta', {
@@ -2000,8 +2000,8 @@
     frames: [{ a1: -84, e1: -84 }, { a1: -96, e1: -96 }], pulse: true
   });
   add('triceps_stretch', 'Estiramiento de tríceps sobre la cabeza', {
-    base: S({ a1: 172, e1: -10, H2: [96, 40] }),
-    frames: [{}, { a1: 178, e1: -4 }], pulse: true
+    base: S({ a1: 172, e1: -38, H2: [96, 40] }),
+    frames: [{}, { a1: 178, e1: -32 }], pulse: true
   });
   add('side_stretch', 'Estiramiento lateral de tronco', {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [114, AY], a1: 170, e1: 176, a2: -6, e2: -6 },
@@ -2166,7 +2166,7 @@
     frames: runFrames(0.8, { t: 124, y: 112, H1: [150, 116], push: true }), ease: 'linear', dur: 1.2
   });
   add('yoke', 'Paseo de yugo', {
-    base: S({ h1: [-2, -8] }), props: [{ type: 'yoke' }],
+    base: S({ h1: [-2, -8], us1: 0.6 }), props: [{ type: 'yoke' }],
     frames: walk({ h1: [-2, -8], armSwing: 0, stride: 0.6 }), ease: 'linear', dur: 1.6
   });
   // paseos con carga (loaded carries): misma marcha, distinta posición de brazos

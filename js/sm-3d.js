@@ -296,9 +296,21 @@
         OV['kn' + i + 'z'] = zn; for (const k of ['an', 'to', 'he']) OV[k + i + 'z'] = za;
       }
     }
+    // vista lateral: un brazo o una pierna dibujados más cortos (escorzo) van hacia el costado (abducción:
+    // aperturas, codos abiertos en press con mancuernas, manos en los hombros); se recupera esa profundidad hacia afuera
+    function sideDepth(J) {
+      const L = A.L;
+      for (const i of [1, 2]) {
+        const sg = i === 1 ? 1 : -1, de = dep(J['S' + i], J['el' + i], L.ua), dw = dep(J['el' + i], J['wr' + i], L.fa);
+        if (de || dw) { const ze = sg * (ZW.el + de), zw = ze + sg * dw; OV['el' + i + 'z'] = ze; for (const k of ['wr', 'hd', 'tg']) OV[k + i + 'z'] = zw; }
+        const dk = dep(J['H' + i] || J.hip, J['kn' + i], L.th), da = dep(J['kn' + i], J['an' + i], L.sh);
+        if (dk || da) { const zn = sg * (ZLEG + dk), za = zn + sg * da; OV['kn' + i + 'z'] = zn; for (const k of ['an', 'to', 'he']) OV[k + i + 'z'] = za; }
+      }
+    }
     function gripFix(J, tpl) {
       OV = {};
       if (front) { frontDepth(J); return; }
+      sideDepth(J);
       const bb = (tpl.props || []).find(o => o.type === 'barbell'); if (!bb) return;
       let bp; try { bp = A.at(J, bb.at || 'wr1'); } catch (e) { return; }
       if (!bp) return;

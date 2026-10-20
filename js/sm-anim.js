@@ -988,7 +988,7 @@
     frames: [{}, { x: 82, y: 140, t: 148, a1: 4, e1: 4 }]
   });
   add('squat_machine', 'Sentadilla en máquina (hack / pendular)', {
-    base: S({ t: 166, h1: [-2, -6], us1: 0.6, F1: [114, AY], F2: [109, AY] }),
+    base: S({ t: 166, h1: [-2, -6], F1: [114, AY], F2: [109, AY] }),
     props: [{ type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 7, layer: 'back' }],
     frames: [{}, { x: 86, y: 140, t: 150 }]
   });
@@ -1039,7 +1039,7 @@
     frames: [{}, { F1: [140, 82], F2: [136, 84] }]
   });
   add('hack', 'Hack squat', {
-    base: { x: 100, y: 96, t: 164, F1: [120, 168], F2: [116, 168], h1: [-2, -7], us1: 0.6, f1: 70 },
+    base: { x: 100, y: 96, t: 164, F1: [120, 168], F2: [116, 168], h1: [-2, -7], f1: 70 },
     props: [{ type: 'slant', x: 96, w: 50, h: 14 }, { type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 8 }],
     frames: [{}, { x: 86, y: 132, t: 160 }]
   });
@@ -1128,7 +1128,7 @@
     frames: [{}, { x: 103.5, y: 91, F1: [107.6, 170.4], F2: [102.6, 170.4], f1: 30, f2: 30 }]
   });
   add('calf_machine', 'Elevación de talones en máquina', {
-    base: S({ h1: [4, 6], us1: 0.6, f1: 78 }),
+    base: S({ h1: [4, 6], f1: 78 }),
     props: [{ type: 'pad', a: J => A.mv(J.shc, J.t + 90, 4), b: J => A.mv(J.shc, J.t - 90, 16), w: 7, layer: 'hand' }, { type: 'box', x: 92, y: 178, w: 30 }],
     frames: [{ y: 94, F1: [104, 173], F2: [99, 173] }, { y: 84, F1: [104, 163], F2: [99, 163], f1: 30, f2: 30 }]
   });
@@ -1386,8 +1386,9 @@
     frames: [{}, { H1: [76, 128] }]
   });
   add('fly', 'Aperturas con mancuernas', {
-    base: Object.assign({}, benchBody, { a1: 182, e1: 182, us1: 1, fs1: 1 }), props: [flatBench, ...DB],
-    frames: [{ us1: 0.3, fs1: 0.3, e1: 150 }, { us1: 1, fs1: 1, e1: 182 }]
+    // las manos bajan en arco hacia los costados (abajo, el brazo casi entero va hacia el lado: escorzo)
+    base: Object.assign({}, benchBody, { H1: [72, 85], us1: 1, fs1: 1 }), props: [flatBench, ...DB],
+    frames: [{ H1: [72, 134], us1: 0.14, fs1: 0.12 }, { H1: [72, 85], us1: 1, fs1: 1 }]
   });
   add('pullover', 'Pullover', {
     base: Object.assign({}, benchBody, { y: 133, a1: -96, e1: -96 }), props: [flatBench, { type: 'db', at: 'hd1', k: 1.3 }],
@@ -2166,7 +2167,7 @@
     frames: runFrames(0.8, { t: 124, y: 112, H1: [150, 116], push: true }), ease: 'linear', dur: 1.2
   });
   add('yoke', 'Paseo de yugo', {
-    base: S({ h1: [-2, -8], us1: 0.6 }), props: [{ type: 'yoke' }],
+    base: S({ h1: [-2, -8] }), props: [{ type: 'yoke' }],
     frames: walk({ h1: [-2, -8], armSwing: 0, stride: 0.6 }), ease: 'linear', dur: 1.6
   });
   // paseos con carga (loaded carries): misma marcha, distinta posición de brazos

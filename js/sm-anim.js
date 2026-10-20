@@ -1172,10 +1172,11 @@
     base: { x: 80, y: 130, t: 124, F1: [104, AY], F2: [99, AY], H1: [106, 171] }, props: [BB, { type: 'chain', at: 'wr1' }],
     frames: [{ d: 1 }, { x: 100, y: 100, t: 180, H1: [104, 112], d: 1.2 }], thumb: 0.04
   });
-  // sumo: pies muy abiertos, cadera más baja y tronco más vertical que el convencional
+  // sumo: pies muy abiertos, cadera más baja y tronco más vertical que el convencional.
+  // De perfil el muslo y la canilla se ven acortados (ts/ss): en 3D eso abre las piernas hacia los lados.
   add('deadlift_sumo', 'Peso muerto sumo', {
-    base: { x: 84, y: 142, t: 134, F1: [104, AY], F2: [99, AY], H1: [105, 171] }, props: [BB],
-    frames: [{ d: 1 }, { x: 100, y: 100, t: 180, H1: [104, 112], d: 1.2 }], thumb: 0.04
+    base: { x: 84, y: 142, t: 134, F1: [104, AY], F2: [99, AY], H1: [105, 171], ts1: 0.8, ss1: 0.9, ts2: 0.8, ss2: 0.9 }, props: [BB],
+    frames: [{ d: 1 }, { x: 100, y: 104, t: 180, H1: [104, 116], ts1: 0.95, ss1: 0.95, ts2: 0.95, ss2: 0.95, d: 1.2 }], thumb: 0.04
   });
   // barra hexagonal: las manos van a los costados (agarre neutro) y la barra rodea al cuerpo;
   // de perfil se ve como una barra a la altura de las manos
@@ -1422,7 +1423,7 @@
   const cablePress = (py, H0, H1) => ({
     base: { x: 96, y: 101, t: 172, F1: [114, AY], F2: [80, AY], f2: 50, H1: H0, us1: 0.7 },
     props: [{ type: 'tower', x: 26, top: 6, pulleys: [py] }, { type: 'cable', from: [26, py], to: 'hd2', dim: true }, { type: 'cable', from: [26, py], to: 'hd1' }, { type: 'handle', at: 'hd1' }],
-    props3: [{ type: 'tower', x: 40, top: 6, pulleys: [py], z: 44 }, { type: 'tower', x: 40, top: 6, pulleys: [py], z: -44 }, { type: 'cable', from: [40, py], fz: 44, to: 'hd1' }, { type: 'cable', from: [40, py], fz: -44, to: 'hd2' }],
+    props3: [{ type: 'tower', x: 40, top: 6, pulleys: [py], z: 44 }, { type: 'tower', x: 40, top: 6, pulleys: [py], z: -44 }, { type: 'cable', from: [40, py], fz: 44, to: 'hd1' }, { type: 'cable', from: [40, py], fz: -44, to: 'hd2' }, { type: 'handle', at: 'hd1' }, { type: 'handle', at: 'hd2' }],
     frames: [{}, { H1, us1: 1 }]
   });
   add('cable_fly_high', 'Press en polea alta (hacia abajo)', cablePress(24, [110, 66], [146, 86]));
@@ -1954,8 +1955,8 @@
   add('hyper', 'Hiperextensión a 45°', {
     // banco a la altura real (apoyo bajo la cadera a ~1 m): abajo el tronco cuelga sin tocar el suelo
     // y arriba queda en línea con las piernas (45°), sin hiperextender la zona lumbar
-    base: { x: 106, y: 104, t: 30, pf: true, F1: [54, 158], F2: [50, 160], f1: 34, f2: 34, h1: [-8, 10] },
-    props: [{ type: 'pad', a: [113, 106], b: [101, 119], w: 9 }, { type: 'pad', a: [104, 118], b: [94, 184], w: 4 }, { type: 'pad', a: [49, 164], b: [65, 179], w: 4 }, { type: 'pad', a: [50, 166], b: [44, 184], w: 4 }, { type: 'pad', a: [40, 184], b: [104, 184], w: 4 }],
+    base: { x: 106, y: 94, t: 38, pf: true, F1: [53, 147], F2: [49, 149], f1: 34, f2: 34, h1: [-8, 10] },
+    props: [{ type: 'pad', a: [113, 96], b: [101, 109], w: 9 }, { type: 'pad', a: [104, 108], b: [94, 184], w: 4 }, { type: 'pad', a: [48, 153], b: [64, 168], w: 4 }, { type: 'pad', a: [49, 155], b: [42, 184], w: 4 }, { type: 'pad', a: [38, 184], b: [104, 184], w: 4 }],
     frames: [{}, { t: 136 }]
   });
   add('reverse_hyper', 'Reverse hyper', {

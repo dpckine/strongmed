@@ -563,7 +563,8 @@
         const a = o.type === 'cable' ? (o.to || 'hd1') : (o.at || 'hd1'); if (typeof a !== 'string') continue;
         const m = /^(hd|wr|tg)([12])$/.exec(a); if (!m || !J[a]) continue; h[m[2]] = 1;
         const oth = m[2] === '1' ? 2 : 1;
-        if ((o.type === 'stick' || o.type === 'cable') && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 10) h[oth] = h.two = 1;
+        // cable con polea propia a un costado (fz): cada mano tira de su cable, no hay barra entre ambas
+        if ((o.type === 'stick' || (o.type === 'cable' && o.fz === undefined)) && J['hd' + oth] && d2(J['hd' + oth], J[a]) < 10) h[oth] = h.two = 1;
       }
       return h;
     }
@@ -666,7 +667,7 @@
         const a = at3(J, o.from), to = o.to || 'hd1', b = at3(J, to);
         if (o.fz !== undefined) a.z = o.fz;
         // las dos manos juntas en la polea: barra o agarre entre ambas y el cable al centro
-        const two = !front && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
+        const two = !front && o.fz === undefined && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
         if (two && !o.band) { const w = ZARM + 7; cyl(V2(b.p, -w), V2(b.p, w), 1.5, 'metal'); b.z = 0; }
         cyl(V2(a.p, a.z), V2(b.p, b.z), o.band ? 1.2 : 0.7, o.band ? 'band' : 'cable');
       },

@@ -161,6 +161,24 @@
     return { renderer, scene, cam, key, rim, fill, glow };
   }
 
+  // ¿La figura 2D mira hacia la izquierda? En 2D no se nota, pero en 3D deja al cuerpo boca arriba
+  // cuando debía ir boca abajo (o al revés). Se detecta por hacia dónde se doblan rodillas y codos:
+  // en una figura bien orientada la rodilla se dobla hacia atrás y el codo hacia adelante.
+  const FLIPS = {};
+  function flipOf(name) {
+    if (name in FLIPS) return FLIPS[name];
+    let s = 0;
+    const cr = (a, b, c) => { if (!a || !b || !c) return 0; const u = [b[0] - a[0], b[1] - a[1]], v = [c[0] - b[0], c[1] - b[1]], l = Math.hypot(...u) * Math.hypot(...v) || 1, x = (u[0] * v[1] - u[1] * v[0]) / l; return Math.abs(x) > 0.15 ? x : 0; };
+    try {
+      for (let i = 0; i < 12; i++) {
+        const R = A.pose3(name, i / 12); if (!R || R.custom || R.front) { FLIPS[name] = 1; return 1; }
+        const J = R.J;
+        for (const k of [1, 2]) { s += cr(J['H' + k] || J.hip, J['kn' + k], J['an' + k]); s -= 0.6 * cr(J['S' + k], J['el' + k], J['wr' + k]); }
+      }
+    } catch (e) { }
+    return (FLIPS[name] = s < -1.2 ? -1 : 1);
+  }
+
   // ---------------------------------------------------------------- reproductor 3D
   function start3D(T, P) {
     const el = P.el, tpl0 = A.tpl(P.tplName);
@@ -236,10 +254,19 @@
     function ball(o, c, rx, ry, rz) { o.matrix.makeScale(rx, ry ?? rx, rz ?? rx).setPosition(c); o.matrixWorldNeedsUpdate = true; }
     function ell(o, c, yv, zh, rx, ry, rz) { frame(o, c, yv, ry, zh, rx, rz); }
     const seg = (o, a, b, zh) => { const d = b.clone().sub(a), l = d.length() || 0.01; frame(o, a, d, l, zh); return d; };
-    const antOf = (a2, b2) => { if (front) return FWD; const u = [b2[0] - a2[0], b2[1] - a2[1]], l = Math.hypot(u[0], u[1]) || 1; return D2([u[1] / l, -u[0] / l]); };
+    let FL = flipOf(P.tplName);     // -1: la figura 2D mira a la izquierda → en 3D se gira 180° sobre el eje del tronco
+    const antOf = (a2, b2) => { if (front) return FWD; const u = [b2[0] - a2[0], b2[1] - a2[1]], l = Math.hypot(u[0], u[1]) || 1; return D2([FL * u[1] / l, -FL * u[0] / l]); };
+    // pie: dirección de la punta y empeine (si la figura está girada, la punta se refleja respecto de la canilla)
+    function footDir(J, i) {
+      let u = [J['to' + i][0] - J['an' + i][0], J['to' + i][1] - J['an' + i][1]];
+      if (FL < 0) { const a = [J['an' + i][0] - J['kn' + i][0], J['an' + i][1] - J['kn' + i][1]], la = Math.hypot(...a) || 1; a[0] /= la; a[1] /= la; const d = u[0] * a[0] + u[1] * a[1]; u = [2 * d * a[0] - u[0], 2 * d * a[1] - u[1]]; }
+      const l = Math.hypot(...u) || 1;
+      return { to: D2([u[0] / l, u[1] / l]), up: D2([FL * u[1] / l, -FL * u[0] / l]), len: l };
+    }
 
     // ajusta la pose 2D → puntos 3D
     function joints(J) {
+      if (FL < 0) J = Object.assign({}, J, { n: [-J.n[0], -J.n[1]] });
       if (front) {        // vista frontal: brazos un poco hacia afuera para que no atraviesen el tronco
         J = Object.assign({}, J);
         for (const i of [1, 2]) { const sg = Math.sign(J['S' + i][0] - J.shc[0]) || (i === 1 ? 1 : -1); for (const k of ARMK) if (J[k + i]) J[k + i] = [J[k + i][0] + sg * 6.5, J[k + i][1]]; }
@@ -545,7 +572,7 @@
         aim('shin' + ls, An.clone().sub(K), antOf(J['kn' + i], J['an' + i]));
         let to, fu;
         if (front) { to = new V3(0, -0.3, 1); fu = new V3(0, 1, 0); }
-        else { const u = [J['to' + i][0] - J['he' + i][0], J['to' + i][1] - J['he' + i][1]], l = Math.hypot(...u) || 1; to = PT(J, 'to' + i).sub(An); fu = D2([u[1] / l, -u[0] / l]); }
+        else { const f = footDir(J, i); to = f.to; fu = f.up; }
         aim('foot' + ls, to, fu);
       }
       // la cadera del modelo queda en la cadera de la animación
@@ -730,7 +757,7 @@
       if (P.spin) cam.ty -= dt * 22;
       const k = 1 - Math.pow(0.0015, dt);
       cam.yaw += (cam.ty - cam.yaw) * k; cam.pitch += (cam.tp - cam.pitch) * k; cam.dist += (cam.td - cam.dist) * k;
-      const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph); let J = joints(R.J);
+      const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph); FL = flipOf(P.tplName); let J = joints(R.J);
       gripFix(J, R.tpl); if (MODEL.ok) { poseModel(J, R.tpl); J = snapProps(J, R.tpl); } else poseBody(J); poseProps(J, R.tpl, P.clock);
       placeCam();
       S.renderer.render(S.scene, S.cam);
@@ -753,5 +780,5 @@
     }).catch(() => { });
     return P;
   }
-  G.SM3D = { mount, load: loadThree };
+  G.SM3D = { mount, load: loadThree, flipOf };
 })(window);

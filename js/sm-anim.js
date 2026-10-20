@@ -1970,9 +1970,13 @@
     frames: [{ d: 0.5 }, { H1: [100, 170], H2: [102, 168], bs: 1, t: 218, d: 0.9 }, { d: 0.5 }, { H1: [94, 160], H2: [92, 161], bs: 0, t: 226, d: 0.9 }], free: true, dur: 2.8
   });
   add('landmine_twist', 'Landmine twist / rainbows', {
-    base: { view: 'front', x: 100, y: 99, t: 180, F1: [124, AY], F2: [76, AY], a1: 150, e1: 150, a2: 150, e2: 150, us1: 0.6, fs1: 0.6, us2: 0.6, fs2: 0.6 },
-    props: [{ type: 'landmine', pivot: [100, 184], at: J => [(J.hd1[0] + J.hd2[0]) / 2, (J.hd1[1] + J.hd2[1]) / 2] }],
-    frames: [{ a1: 140, e1: 140, a2: 140, e2: 140 }, { a1: -140, e1: -140, a2: -140, e2: -140 }]
+    // de frente al anclaje (a un largo de barra), brazos estirados al frente con la punta en ambas manos;
+    // la punta describe un arco de una cadera a la otra pasando a la altura de la cara, con giro de tronco y pies fijos
+    base: { view: 'front', x: 100, y: 99, t: 180, F1: [122, AY], F2: [78, AY], H1: [100, 64], H2: [100, 64], us1: 0.5, fs1: 0.5, us2: 0.5, fs2: 0.5 },
+    props: [{ type: 'landmine', pivot: [100, 184], pz: 150 }],
+    props3: [{ type: 'landmine', pivot: [100, 184], pz: 150 }],
+    frames: [{ H1: [62, 128], H2: [62, 128], us1: 0.85, fs1: 0.85, us2: 0.85, fs2: 0.85, t: 186 }, { H1: [100, 64], H2: [100, 64], us1: 0.5, fs1: 0.5, us2: 0.5, fs2: 0.5, t: 180 },
+      { H1: [138, 128], H2: [138, 128], us1: 0.85, fs1: 0.85, us2: 0.85, fs2: 0.85, t: 174 }, { H1: [100, 64], H2: [100, 64], us1: 0.5, fs1: 0.5, us2: 0.5, fs2: 0.5, t: 180 }], free: true, dur: 3.2
   });
   add('wipers', 'Limpiaparabrisas colgado', {
     base: { view: 'front', x: 100, y: 99, t: 180, pf: false, l1: 2, k1: 2, H1: [116, 6] },

@@ -795,7 +795,8 @@
       roller: (J, o) => { const a = at3(J, o.at); cyl(V2(a.p, -18), V2(a.p, 18), o.r || 7, 'teal'); },
       stick: (J, o) => { const a = at3(J, o.at, 'hd1'); cyl(V2(a.p, -55), V2(a.p, 55), 1.2, 'wood'); },
       landmine: (J, o) => {
-        const pv = V2(at3(J, o.pivot).p), a = at3(J, o.at, 'hd1'), h = V2(a.p, a.z), d = h.clone().sub(pv).normalize(), e = h.clone().addScaledVector(d, 12);
+        // pz: anclaje delante de la persona en vista frontal (twist / rainbows)
+        const pv = V2(at3(J, o.pivot).p, o.pz || 0), a = at3(J, o.at, 'hd1'), h = V2(a.p, a.z), d = h.clone().sub(pv).normalize(), e = h.clone().addScaledVector(d, 12);
         cyl(pv, e, 1.6, 'metal'); disc(e, d, 10, 4, 'plate'); sph(pv, 3.5, 'padDark');
       },
       platform: (J, o) => { const p = at3(J, o.at, 'an1').p, d = A.dir(o.a); boxAB(V2([p[0] - d[0] * 18, p[1] - d[1] * 18]), V2([p[0] + d[0] * 18, p[1] + d[1] * 18]), 5, 30, 'pad'); },

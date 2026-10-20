@@ -925,8 +925,9 @@
   const S = o => Object.assign({ x: 100, y: 100, t: 180, F1: [104, AY], F2: [99, AY], a1: 4, e1: 8 }, o || {});
   const kneel = (kx, l1, o) => { const d = dir(l1); return Object.assign({ x: kx - d[0] * 40, y: 177 - d[1] * 40, l1, k1: -90, pf: false, f1: 0 }, o || {}); };
   const plank = (Sh, Ft, extra) => {
-    const v = [Ft[0] - Sh[0], Ft[1] - Sh[1]], m = Math.hypot(v[0], v[1]);
-    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: Ft, F2: [Ft[0] + 2, Ft[1]] }, extra || {});
+    const v = [Ft[0] - Sh[0], Ft[1] - Sh[1]], m = Math.hypot(v[0], v[1]), r = 46 + 79.6;
+    const F = [Sh[0] + v[0] / m * r, Sh[1] + v[1] / m * r];      // cuerpo recto: sin rodillas dobladas hacia el suelo
+    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: F, F2: [F[0] + 2, F[1]] }, extra || {});
   };
   const kneePlank = (Sh, K, extra) => {
     const v = [K[0] - Sh[0], K[1] - Sh[1]], m = Math.hypot(v[0], v[1]);
@@ -1167,15 +1168,15 @@
     frames: [{}, { x: 104, y: 126 }]
   });
   add('bridge', 'Puente de glúteo', {
-    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
     frames: [{}, { x: 81, y: 147 }]
   });
   add('bridge_iso', 'Puente de glúteo isométrico', {
-    base: { x: 81, y: 147, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
+    base: { x: 81, y: 147, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
     frames: [{}, { y: 147 }], pulse: true, dur: 2
   });
   add('bridge_single', 'Puente de glúteo a una pierna', {
-    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [95, 181], e1s: 1, pf: true },
     frames: [{ l2: 150, k2: 150 }, { x: 81, y: 147, l2: 120, k2: 120 }]
   });
   add('kickback_glute', 'Patada de glúteo en polea', {
@@ -1274,7 +1275,7 @@
     frames: [{}, { l1: 140, k1: 140 }]
   });
   add('slr_band', 'SLR con banda (neurodinamia)', {
-    base: { x: 104, y: 175, t: -90, pf: false, l1: 120, k1: 120, F2: [136, AY], h1: [-40, -8] },
+    base: { x: 104, y: 175, t: -90, pf: false, l1: 120, k1: 120, F2: [136, AY], h1: [-34, 14] },
     props: [{ type: 'band', from: 'to1', to: 'hd1' }],
     frames: [{ f1: 70 }, { l1: 150, k1: 150, f1: 120 }]
   });
@@ -1739,7 +1740,7 @@
     frames: [{}, { t: -126, h: -18 }]
   });
   add('crunch_small', 'Curl-up de McGill', {
-    base: { x: 100, y: 175, t: -90, h: -4, F1: [134, AY], l2: 90, k2: 90, pf: true, H1: [100, 182] },
+    base: { x: 100, y: 175, t: -90, h: -4, F1: [134, AY], l2: 90, k2: 90, pf: true, H1: [100, 180], e1s: 1 },
     frames: [{}, { t: -104, h: -6 }], pulse: true
   });
   add('bicycle_crunch', 'Crunch bicicleta', {
@@ -1935,16 +1936,16 @@
     frames: [{}, { t: 134, h: 0 }]
   });
   add('cobra_stretch', 'Estiramiento en prono / cobra', {
-    base: { x: 90, y: 176, t: 90, h: -8, pf: false, l1: -90, k1: -90, a1: 0, e1: 92 },
-    frames: [{}, { t: 116, h: 0 }]
+    base: { x: 90, y: 176, t: 92, h: -8, pf: false, l1: -90, k1: -90, f1: 0, H1: [127, 182], e1s: 1 },
+    frames: [{}, { t: 126, h: 4 }]
   });
   add('thoracic_roller', 'Extensión torácica sobre foam roller', {
     base: { x: 104, y: 174, t: -96, h: 0, F1: [136, AY], F2: [132, AY], pf: true, h1: [10, -4] },
     props: [{ type: 'roller', at: [70, 174], r: 8 }],
-    frames: [{ t: -104 }, { t: -80, h: 10 }]
+    frames: [{ t: -104 }, { t: -100, h: 24 }]
   });
   add('open_book', 'Libro abierto (open book)', {
-    base: { x: 104, y: 168, t: -90, pf: false, l1: 150, k1: 60, l2: 152, k2: 62, a2: 0, e2: 60, a1: 100, e1: 100 },
+    base: { x: 104, y: 168, t: -90, pf: false, l1: 150, k1: 60, l2: 152, k2: 62, a2: -96, e2: -96, a1: 100, e1: 100 },
     frames: [{}, { a1: -100, e1: -100, t: -84 }], dur: 3.2
   });
   add('foam_quad', 'Liberación miofascial con foam roller', {
@@ -1955,7 +1956,7 @@
   add('getup', 'Turkish get-up', {
     base: { x: 104, y: 174, t: -90, pf: false, F1: [134, AY], l2: 92, k2: 92, a1: 182, e1: 182, a2: -140, e2: -140 },
     props: [{ type: 'kb', at: 'hd1', up: true }],
-    frames: [{ d: 1 }, { t: -140, H2: [62, 182], d: 1 }, { x: 98, y: 137, t: 182, pf: false, l2: 4, k2: -90, f2: 0, F1: [128, AY], a1: 182, e1: 182, d: 1 }, { x: 100, y: 100, t: 180, F1: [104, AY], F2: [99, AY], pf: true, d: 1.2 }], dur: 5
+    frames: [{ d: 1 }, { t: -140, H2: [62, 182], d: 1 }, { x: 98, y: 137, t: 182, pf: false, l2: 4, k2: -90, f2: 0, F1: [128, AY], a1: 182, e1: 182, d: 0.9 }, { x: 100, y: 118, t: 180, pf: true, F1: [128, AY], F2: [70, 172], f2: 25, d: 0.8 }, { x: 108, y: 101, F1: [128, AY], F2: [96, 166], f2: 60, d: 0.4 }, { x: 118, y: 100, t: 180, F1: [128, AY], F2: [123, AY], f2: 78, d: 1.2 }], dur: 5.3
   });
 
   /* ============================== ESTIRAMIENTOS Y VARIOS ============================== */
@@ -1998,7 +1999,7 @@
   });
   add('lying_twist', 'Rotación lumbar acostado', {
     base: { x: 104, y: 176, t: -90, h: 0, pf: false, l1: 150, k1: 60, l2: 150, k2: 60, a1: 90, e1: 90 },
-    frames: [{}, { l1: 118, k1: 30, l2: 112, k2: 24 }], dur: 3.4
+    frames: [{}, { l1: 132, k1: 44, l2: 128, k2: 40 }], dur: 3.4
   });
   add('childs_pose', 'Postura del niño (estiramiento de espalda)', {
     base: { x: 70, y: 160, t: 78, h: 14, pf: false, l1: 59, k1: -90, l2: 59, k2: -90, f1: 0, f2: 0, H1: [162, 180] },

@@ -1727,7 +1727,7 @@ window.saveWorkout = async () => {
    La sesión la abre el profesional (Jornada) o la persona; la persona anota sus series y solo el profesional la finaliza.
    Es aparte de las rutinas enviadas. p.presActiva marca a quien está en sala para que la Jornada la siga en vivo. */
 const PRES_TIPO = {entrenamiento:'Entrenamiento', recovery:'Recovery', mixto:'Mixto'};
-const presOf = p => { const x=p.pres=p.pres||{}; x.rutinas=x.rutinas||[]; x.planes=x.planes||[]; x.sesiones=x.sesiones||[]; if(!(x.sig>=0)) x.sig=0; return x; };
+const spOf = p => { const x=p.pres=p.pres||{}; x.rutinas=x.rutinas||[]; x.planes=x.planes||[]; x.sesiones=x.sesiones||[]; if(!(x.sig>=0)) x.sig=0; return x; };
 const presRut = p => (p&&p.pres&&p.pres.rutinas)||[];
 const presSigIdx = p => { const n=presRut(p).length; return n ? ((+(p.pres.sig)||0)%n+n)%n : -1; };
 const presSig = p => presRut(p)[presSigIdx(p)] || null;
@@ -1742,7 +1742,7 @@ const presCuenta = w => { const t=w.ex.reduce((a,e)=>a+e.sets.length,0), d=w.ex.
 const presPlanN = (p, id) => presSes(p).filter(s=>s.planId===id).length;
 const presPlanTxt = (p, pl) => pl ? `${pl.nombre} · ${presPlanN(p,pl.id)}${+pl.meta?`/${pl.meta}`:''} sesiones` : '';
 const presSetIni = e => ({kg:e.kg||e.kilos||'', reps:String(e.reps||'').includes('-')?String(parseInt(e.reps)||''):(e.reps||''), rir:String(e.rir||'').includes('-')?String(parseInt(e.rir)||''):(e.rir||''), done:false, t:0});
-function presNueva(p, rid, tipo, planId, abre){ const x=presOf(p), r=x.rutinas.find(y=>String(y.id)===String(rid));
+function presNueva(p, rid, tipo, planId, abre){ const x=spOf(p), r=x.rutinas.find(y=>String(y.id)===String(rid));
   x.enCurso={id:String(uid()), inicio:Date.now(), rid:r?r.id:'', titulo:r?r.titulo:'Sesión presencial', tipo:tipo||'entrenamiento', planId:planId||'', abre, pro:S.role==='pro'?S.pro.nombre:(p.klgo||''),
     ex:(r?r.ejercicios:[]).map(e=>({n:e.ejercicio, exId:e.exId||'', rest:parseRest(e.descanso), obj:presObj(e), sets:Array.from({length:Math.max(1,Math.min(10,+e.series||3))},()=>presSetIni(e))}))};
   p.presActiva=true; return x.enCurso; }
@@ -1842,7 +1842,7 @@ window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEn
   if(w && presCuenta(w).d && !confirm('Ya hay series marcadas en esta sesión. ¿Cambiar la rutina igual? Se pierden.')) return;
   const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; }
   if(await save(p)){ closeSheet(); S.jSel=k; toast(w?'Rutina cambiada':`Sesión de ${first(p.nombre)} iniciada`); pgo('jornada'); } };
-window.presCancelar = async k => { const p=prof(k); if(!p || !confirm(`¿Descartar la sesión en curso de ${first(p.nombre)}? No se guardará.`)) return; presOf(p).enCurso=null; p.presActiva=false; if(await save(p)){ toast('Sesión descartada'); keepScroll(render); } };
+window.presCancelar = async k => { const p=prof(k); if(!p || !confirm(`¿Descartar la sesión en curso de ${first(p.nombre)}? No se guardará.`)) return; spOf(p).enCurso=null; p.presActiva=false; if(await save(p)){ toast('Sesión descartada'); keepScroll(render); } };
 window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w) return; const c=presCuenta(w), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'); S.piTipo=w.tipo||'entrenamiento'; S.rpe=null;
   sheet(`<h2 class="disp h2">Finalizar sesión</h2><p class="muted sm" style="margin-top:6px">${esc(p.nombre)} · ${c.d} de ${c.t} series · ${fmtClock((Date.now()-w.inicio)/1000)}</p><div class="stack" style="margin-top:14px">
     <div><div class="lbl">Tipo de sesión</div><div class="pills" id="pf-t" style="margin-top:6px">${Object.entries(PRES_TIPO).filter(([t])=>t!=='mixto').map(([t,l])=>`<button class="pill ${S.piTipo===t?'on':''}" onclick="S.piTipo='${t}';document.querySelectorAll('#pf-t .pill').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div></div>
@@ -1851,7 +1851,7 @@ window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w) return; c
     <label class="field"><span class="lbl">Comentarios de la sesión</span><textarea class="inp" id="pf-c" rows="4" placeholder="Cómo respondió, ajustes de carga, molestias, qué trabajar la próxima…"></textarea></label>
     <label class="check"><input type="checkbox" id="pf-v" checked><span>${esc(first(p.nombre))} puede ver este comentario</span></label>
     <button class="btn pri block" onclick="presFinalizar(${q(k)})">${ic('check','s')} Finalizar y guardar</button></div>`); };
-window.presFinalizar = async k => { const p=prof(k), x=presOf(p), w=x.enCurso; if(!w) return;
+window.presFinalizar = async k => { const p=prof(k), x=spOf(p), w=x.enCurso; if(!w) return;
   const ej=w.ex.map(e=>{ const use=e.sets.filter(s=>s.done); if(!use.length) return null; const top=use.reduce((a,b)=> est1RM(+b.kg||0,+b.reps||0) > est1RM(+a.kg||0,+a.reps||0) ? b : a);
     return {ejercicio:e.n, exId:e.exId||'', series:use.length, reps:top.reps||'', kilos:top.kg||0, rir:top.rir||'', sets:use.map(s=>({kg:s.kg,reps:s.reps,rir:s.rir}))}; }).filter(Boolean);
   if(!ej.length && !confirm('No hay series marcadas con ✓. ¿Guardar la sesión igual?')) return;
@@ -1863,7 +1863,7 @@ window.presFinalizar = async k => { const p=prof(k), x=presOf(p), w=x.enCurso; i
   const pl=x.planes.find(y=>y.id===planId), sig=presSig(p);
   addAviso(p,'rutina',`Tu sesión presencial quedó registrada${pl?` · ${presPlanTxt(p,pl)}`:''}.${sig?` La próxima vez te toca: ${sig.titulo}.`:''}`);
   if(await save(p)){ closeSheet(); toast('Sesión finalizada y guardada'); if(S.jSel===k) S.jSel=null; keepScroll(render); } };
-window.presBorrarSes = async (k, id) => { const p=prof(k); if(!p || !confirm('¿Eliminar esta sesión del registro?')) return; const x=presOf(p); x.sesiones=x.sesiones.filter(s=>String(s.id)!==String(id)); p.diarios=(p.diarios||[]).filter(d=>!(d.presencial&&String(d.presencial.sesionId)===String(id)));
+window.presBorrarSes = async (k, id) => { const p=prof(k); if(!p || !confirm('¿Eliminar esta sesión del registro?')) return; const x=spOf(p); x.sesiones=x.sesiones.filter(s=>String(s.id)!==String(id)); p.diarios=(p.diarios||[]).filter(d=>!(d.presencial&&String(d.presencial.sesionId)===String(id)));
   if(await save(p)){ toast('Sesión eliminada'); keepScroll(render); } };
 
 /* ---- Profesional: ficha › Presencial (rutinas que rotan, planes y registro) ---- */
@@ -1888,13 +1888,13 @@ window.sheetPresPlan = (k, id) => { const p=prof(k), x=id?presPlanes(p).find(y=>
     <label class="field"><span class="lbl">Inicio</span><input class="inp" type="date" id="pp-i" value="${esc(x?x.inicio||'':todayISO())}"></label>
     <label class="field"><span class="lbl">Objetivo / notas</span><textarea class="inp" id="pp-o" rows="3" placeholder="Opcional">${esc(x?x.obj||'':'')}</textarea></label>
     <button class="btn pri block" onclick="presPlanGuardar(${q(k)},${q(id||'')})">Guardar plan</button></div>`); };
-window.presPlanGuardar = async (k, id) => { const p=prof(k), x=presOf(p), n=val('pp-n'); if(!n) return toast('Ponle nombre al plan','err');
+window.presPlanGuardar = async (k, id) => { const p=prof(k), x=spOf(p), n=val('pp-n'); if(!n) return toast('Ponle nombre al plan','err');
   const d={nombre:n, tipo:val('pp-t')||'entrenamiento', meta:val('pp-m'), inicio:val('pp-i'), obj:val('pp-o')};
   if(id){ const pl=x.planes.find(y=>y.id===id); if(pl) Object.assign(pl,d); } else { const nid='pl'+uid(); x.planes.push({id:nid, ...d, estado:'activo', creado:todayISO(), por:S.pro.nombre}); if(!presPlanAct(p)) x.plan=nid; }
   if(await save(p)){ closeSheet(); toast('Plan guardado'); keepScroll(render); } };
-window.presPlanActivar = async (k, id) => { const p=prof(k); presOf(p).plan=id; if(await save(p)) keepScroll(render); };
-window.presPlanCerrar = async (k, id) => { const p=prof(k), x=presOf(p), pl=x.planes.find(y=>y.id===id); if(!pl) return; pl.estado=pl.estado==='cerrado'?'activo':'cerrado'; if(pl.estado==='cerrado'){ pl.fin=todayISO(); if(x.plan===id) x.plan=''; } if(await save(p)) keepScroll(render); };
-window.presPlanBorrar = async (k, id) => { const p=prof(k), x=presOf(p), n=presPlanN(p,id); if(!confirm(n?`Este plan tiene ${n} sesiones. Se eliminará el plan, pero las sesiones quedan en el registro como “sin plan”. ¿Continuar?`:'¿Eliminar este plan?')) return;
+window.presPlanActivar = async (k, id) => { const p=prof(k); spOf(p).plan=id; if(await save(p)) keepScroll(render); };
+window.presPlanCerrar = async (k, id) => { const p=prof(k), x=spOf(p), pl=x.planes.find(y=>y.id===id); if(!pl) return; pl.estado=pl.estado==='cerrado'?'activo':'cerrado'; if(pl.estado==='cerrado'){ pl.fin=todayISO(); if(x.plan===id) x.plan=''; } if(await save(p)) keepScroll(render); };
+window.presPlanBorrar = async (k, id) => { const p=prof(k), x=spOf(p), n=presPlanN(p,id); if(!confirm(n?`Este plan tiene ${n} sesiones. Se eliminará el plan, pero las sesiones quedan en el registro como “sin plan”. ¿Continuar?`:'¿Eliminar este plan?')) return;
   x.planes=x.planes.filter(y=>y.id!==id); x.sesiones.forEach(s=>{ if(s.planId===id) s.planId=''; }); if(x.plan===id) x.plan=''; if(await save(p)) keepScroll(render); };
 window.sheetPresRut = (k, id) => { const p=prof(k), r=id?presRut(p).find(y=>String(y.id)===String(id)):null; loadLib(); const src=(p.rutinasAsignadas||[]).concat(p.misRutinas||[]);
   sheet(`<h2 class="disp h2">${r?'Editar rutina presencial':'Nueva rutina presencial'}</h2><div class="stack" style="margin-top:14px">
@@ -1904,13 +1904,13 @@ window.sheetPresRut = (k, id) => { const p=prof(k), r=id?presRut(p).find(y=>Stri
     <button class="btn sec block" onclick="addRow('pr-rows',true)">${ic('plus','s')} Ejercicio</button>
     <button class="btn pri block" onclick="presRutGuardar(${q(k)},${q(id||'')})">Guardar rutina</button></div>`); };
 window.presRutCopiar = (k, id) => { const p=prof(k), x=((p.rutinasAsignadas||[]).concat(p.misRutinas||[])).find(y=>String(y.id)===String(id)); if(!x) return; const t=$('#pr-t'); if(t && !t.value) t.value=x.titulo; $('#pr-rows').innerHTML=(x.ejercicios||[]).map(e=>exRow(e,true)).join(''); };
-window.presRutGuardar = async (k, id) => { const p=prof(k), x=presOf(p), t=val('pr-t'), ej=collectRows('pr-rows').map(({hecho,...e})=>e); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
+window.presRutGuardar = async (k, id) => { const p=prof(k), x=spOf(p), t=val('pr-t'), ej=collectRows('pr-rows').map(({hecho,...e})=>e); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
   if(id){ const r=x.rutinas.find(y=>String(y.id)===String(id)); if(r) Object.assign(r,{titulo:t, ejercicios:ej, editada:todayISO(), editor:S.pro.nombre}); } else x.rutinas.push({id:String(uid()), titulo:t, ejercicios:ej, creada:todayISO(), por:S.pro.nombre});
   if(!id) addAviso(p,'rutina',`Tu profesional agregó una rutina a tu sesión presencial: ${t}`);
   if(await save(p)){ closeSheet(); toast('Rutina guardada'); keepScroll(render); } };
-window.presRutSig = async (k, i) => { const p=prof(k); presOf(p).sig=i; if(await save(p)) keepScroll(render); };
-window.presRutMover = async (k, i, d) => { const p=prof(k), x=presOf(p), j=i+d; if(j<0 || j>=x.rutinas.length) return; const cur=presSig(p); [x.rutinas[i],x.rutinas[j]]=[x.rutinas[j],x.rutinas[i]]; x.sig=Math.max(0,x.rutinas.indexOf(cur)); if(await save(p)) keepScroll(render); };
-window.presRutBorrar = async (k, id) => { const p=prof(k), x=presOf(p); if(!confirm('¿Eliminar esta rutina presencial? El registro de sesiones no se borra.')) return; const cur=presSig(p); x.rutinas=x.rutinas.filter(y=>String(y.id)!==String(id)); const i=x.rutinas.indexOf(cur); x.sig=i>-1?i:0; if(await save(p)) keepScroll(render); };
+window.presRutSig = async (k, i) => { const p=prof(k); spOf(p).sig=i; if(await save(p)) keepScroll(render); };
+window.presRutMover = async (k, i, d) => { const p=prof(k), x=spOf(p), j=i+d; if(j<0 || j>=x.rutinas.length) return; const cur=presSig(p); [x.rutinas[i],x.rutinas[j]]=[x.rutinas[j],x.rutinas[i]]; x.sig=Math.max(0,x.rutinas.indexOf(cur)); if(await save(p)) keepScroll(render); };
+window.presRutBorrar = async (k, id) => { const p=prof(k), x=spOf(p); if(!confirm('¿Eliminar esta rutina presencial? El registro de sesiones no se borra.')) return; const cur=presSig(p); x.rutinas=x.rutinas.filter(y=>String(y.id)!==String(id)); const i=x.rutinas.indexOf(cur); x.sig=i>-1?i:0; if(await save(p)) keepScroll(render); };
 
 /* ---- Progreso ---- */
 function heatmap(p){ const set=trainedSet(p), td=todayISO(); const start=weekStart(new Date()); start.setDate(start.getDate()-28);

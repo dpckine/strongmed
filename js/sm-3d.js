@@ -559,6 +559,10 @@
     function heldHands(J, tpl) {
       const h = {};
       for (const o of tpl.props3 || tpl.props || []) {
+        // pec fly: cada mano en su manilla vertical (agarre neutro)
+        if (o.type === 'pecdeck') { h[1] = h[2] = 1; h.kv = 'up'; continue; }
+        // cuerda: agarre neutro, pulgares hacia atrás
+        if (o.type === 'cable' && o.rope) h.kv = 'rope';
         if (!HELD.test(o.type) || o.band) continue;
         if (o.type === 'barbell') { let bp = null; try { bp = A.at(J, o.at || 'wr1'); } catch (e) { } if (bp) for (const i of [1, 2]) if (J['wr' + i] && d2(J['wr' + i], bp) <= 16) h[i] = 1; continue; }
         const a = o.type === 'cable' ? (o.to || 'hd1') : (o.at || 'hd1'); if (typeof a !== 'string') continue;
@@ -594,7 +598,9 @@
         aim('upper' + s, E.clone().sub(Sh), ua); aim('fore' + s, W.clone().sub(E), fa);
         const hv = Hd.clone().sub(W);
         if (hv.lengthSq() > 0.5) {
-          const kT = front ? FWD.clone().negate() : leftT.clone().multiplyScalar(s === 'L' ? 1 : -1);
+          // línea de nudillos: vertical en manillas verticales; con cuerda, perpendicular a la mano en el plano del movimiento
+          const kT = held.kv === 'up' ? new V3(0, 1, 0) : held.kv === 'rope' ? new V3().crossVectors(hv, leftT).normalize()
+            : front ? FWD.clone().negate() : leftT.clone().multiplyScalar(s === 'L' ? 1 : -1);
           if (!(held[i] && aimK('hand' + s, hv, kT))) aim('hand' + s, hv, fa);
         }
         if (held[i]) hs[i] = s;
@@ -731,13 +737,14 @@
         boxAB(V2([hx, sy - 2], back - 2), V2([hx, J.shc[1] - 8], back - 2), 7, 34, 'pad', XA);
         boxS([hx, (top + FLOOR) / 2], 12, FLOOR - top, 10, 'padDark', back - 22);
         cyl(V2([hx - 36, top], back - 22), V2([hx + 36, top], back - 22), 2.4, 'padDark');
+        // brazos de pec fly: giran sobre un eje vertical encima de cada hombro y bajan a una manilla vertical en la mano
+        cyl(V2([hx, top], back - 22), V2([hx, top], 0), 2.4, 'padDark');
         for (const i of [1, 2]) {
-          const el = J['el' + i], z = zk('el' + i), s = el[0] < hx ? -1 : 1, pv = V2([hx + s * 22, top], back - 22);
-          cyl(V2([hx + s * 22, top], back - 22), V2([hx + s * 22, top + 4], back - 22), 3, 'metal');
-          const pt = V2([el[0] + s * 1, el[1] - 26], z);
-          cyl(pv, V2([el[0] + s * 1, top + 4], z), 1.8, 'metal'); cyl(V2([el[0] + s * 1, top + 4], z), pt, 1.8, 'metal');
-          boxS([el[0] + s * 1, el[1] - 12], 6, 26, 12, 'pad', z);
-          cyl(V2([el[0] + s * 1, el[1] - 26], z), V2([el[0] + s * 1, el[1] - 32], z - 4), 1.2, 'metal');
+          const S = J['S' + i], h = J['hd' + i], z = zk('hd' + i), pv = V2([S[0], top], 0);
+          cyl(V2([S[0], top - 3], 0), V2([S[0], top + 3], 0), 3, 'metal');
+          cyl(pv, V2([h[0], top], z), 1.8, 'metal');
+          cyl(V2([h[0], top], z), V2([h[0], h[1] - 9], z), 1.8, 'metal');
+          cyl(V2([h[0], h[1] - 9], z), V2([h[0], h[1] + 9], z), 1.5, 'metal');
         }
       },
       // máquina hack: rieles inclinados detrás de la espalda, patas, base, almohadillas sobre los hombros y manillas

@@ -1461,12 +1461,17 @@
   add('cable_fly_mid', 'Press en polea media', cablePress(66, [110, 62], [148, 64]));
   add('cable_fly_low', 'Press en polea baja (hacia arriba)', cablePress(170, [110, 68], [144, 44]));
   add('pecdeck', 'Contractora (pec deck)', {
-    base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 92, e1: 182, us1: 1 },
-    props: [{ type: 'box', x: 74, y: 128, w: 52 }, { type: 'pad', a: [100, 62], b: [100, 128], w: 6, layer: 'back' }, { type: 'pad', a: J => A.mv(J.el1, 180, 2), b: J => A.mv(J.el1, 180, 22), w: 7, layer: 'hand' }, { type: 'pad', a: J => A.mv(J.el2, 180, 2), b: J => A.mv(J.el2, 180, 22), w: 7, layer: 'hand' }],
-    // máquina: asiento, respaldo, marco sobre la cabeza con un brazo de palanca que baja a cada almohadilla y torre de pesas
+    // pec fly: espalda en el respaldo, brazos casi estirados a la altura del hombro (codo apenas flectado hacia adelante),
+    // manillas verticales con agarre neutro; los brazos cierran en arco hasta juntar las manos frente al pecho
+    base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 90, e1: 90, us1: 1, fs1: 0.85 },
+    props: [{ type: 'box', x: 74, y: 128, w: 52 }, { type: 'pad', a: [100, 62], b: [100, 128], w: 6, layer: 'back' },
+      { type: 'pad', a: J => [J.hd1[0], J.shc[1] - 34], b: J => [J.hd1[0], J.hd1[1] - 9], w: 2.5, layer: 'back' }, { type: 'pad', a: J => [J.hd1[0], J.hd1[1] - 9], b: J => [J.hd1[0], J.hd1[1] + 9], w: 3.5, layer: 'hand' },
+      { type: 'pad', a: J => [J.hd2[0], J.shc[1] - 34], b: J => [J.hd2[0], J.hd2[1] - 9], w: 2.5, layer: 'back' }, { type: 'pad', a: J => [J.hd2[0], J.hd2[1] - 9], b: J => [J.hd2[0], J.hd2[1] + 9], w: 3.5, layer: 'hand' }],
+    // máquina: asiento, respaldo, marco sobre la cabeza con un brazo que baja a cada manilla y torre de pesas
     props3: [{ type: 'pecdeck' }],
-    frames: [{ d: 0.35 }, { d: 0.9 }, { a1: 92, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: -90, us1: 0.06, d: 0.5 }, { a1: -90, us1: 0.55, d: 0.35 },
-             { a1: -90, us1: 0.55, d: 0.5 }, { a1: -90, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: 92, us1: 0.06, d: 0.9 }], free: true, ease: 'linear', dur: 3.6
+    frames: [{ d: 0.5 }, { us1: 0.87, fs1: 0.7, d: 0.3 }, { us1: 0.5, fs1: 0.4, d: 0.3 }, { us1: 0.05, fs1: 0.05, d: 0.03 }, { a1: 0, e1: 0, us1: 0.05, fs1: 0.05, d: 0.03 },
+             { a1: -90, e1: -90, us1: 0.05, fs1: 0.05, d: 0.2 }, { a1: -90, e1: -90, us1: 0.22, fs1: 0.2, d: 0.6 }, { a1: -90, e1: -90, us1: 0.05, fs1: 0.05, d: 0.03 }, { a1: 0, e1: 0, us1: 0.05, fs1: 0.05, d: 0.03 },
+             { us1: 0.05, fs1: 0.05, d: 0.45 }, { us1: 0.5, fs1: 0.4, d: 0.45 }, { us1: 0.87, fs1: 0.7, d: 0.45 }], free: true, ease: 'linear', dur: 3.4
   });
   add('pushup', 'Flexión de brazos', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
@@ -1599,8 +1604,9 @@
   });
   add('face_pull', 'Face pull', {
     base: S({ F1: [104, AY], F2: [80, AY], H1: [150, 56] }),
+    // cuerda con agarre neutro; termina con codos altos y abiertos a la altura del hombro y manos al lado de las orejas
     props: [{ type: 'tower', x: 176, top: 6, pulleys: [44] }, { type: 'cable', from: [176, 44], to: 'hd1', rope: true }],
-    frames: [{}, { H1: [116, 40], e1s: 1 }]
+    frames: [{}, { H1: null, a1: -90, us1: 0.12, e1: 172, fs1: 0.6 }]
   });
   add('y_raise', 'Y-raise', {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [112, AY], a1: 14, e1: 14 },

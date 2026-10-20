@@ -1542,17 +1542,17 @@
   });
   add('landmine_press', 'Press en Landmine', {
     base: { x: 96, y: 102, t: 172, F1: [124, AY], F2: [74, AY], h1: [-2, 12] },
-    props: [{ type: 'landmine', pivot: [188, 182] }],
+    props: [{ type: 'landmine', pivot: [236, 182] }],
     frames: [{}, { h1: [36, 34], t: 168 }]
   });
   add('landmine_press_kneel', 'Press en Landmine en caballero', {
     base: { x: 92, y: 136, t: 178, pf: false, l2: 4, k2: -90, f2: 0, F1: [124, AY], h1: [-2, 12] },
-    props: [{ type: 'landmine', pivot: [184, 182] }],
+    props: [{ type: 'landmine', pivot: [236, 182] }],
     frames: [{}, { h1: [36, 30], t: 172 }]
   });
   add('landmine_chest', 'Press de pecho en Landmine', {
     base: { x: 96, y: 102, t: 170, F1: [118, AY], F2: [80, AY], h1: [-14, 12] },
-    props: [{ type: 'landmine', pivot: [192, 182] }],
+    props: [{ type: 'landmine', pivot: [236, 182] }],
     frames: [{}, { h1: [12, 46], t: 164 }]
   });
   add('lateral', 'Elevaciones laterales', {
@@ -2148,12 +2148,12 @@
   });
   add('landmine_clean', 'Clean & press en Landmine', {
     base: { x: 84, y: 120, t: 140, F1: [116, AY], F2: [86, AY], H1: [100, 150] },
-    props: [{ type: 'landmine', pivot: [188, 182] }],
+    props: [{ type: 'landmine', pivot: [236, 182] }],
     frames: [{ d: 1 }, { x: 96, y: 104, t: 176, h1: [-2, 12], d: .8 }, { h1: [38, 32], d: 1 }], dur: 2.8
   });
   add('punch_rot', 'Golpe rotacional / lanzamiento', {
     base: { x: 96, y: 104, t: 176, F1: [126, AY], F2: [72, 174], f2: 30, h1: [-6, 6] },
-    props: [{ type: 'landmine', pivot: [190, 182] }],
+    props: [{ type: 'landmine', pivot: [236, 182] }],
     frames: [{ x: 88, t: 186 }, { x: 104, t: 164, h1: [30, 40] }], dur: 1.6
   });
   add('med_slam', 'Med ball slam', {

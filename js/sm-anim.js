@@ -1216,9 +1216,10 @@
     frames: [{}, { x: 78, y: 104, t: 98, h: 10 }]
   });
   add('hipthrust', 'Hip thrust con barra', {
-    base: { x: 92, y: 160, S: [60, 125], h: -20, F1: [134, AY], F2: [130, AY], H1: [76, 152], pf: true },
+    // manos tomando la barra sobre la cadera
+    base: { x: 92, y: 160, S: [60, 125], h: -20, F1: [134, AY], F2: [130, AY], H1: [98, 150], pf: true },
     props: [{ type: 'bench', a: [16, 132], b: [64, 132], legs: [24, 56] }, { type: 'barbell', at: 'hipTop' }],
-    frames: [{}, { x: 104, y: 126 }]
+    frames: [{}, { x: 104, y: 126, H1: [104, 113] }]
   });
   add('hipthrust_machine', 'Hip thrust en máquina / suelo con polea', {
     base: { x: 92, y: 160, S: [60, 125], h: -20, F1: [134, AY], F2: [130, AY], H1: [96, 150], pf: true },
@@ -1285,7 +1286,8 @@
     frames: [{}, { l1: -14, k1: -14 }]
   });
   add('side_leg_raise', 'Abducción de cadera en decúbito lateral', {
-    base: { view: 'front', x: 100, y: 168, t: -90, l1: 90, k1: 90, l2: 92, k2: 92, a1: 0, e1: 0, h: 0, H2: [70, 182], pf: false },
+    // brazo de abajo estirado bajo la cabeza; mano de arriba apoyada en el suelo frente al pecho
+    base: { view: 'front', x: 100, y: 168, t: -90, l1: 90, k1: 90, l2: 92, k2: 92, H1: [70, 177], H2: [14, 178], h: 0, pf: false },
     frames: [{}, { l1: 130, k1: 130 }]
   });
   add('monster', 'Monster walk con banda', {
@@ -1913,9 +1915,9 @@
     base: { view: 'front', x: 108, y: 157, t: -112, pf: false, l1: 68, k1: 68, l2: 68, k2: 68, a2: 0, e2: -90, fs2: 0.6, a1: 158, e1: 158 },
     frames: [{ y: 160, t: -110 }, { y: 152, t: -114 }], pulse: true
   });
-  // Copenhague: antebrazo en el suelo, pierna de arriba apoyada en el banco y la de abajo bajo el banco
+  // Copenhague: antebrazo en el suelo y los dos pies arriba del banco (el de arriba sobre el de abajo)
   add('copenhagen', 'Plancha Copenhague', {
-    base: { view: 'front', x: 104, y: 150, t: -100, pf: false, l1: 80, k1: 80, l2: 76, k2: 76, a2: 0, e2: -90, fs2: 0.6, a1: 170, e1: 150 },
+    base: { view: 'front', x: 104, y: 150, t: -100, pf: false, l1: 86, k1: 86, l2: 90, k2: 90, a2: 0, e2: -90, fs2: 0.6, a1: 170, e1: 150 },
     props: [{ type: 'bench', a: [150, 164], b: [198, 164], legs: [156, 192] }],
     frames: [{ y: 152, t: -99 }, { y: 147, t: -101 }], pulse: true
   });

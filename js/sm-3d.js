@@ -710,11 +710,12 @@
         const r0 = V2([hx, sy], back - 3), r1 = V2([hx, J.shc[1]], zk('shc') + back - 3), rd = r1.clone().sub(r0).normalize();
         boxAB(r0, r1.clone().addScaledVector(rd, 22), 7, 40, 'pad', new T.Vector3(1, 0, 0));
         boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 8);
-        boxS([hx, FLOOR - 2], 70, 4, 60, 'padDark', kz / 2);
+        boxS([hx, FLOOR - 1], 50, 2, 40, 'padDark', back);
         boxS([hx, (40 + FLOOR) / 2], 50, FLOOR - 40, 10, 'padDark', back - 22);
         for (const i of [1, 2]) {
-          const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sg = (kn[0] < hx ? -1 : 1) * (o.mode === 'out' ? 1 : -1), px = kn[0] + sg * 7;
-          boxS([px, kn[1] - 2], 6, 24, 20, 'pad', z);
+          // almohadilla al costado de la rodilla, separada del muslo para que la pierna no la atraviese
+          const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sg = (kn[0] < hx ? -1 : 1) * (o.mode === 'out' ? 1 : -1), px = kn[0] + sg * 11;
+          boxS([px, kn[1] - 2], 4, 22, 10, 'pad', z);
           cyl(V2([px, kn[1] + 8], z), V2([hx + (kn[0] < hx ? -6 : 6), sy + 12], 0), 1.8, 'metal');
           cyl(V2([an[0] - 8, an[1] + 5], zk('an' + i)), V2([an[0] + 8, an[1] + 5], zk('an' + i)), 1.6, 'metal');
           const h = J['hd' + i]; if (h) cyl(V2([h[0], h[1] - 2], zk('hd' + i) - 6), V2([h[0], h[1] - 2], zk('hd' + i) + 6), 1.5, 'metal');

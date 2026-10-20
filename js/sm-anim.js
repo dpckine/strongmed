@@ -104,6 +104,11 @@
       let hd = mv(wr, e + (p['w' + i] || 0), L.hand * Math.min(1, fs + 0.3));
       // mano apoyada en el suelo: palma plana y dedos hacia adelante
       if (!front && tgt && tgt[1] >= 175) hd = [wr[0] + L.hand, Math.min(wr[1], FLOOR - 2)];
+      // la mano no atraviesa el suelo: gira en la muñeca hasta apoyarse
+      else if (!front && hd[1] > FLOOR - 1.5 && wr[1] < FLOOR - 1.5) {
+        const lh = Math.hypot(hd[0] - wr[0], hd[1] - wr[1]), c = Math.acos(Math.max(-1, Math.min(1, (FLOOR - 1.5 - wr[1]) / lh))) / RAD;
+        hd = mv(wr, hd[0] >= wr[0] ? c : -c, lh);
+      }
       r['a' + i] = a; r['e' + i] = e; r['el' + i] = el; r['wr' + i] = wr; r['hd' + i] = hd; r['tg' + i] = tgt || wr;
     };
     // ---- piernas
@@ -136,6 +141,11 @@
       let fa;
       if (front) fa = (j === 1 ? 1 : -1) * 70 + (sp.f !== undefined && p.pf === false ? sp.f - 85 : 0) + (p.pf === false ? k : 0);
       else fa = p.pf === false ? k + (sp.f ?? 85) : (sp.f ?? 78);
+      // la punta del pie no atraviesa el suelo: el pie gira en el tobillo hasta apoyarse
+      if (!front && an[1] < FLOOR - 2 && an[1] + Math.cos(fa * RAD) * L.ft > FLOOR - 2) {
+        const c = Math.acos(Math.max(-1, Math.min(1, (FLOOR - 2 - an[1]) / L.ft))) / RAD;
+        fa = Math.sin(fa * RAD) >= 0 ? c : -c;
+      }
       const toe = mv(an, fa, front ? 7 : L.ft), heel = mv(an, fa + 180, front ? 1 : 3.5);
       r['l' + j] = l; r['k' + j] = k; r['kn' + j] = kn; r['an' + j] = an; r['to' + j] = toe; r['he' + j] = heel;
     };
@@ -155,17 +165,23 @@
     if (!('l2' in p) && !p.F2) Object.assign(far, { ts2: p.ts1, ss2: p.ss1, f2: p.f2 ?? p.f1 });
     for (const k in far) if (far[k] === undefined) delete far[k];
     const out = Object.assign({}, p, far, { t: r.t, a1: r.a1, e1: r.e1, a2: r.a2, e2: r.e2, l1: r.l1, k1: r.k1, l2: r.l2, k2: r.k2 });
+    // ángulo del pie explícito: si falta en una pose, la mezcla no salta al valor de la otra
+    const fd = p.pf === false ? 85 : 78;
+    if (out.f1 === undefined) out.f1 = fd;
+    if (out.f2 === undefined) out.f2 = ('l2' in p || p.F2) ? fd : out.f1;
     if (p.view === 'front') {      // en frontal se conservan los objetivos de pie (rodilla proyectada)
       if (p.F1) { delete out.l1; delete out.k1; }
       if (p.F2 || (p.F1 && !('l2' in p))) { delete out.l2; delete out.k2; }
     }
     return out;
   }
+  const SCALE = /^(us|fs|ts|ss)[12]$/;
   function mix(A, B, u) {
     const out = {};
     const keys = new Set([...Object.keys(A), ...Object.keys(B)]);
     for (const k of keys) {
-      const a = A[k], b = B[k];
+      let a = A[k], b = B[k];
+      if (SCALE.test(k)) { a = a ?? 1; b = b ?? 1; }     // escorzo ausente = 1 (no salta)
       if (a === undefined) { out[k] = b; continue; }
       if (b === undefined) { out[k] = a; continue; }
       if (typeof a === 'number' && typeof b === 'number') out[k] = ANGLES.has(k) ? lerpAng(a, b, u) : lerp(a, b, u);
@@ -207,13 +223,37 @@
 
   // Prepara una plantilla: hereda campos y precalcula specs resueltos
   // ritmo uniforme para ejercicios de fuerza de 2 posiciones: pausa · movimiento · pausa · movimiento
-  const TEMPO = { hold: 0.35, move: 1.45 };
+  // la fase concéntrica (vencer la carga) es más rápida que la excéntrica (bajar controlado), como en un entrenamiento real
+  const TEMPO = { hold: 0.35, move: 1.45, con: 1.1, ecc: 1.8 };
+  const LOADS = /^(barbell|db|kb|plate|chain|platform|landmine)$/;
+  // +1: ir de la pose 0 a la 1 vence la carga (sube el peso, se estira el cable o sube el cuerpo); -1: al revés; 0: no se sabe
+  function liftDir(tpl, J0, J1) {
+    let w = 0, any = false;
+    const pa = (J, a) => { try { return at(J, a); } catch (e) { return null; } };
+    for (const o of tpl.props || []) {
+      if (LOADS.test(o.type)) {
+        const d = o.at || (o.type === 'barbell' ? 'wr1' : 'hd1'), a = pa(J0, d), b = pa(J1, d);
+        if (Array.isArray(a) && Array.isArray(b)) { w += a[1] - b[1]; any = true; }
+      } else if ((o.type === 'cable' || o.type === 'band') && o.from) {
+        const a0 = pa(J0, o.from), b0 = pa(J0, o.to || 'hd1'), a1 = pa(J1, o.from), b1 = pa(J1, o.to || 'hd1');
+        if ([a0, b0, a1, b1].every(Array.isArray)) { w += Math.hypot(b1[0] - a1[0], b1[1] - a1[1]) - Math.hypot(b0[0] - a0[0], b0[1] - a0[1]); any = true; }
+      }
+    }
+    if (any) return Math.abs(w) > 2 ? Math.sign(w) : 0;
+    const com = J => 0.08 * J.head[1] + 0.5 * (J.hip[1] + J.shc[1]) / 2 + 0.2 * (J.hip[1] + J.kn1[1]) / 2 + 0.09 * (J.kn1[1] + J.an1[1]) / 2 + 0.1 * (J.S1[1] + J.wr1[1]) / 2;
+    const dy = com(J0) - com(J1);
+    return Math.abs(dy) > 4 ? Math.sign(dy) : 0;
+  }
   function compile(tpl) {
     if (tpl._c) return tpl._c;
     if (tpl.frames && tpl.frames.length === 2 && !tpl.pulse && !tpl.free && (tpl.dur === undefined || tpl.dur >= 1.8)) {
       tpl._raw = tpl.frames.slice();
       const [f0, f1] = tpl.frames;
-      tpl = Object.assign(tpl, { frames: [Object.assign({}, f0, { d: TEMPO.hold }), Object.assign({}, f0, { d: TEMPO.move }), Object.assign({}, f1, { d: TEMPO.hold }), Object.assign({}, f1, { d: TEMPO.move })], dur: 2 * (TEMPO.hold + TEMPO.move), ease: 'sine' });
+      const p0 = inherit(Object.assign({}, DEF, tpl.base || {}), f0), p1 = inherit(p0, f1);
+      let up = 0; try { up = liftDir(tpl, solve(p0), solve(p1)); } catch (e) { }
+      const m01 = up > 0 ? TEMPO.con : up < 0 ? TEMPO.ecc : TEMPO.move, m10 = up > 0 ? TEMPO.ecc : up < 0 ? TEMPO.con : TEMPO.move;
+      tpl._up = up;
+      tpl = Object.assign(tpl, { frames: [Object.assign({}, f0, { d: TEMPO.hold }), Object.assign({}, f0, { d: m01 }), Object.assign({}, f1, { d: TEMPO.hold }), Object.assign({}, f1, { d: m10 })], dur: 2 * TEMPO.hold + m01 + m10, ease: 'sine' });
     }
     const base = Object.assign({}, DEF, tpl.base || {});
     let prev = base;
@@ -239,8 +279,56 @@
     return { spec: mix(c.specs[i], c.specs[j], u), seg: i, u };
   }
 
-  // ---------------------------------------------------------------- dibujo
-  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+  // ---------------------------------------------------------------- contacto con el suelo
+  // Un pie o una mano apoyados no se deslizan: durante cada apoyo el punto de contacto queda fijo
+  // y la pierna o el brazo se reajustan por cinemática inversa (como ocurre en la realidad).
+  const LOCK_N = 96, CONTACT = FLOOR - 2.5;
+  const CHAINS = [['an1', 'H1', 'kn1', ['to1', 'he1']], ['an2', 'H2', 'kn2', ['to2', 'he2']], ['wr1', 'S1', 'el1', ['hd1']], ['wr2', 'S2', 'el2', ['hd2']]];
+  function lockTrack(tpl) {
+    if (tpl._lk !== undefined) return tpl._lk;
+    tpl._lk = null;
+    if (solve(poseAt(tpl, 0).spec).front) return null;
+    const Js = []; for (let i = 0; i < LOCK_N; i++) Js.push(solve(poseAt(tpl, i / LOCK_N).spec));
+    const tr = {};
+    for (const [eff, , , pts] of CHAINS) {
+      const cp = Js.map(J => { let b = null; for (const k of pts) if (J[k] && J[k][1] > CONTACT && (!b || J[k][1] > J[b][1] + 0.5)) b = k; return b; });
+      if (cp.every(c => !c)) continue;
+      const d = new Array(LOCK_N).fill(0);
+      let st = cp.findIndex((c, i) => c && !cp[(i - 1 + LOCK_N) % LOCK_N]);
+      const all = st < 0; if (all) st = 0;
+      for (let n = 0; n < LOCK_N; n++) {
+        const j = (st + n) % LOCK_N;
+        if (!cp[j] || (n > 0 && cp[(j - 1 + LOCK_N) % LOCK_N])) continue;     // solo al inicio de cada apoyo
+        const run = []; let k = j; while (cp[k] && run.length < LOCK_N) { run.push(k); k = (k + 1) % LOCK_N; }
+        let mx = 0, pk = cp[j], ref = Js[j][pk][0], pv = 0;
+        const dl = run.map(q => { if (cp[q] !== pk) { pk = cp[q]; ref = Js[q][pk][0] + pv; } pv = ref - Js[q][pk][0]; mx = Math.max(mx, Math.abs(pv)); return pv; });
+        if (mx > 16) continue;            // reubicación grande: es un paso, no un apoyo fijo
+        run.forEach((q, m) => { d[q] = dl[m]; });
+        if (!all) for (let m = 1; m <= 6; m++) { const q = (run[run.length - 1] + m) % LOCK_N; if (cp[q]) break; d[q] = pv * (1 - m / 7); }
+      }
+      if (d.some(v => Math.abs(v) > 0.3)) tr[eff] = d;
+    }
+    return (tpl._lk = Object.keys(tr).length ? tr : null);
+  }
+  function lockJ(tpl, phase, J) {
+    const tr = lockTrack(tpl); if (!tr || J.front) return J;
+    const x = ((phase % 1) + 1) % 1 * LOCK_N, i = Math.floor(x) % LOCK_N, u = x - Math.floor(x);
+    const ikPt = (R, T, l1, l2, s) => mv(R, ik(R, T, l1, l2, s)[0], l1);
+    for (const [eff, root, mid, pts] of CHAINS) {
+      const d = tr[eff]; if (!d) continue;
+      const dx = d[i] + (d[(i + 1) % LOCK_N] - d[i]) * u; if (Math.abs(dx) < 0.05) continue;
+      const R = J[root], E = J[eff], M = J[mid], l1 = Math.hypot(M[0] - R[0], M[1] - R[1]), l2 = Math.hypot(E[0] - M[0], E[1] - M[1]);
+      const T = [E[0] + dx, E[1]], ma = ikPt(R, T, l1, l2, 1), mb = ikPt(R, T, l1, l2, -1);
+      const nm = Math.hypot(ma[0] - M[0], ma[1] - M[1]) < Math.hypot(mb[0] - M[0], mb[1] - M[1]) ? ma : mb;
+      const ne = mv(nm, ang(T[0] - nm[0], T[1] - nm[1]), l2), ddx = ne[0] - E[0], ddy = ne[1] - E[1];
+      J[mid] = nm; J[eff] = ne;
+      for (const k of pts) if (J[k]) J[k] = [J[k][0] + ddx, J[k][1] + ddy];
+      if (eff[0] === 'w') { const k = 'tg' + eff[2]; if (J[k]) J[k] = [J[k][0] + ddx, J[k][1] + ddy]; }
+    }
+    return J;
+  }
+
+  // ---------------------------------------------------------------- dibujo  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
   const poly = (pts, w, c, extra = '') => `<polyline points="${pts.map(pt).join(' ')}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
   const circ = (p, r, fill, stroke = 'none', sw = 0, extra = '') => `<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${f1(r)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
 
@@ -547,6 +635,7 @@
   // centro horizontal de la figura en la primera pose (eje del giro)
   function tplCx(tpl) {
     if (tpl._cx !== undefined) return tpl._cx;
+    if (tpl.cx !== undefined) return (tpl._cx = tpl.cx);              // ejercicios que se desplazan
     const J = solve(compile(tpl).specs[0]), xs = ['hip', 'shc', 'head', 'hd1', 'kn1', 'an1', 'to1', 'he1', 'el1'].map(k => J[k] && J[k][0]).filter(x => typeof x === 'number');
     return (tpl._cx = (Math.min(...xs) + Math.max(...xs)) / 2);
   }
@@ -556,7 +645,7 @@
   function render(tpl, phase, hl, T, yaw) {
     if (tpl.custom) return G.SMCustom[tpl.custom](tpl, phase, hl, T);
     const { spec } = poseAt(tpl, phase);
-    let J = solve(spec), J0 = J;
+    let J = lockJ(tpl, phase, solve(spec)), J0 = J;
     if (yaw && !J.front) { J = rotateJ(J, yaw, tplCx(tpl)); J0 = J.rot.J0; }
     const draw = (o, JJ) => PROPS[o.type] ? PROPS[o.type](JJ, o, T) : '';
     const layer = lay => (tpl.props || []).filter(o => (o.layer || defaultLayer(o.type)) === lay).map(o => draw(o, J)).join('');
@@ -671,7 +760,7 @@
   function pose3(tplName, phase) {
     const tpl = tplOf(tplName);
     if (tpl.custom) return { tpl, custom: true };
-    const J = solve(poseAt(tpl, phase).spec);
+    const J = lockJ(tpl, phase, solve(poseAt(tpl, phase).spec));
     if (!J.front) for (const k of [...ARMK, ...LEGK]) { const q = J[k + '2']; if (q) J[k + '2'] = [q[0] - OFF[0], q[1] - OFF[1]]; }
     return { tpl, J, front: !!J.front, cx: tplCx(tpl) };
   }
@@ -952,22 +1041,31 @@
     props: [{ type: 'tower', x: 132, top: 60, pulleys: [176] }, { type: 'cable', from: [132, 176], to: 'an1' }],
     frames: [{ l1: 0, k1: 0, pf: true }, { l1: 6, k1: -110 }]
   });
-  add('lunge', 'Zancada', {
-    base: S({ a1: 2, e1: 2 }), props: DB,
-    frames: [{}, { x: 96, y: 138, F1: [126, AY], F2: [60, 171], f2: 25 }]
-  });
-  add('lunge_bw', 'Zancada sin carga', {
-    base: S({ a1: 4, e1: 8 }),
-    frames: [{}, { x: 96, y: 138, F1: [126, AY], F2: [60, 171], f2: 25 }]
-  });
-  add('lunge_bb', 'Zancada con barra', {
-    base: S({ h1: [-3, -9] }), props: [BBback],
-    frames: [{}, { x: 96, y: 138, F1: [126, AY], F2: [60, 171], f2: 25 }]
-  });
-  add('lunge_reverse', 'Zancada trasera', {
-    base: S({ x: 110, a1: 2, e1: 2, F1: [114, AY], F2: [110, AY] }), props: DB,
-    frames: [{}, { x: 104, y: 138, F1: [126, AY], F2: [64, 171], f2: 25 }]
-  });
+  // zancada real: el pie que avanza se levanta, da el paso y apoya el talón; el otro pie no se mueve
+  // (solo despega el talón). Baja hasta que la rodilla de atrás casi toca el suelo y vuelve con un paso.
+  const lungeFwd = (arms, props) => {
+    const step = { x: 74, y: 102, t: 182, F1: [97, 165], f1: 70, d: 0.45, ease: 'linear' };
+    const land = { x: 92, y: 110, t: 180, F1: [134, AY], f1: 78, F2: [57, 176], f2: 50, d: 0.55 };
+    return {
+      base: S(Object.assign({ x: 56, F1: [60, AY], F2: [55, AY] }, arms)), props, dur: 3.6, cx: 92,
+      frames: [{ d: 0.3 }, { d: 0.45, ease: 'in' }, step, Object.assign({}, land, { ease: 'out' }),
+        { x: 98, y: 136, t: 178, F2: [57, 171], f2: 25, d: 0.3 }, { d: 0.55, ease: 'in' },
+        Object.assign({}, land, { ease: 'linear', d: 0.45 }), Object.assign({}, step, { ease: 'out' })]
+    };
+  };
+  add('lunge', 'Zancada', lungeFwd({ a1: 2, e1: 2 }, DB));
+  add('lunge_bw', 'Zancada sin carga', lungeFwd({ a1: 4, e1: 8 }));
+  add('lunge_bb', 'Zancada con barra', lungeFwd({ h1: [-3, -9] }, [BBback]));
+  add('lunge_reverse', 'Zancada trasera', (() => {
+    const step = { x: 116, y: 102, t: 180, F2: [92, 166], f2: 100, d: 0.45, ease: 'linear' };
+    const land = { x: 104, y: 112, F2: [46, 172], f2: 25, d: 0.55 };
+    return {
+      base: S({ x: 120, a1: 2, e1: 2, F1: [124, AY], F2: [119, AY] }), props: DB, dur: 3.6, cx: 88,
+      frames: [{ d: 0.3 }, { d: 0.45, ease: 'in' }, step, Object.assign({}, land, { ease: 'out' }),
+        { x: 90, y: 136, t: 178, F2: [46, 171], d: 0.3 }, { d: 0.55, ease: 'in' },
+        Object.assign({}, land, { ease: 'linear', d: 0.45 }), Object.assign({}, step, { ease: 'out' })]
+    };
+  })());
   add('split_squat', 'Sentadilla búlgara', {
     base: { x: 104, y: 104, t: 180, a1: 2, e1: 2, F1: [128, AY], F2: [58, 136], f2: -80 },
     props: [{ type: 'bench', a: [30, 145], b: [64, 145], legs: [40, 58] }, ...DB],
@@ -1021,11 +1119,11 @@
     frames: [{}, { x: 76, y: 104, t: 100, H1: [106, 156] }]
   });
   add('rdl_single', 'Peso muerto rumano a una pierna', {
-    base: S({ a1: 2, e1: 2, F2: [99, AY] }), props: DB1,
+    base: S({ a1: 2, e1: 2, F2: [97, 174] }), props: DB1,
     frames: [{}, { x: 86, y: 104, t: 96, l2: -96, k2: -96, pf: true, a1: 2, e1: 2 }]
   });
   add('diver', 'The Diver (Askling)', {
-    base: S({ a1: 4, e1: 4 }),
+    base: S({ a1: 4, e1: 4, F2: [97, 174] }),
     frames: [{}, { x: 86, y: 104, t: 98, l2: -94, k2: -94, a1: 96, e1: 96 }]
   });
   add('deadlift', 'Peso muerto', {
@@ -1057,21 +1155,21 @@
     frames: [{}, { x: 104, y: 126 }]
   });
   add('bridge', 'Puente de glúteo', {
-    base: { x: 90, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], a1: 80, e1: 80, pf: true },
-    frames: [{}, { x: 96, y: 146 }]
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
+    frames: [{}, { x: 81, y: 147 }]
   });
   add('bridge_iso', 'Puente de glúteo isométrico', {
-    base: { x: 96, y: 146, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], a1: 80, e1: 80, pf: true },
+    base: { x: 81, y: 147, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
     frames: [{}, { y: 147 }], pulse: true, dur: 2
   });
   add('bridge_single', 'Puente de glúteo a una pierna', {
-    base: { x: 90, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], a1: 80, e1: 80, pf: true },
-    frames: [{ l2: 150, k2: 150 }, { x: 96, y: 146, l2: 120, k2: 120 }]
+    base: { x: 91, y: 175, S: [46, 177], h: -10, F1: [124, AY], F2: [120, AY], H1: [92, 181], pf: true },
+    frames: [{ l2: 150, k2: 150 }, { x: 81, y: 147, l2: 120, k2: 120 }]
   });
   add('kickback_glute', 'Patada de glúteo en polea', {
     base: S({ t: 166, H1: [128, 82], F1: [104, AY] }),
     props: [{ type: 'tower', x: 136, top: 50, pulleys: [176] }, { type: 'cable', from: [136, 176], to: 'an2', dim: true }],
-    frames: [{ l2: 4, k2: -10 }, { l2: -44, k2: -40 }]
+    frames: [{ l2: 4, k2: -30 }, { l2: -44, k2: -40 }]
   });
   add('donkey_kick', 'Patada de glúteo en cuadrupedia', {
     base: { x: 72, y: 138, t: 92, pf: false, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, H1: [118, 182] },
@@ -1653,7 +1751,7 @@
   });
   add('mountain_climber', 'Escalador (mountain climber)', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
-    frames: [{ F1: [104, 172], F2: [14, 179] }, { F1: [12, 179], F2: [100, 172] }], free: true, dur: 0.9
+    frames: [{ F1: [104, 170], F2: [14, 179] }, { F1: [60, 162], F2: [58, 164] }, { F1: [12, 179], F2: [100, 170] }, { F1: [58, 164], F2: [60, 162] }], free: true, ease: 'linear', dur: 0.9
   });
   add('burpee', 'Burpee', {
     base: S({ a1: 4, e1: 8 }),
@@ -1710,8 +1808,8 @@
     frames: [{}, { l1: 178, k1: 178 }]
   });
   add('legraise_chair', 'Elevación de rodillas en paralelas', {
-    base: { x: 100, y: 112, t: 180, pf: false, l1: 2, k1: 2, a1: 20, e1: 92 },
-    props: [{ type: 'pad', a: [90, 84], b: [112, 84], w: 6 }, { type: 'pad', a: [80, 60], b: [80, 184], w: 6 }],
+    base: { x: 100, y: 94, t: 180, pf: false, l1: 2, k1: 2, a1: 20, e1: 92, f1: 40 },
+    props: [{ type: 'pad', a: [90, 66], b: [112, 66], w: 6 }, { type: 'pad', a: [80, 42], b: [80, 184], w: 6 }],
     frames: [{}, { l1: 104, k1: 10 }]
   });
   add('dragonflag', 'Dragon flag', {
@@ -1736,8 +1834,8 @@
     frames: [{}, { a1: -100, e1: -100, l2: 100, k2: 100 }, {}, { a2: -100, e2: -100, l1: 100, k1: 100 }], dur: 3.6
   });
   add('birddog', 'Bird dog', {
-    base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, a1: 0, e1: 0, h: -6 },
-    frames: [{}, { a1: 94, e1: 94, l2: -94, k2: -94 }, {}, { a2: 94, e2: 94, l1: -94, k1: -94 }], dur: 3.6
+    base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, l2: 0, k2: -90, f2: 0, H1: [118, 182], H2: [118, 182], h: -6 },
+    frames: [{ d: 0.45 }, { d: 0.8 }, { a1: 94, e1: 94, l2: -94, k2: -94, h: -2, d: 0.5 }, { d: 0.8 }, { H1: [118, 182], l2: 0, k2: -90, h: -6, d: 0.45 }, { d: 0.8 }, { a2: 94, e2: 94, l1: -94, k1: -94, h: -2, d: 0.5 }, { d: 0.8 }], dur: 5.1
   });
   add('quadruped_rock', 'Transferencias en cuadrupedia', {
     base: { x: 72, y: 136, t: 92, pf: false, l1: 0, k1: -90, f1: 0, a1: 0, e1: 0, h: -6, H1: [118, 182] },
@@ -1800,8 +1898,8 @@
     frames: [{}, { sh: 3 }], pulse: true, dur: 3.2
   });
   add('superman', 'Superman', {
-    base: { x: 96, y: 176, t: 90, h: -10, pf: false, l1: -90, k1: -90, a1: 90, e1: 90 },
-    frames: [{}, { t: 74, l1: -76, k1: -76, a1: 104, e1: 104 }]
+    base: { x: 96, y: 176, t: 90, h: -6, pf: false, l1: -90, k1: -90, f1: 0, a1: 90, e1: 90 },
+    frames: [{}, { t: 102, h: -12, l1: -100, k1: -100, a1: 112, e1: 112 }]
   });
   add('hyper', 'Hiperextensión a 45°', {
     base: { x: 110, y: 118, t: 34, pf: true, F1: [60, 176], F2: [56, 176], f1: 50, h1: [-8, 10] },
@@ -1809,8 +1907,8 @@
     frames: [{}, { t: 138 }]
   });
   add('reverse_hyper', 'Reverse hyper', {
-    base: { x: 84, y: 112, t: 92, h: -6, pf: false, l1: 2, k1: 2, H1: [148, 122] },
-    props: [{ type: 'bench', a: [86, 121], b: [156, 121] }],
+    base: { x: 84, y: 98, t: 92, h: -6, pf: false, l1: 2, k1: 2, f1: 40, H1: [148, 108] },
+    props: [{ type: 'bench', a: [86, 107], b: [156, 107] }],
     frames: [{}, { l1: -84, k1: -84 }]
   });
   add('jefferson', 'Jefferson curl', {
@@ -1838,7 +1936,7 @@
   add('foam_quad', 'Liberación miofascial con foam roller', {
     base: { x: 100, y: 166, t: 96, h: -6, pf: false, l1: -94, k1: -94, a1: 4, e1: 92 },
     props: [{ type: 'roller', at: [74, 176], r: 7 }],
-    frames: [{ x: 110 }, { x: 90 }]
+    frames: [{ x: 106 }, { x: 94 }]
   });
   add('getup', 'Turkish get-up', {
     base: { x: 104, y: 174, t: -90, pf: false, F1: [134, AY], l2: 92, k2: 92, a1: 182, e1: 182, a2: -140, e2: -140 },

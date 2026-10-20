@@ -1107,12 +1107,12 @@ function libIndex(all){ S.libAll=all; S.libByName=new Map(); S.libById=new Map()
 /* ejercicios agregados por los profesionales (colección "ejercicios_pro" del Firebase de StrongMed) */
 async function loadEjPro(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return []; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_pro')); const a=[]; sn.forEach(d=>{ const x=d.data(); if(x && x.n) a.push(Object.assign({}, x, {i:d.id, pro:true}, x.borrado?{o:1}:{})); }); return a; }catch(e){ console.warn('ejercicios_pro', e); return []; } }
 /* nombres y animaciones cambiados por los profesionales (colección "ejercicios_mod": id del ejercicio → n, a, h, h2, g) */
-async function loadEjMod(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return {}; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_mod')); const m={}; sn.forEach(d=>{ const x=d.data(); if(x && x.a && !x.borrado) m[d.id]=x; }); return m; }catch(e){ console.warn('ejercicios_mod', e); return {}; } }
+async function loadEjMod(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return {}; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_mod')); const m={}; sn.forEach(d=>{ const x=d.data(); if(x && x.a!==undefined && !x.borrado) m[d.id]=x; }); return m; }catch(e){ console.warn('ejercicios_mod', e); return {}; } }
 /* ejercicios ocultos por el equipo mientras se revisa su animación (colección "ejercicios_vis": id → {oc}) */
 async function loadEjVis(){ try{ if(!S.fb || !S.dbs || !S.dbs.sm) return {}; const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'ejercicios_vis')); const m={}; sn.forEach(d=>{ const x=d.data(); if(x) m[d.id]={oc:!!x.oc, el:!!x.el}; }); return m; }catch(e){ console.warn('ejercicios_vis', e); return {}; } }
 // el: eliminado por el equipo → sale de la biblioteca para todos (las rutinas que ya lo tienen lo siguen abriendo)
 const applyEjVis = (all, vis) => all.forEach(x=>{ const v=vis[x.i]; if(!v) return; x.oc=v.oc; if(v.el) x.o=1; });
-const EJ_ANKEYS=['n','a','h','h2','g','en','c','m','q','s','p','u','rh','ca'];
+const EJ_ANKEYS=['n','a','h','h2','g','en','c','m','q','s','p','u','rh','ca','aPrev'];
 function applyEjMod(all, mods){ all.forEach(x=>{ const m=mods[x.i]; if(!m) return; if(!x._orig) x._orig=Object.fromEntries(EJ_ANKEYS.map(k=>[k,x[k]])); EJ_ANKEYS.forEach(k=>{ if(m[k]!==undefined && (k!=='n' || String(m.n).trim())) x[k]=m[k]; }); ejAlias(x); x.mod=m.por||'el equipo'; }); }
 // el nombre original queda como alias: la búsqueda y las rutinas antiguas lo siguen encontrando
 function ejAlias(x){ const o=x._orig && x._orig.n; if(o && o!==x.n && !(x.al||[]).some(a=>a[1]===o)) x.al=[...(x.al||[]), ['', o]]; }
@@ -2156,6 +2156,15 @@ window.ejEditSave = async id => { const x=libById(id); if(!x || S.role!=='pro') 
   Object.assign(x, d); if(!x.pro){ x.mod=S.pro.nombre||'el equipo'; ejAlias(x); }
   const kn=x.n.toLowerCase(); if(S.libByName && !S.libByName.has(kn)) S.libByName.set(kn,x);
   toast('Cambios guardados para todo el equipo'); closeSheet(); keepScroll(render); verEj(x.i); };
+/* quitar la animación: el ejercicio queda en la biblioteca sin animación hasta que se agregue una bien hecha (aPrev guarda la anterior) */
+window.ejSinAn = async id => { const x=libById(id); if(!x || S.role!=='pro' || !x.a) return;
+  if(!confirm(`¿Quitar la animación de "${x.n}"? El ejercicio sigue en la biblioteca y en las rutinas, sin animación, hasta que le agregues una.`)) return;
+  const d={a:'', aPrev:x.a, t:Date.now()};
+  const ok = x.pro ? await fsSet2('sm','ejercicios_pro', x.i, d, true) : await fsSet2('sm','ejercicios_mod', x.i, Object.assign({n:x.n, h:x.h||[], h2:x.h2||[], g:x.g||'', borrado:false, por:S.pro.nombre||'', proId:S.pro.id||''}, d), true);
+  if(!ok) return toast('No se pudo guardar','err');
+  if(!x.pro && !x._orig) x._orig=Object.fromEntries(EJ_ANKEYS.map(k=>[k,x[k]]));
+  Object.assign(x, {a:'', aPrev:d.aPrev}); if(!x.pro) x.mod=S.pro.nombre||'el equipo'; EJ_THUMBS.delete(x.i);
+  toast('Animación quitada'); closeSheet(); keepScroll(render); verEj(x.i); };
 /* el profesional elimina cualquier ejercicio de la biblioteca (lo ve todo el equipo) */
 window.ejDel = async id => { const x=libById(id); if(!x || S.role!=='pro') return; if(x.pro) return ejProDel(id);
   if(!confirm(`¿Eliminar "${x.n}" de la biblioteca? Nadie lo verá en la lista; las rutinas que ya lo tienen lo seguirán mostrando.`)) return;
@@ -2169,7 +2178,7 @@ const anHL = E => { const o={}; E.h2.forEach(k=>o[k]=2); E.h.forEach(k=>o[k]=1);
 const AN_THUMBS = new Map();
 const anThumb = (name, E) => { const k=name+'|'+E.h.join(','); let u=AN_THUMBS.get(k); if(!u){ u='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SMAnim.fullSVG(name, SMAnim.thumbPh?SMAnim.thumbPh(name):.42, anHL(E), 1)); AN_THUMBS.set(k,u); } return u; };
 window.anEdit = async id => { await loadLib(); const x=libById(id); if(!x || S.role!=='pro' || !window.SMAnim) return;
-  const [b, m]=String(x.a||'stand').split('@');
+  const [b, m]=String(x.a||x.aPrev||'stand').split('@');
   S.anEd={id, base:b, mods:(m||'').split('+').filter(Boolean), h:[...(x.h||[])], h2:[...(x.h2||[])], g:x.g||'', n:x.n, q:''};
   sheet(`<h2 class="disp h2">Nombre y animación</h2><p class="sm muted" style="margin-top:4px">${esc(x.n)}</p>
   <label class="field" style="margin-top:12px"><span class="lbl">Nombre del ejercicio</span><input class="inp" id="ae-n" maxlength="80" value="${esc(x.n)}" oninput="S.anEd.n=this.value"></label>
@@ -2281,7 +2290,7 @@ window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return
     : `<div class="ejstage noanim">${x.img?`<img class="ejimg on" src="${media(x.img)}" alt="">`:`<span class="noimg">${ic('dumbbell')}</span>`}</div>`;
   sheet(`${stage}
   <div style="margin-top:16px"><h2 class="disp h2" style="line-height:1">${esc(x.n)}</h2>${x.en?`<div class="xs muted" style="margin-top:4px;text-transform:capitalize">${esc(x.en)}</div>`:''}</div>
-  ${x.pro||x.mod||S.role==='pro'?`<div class="row between" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span class="xs muted">${x.oc?'<b style="color:#e11d48">Oculto para los pacientes</b> · ':''}${x.pro?`Agregado por ${esc(x.por||'el equipo')}`:x.mod?`Editado por ${esc(x.mod)}`:''}</span>${S.role==='pro'?`<div class="row" style="gap:6px;flex-wrap:wrap"><button class="pill ${x.oc?'on':''}" onclick="ejVis(${q(x.i)})">${x.oc?'Mostrar':'Ocultar'}</button><button class="pill" onclick="closeSheet();ejEdit(${q(x.i)})">${ic('edit','s')} Editar ficha</button>${x.a?`<button class="pill" onclick="closeSheet();anEdit(${q(x.i)})">${ic('edit','s')} Animación</button>`:''}<button class="pill" style="color:#e11d48" onclick="ejDel(${q(x.i)})">Eliminar</button></div>`:''}</div>`:''}
+  ${x.pro||x.mod||S.role==='pro'?`<div class="row between" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span class="xs muted">${x.oc?'<b style="color:#e11d48">Oculto para los pacientes</b> · ':''}${x.pro?`Agregado por ${esc(x.por||'el equipo')}`:x.mod?`Editado por ${esc(x.mod)}`:''}</span>${S.role==='pro'?`<div class="row" style="gap:6px;flex-wrap:wrap"><button class="pill ${x.oc?'on':''}" onclick="ejVis(${q(x.i)})">${x.oc?'Mostrar':'Ocultar'}</button><button class="pill" onclick="closeSheet();ejEdit(${q(x.i)})">${ic('edit','s')} Editar ficha</button><button class="pill" onclick="closeSheet();anEdit(${q(x.i)})">${ic('edit','s')} ${x.a?'Animación':'Agregar animación'}</button>${x.a?`<button class="pill" onclick="ejSinAn(${q(x.i)})">Quitar animación</button>`:''}<button class="pill" style="color:#e11d48" onclick="ejDel(${q(x.i)})">Eliminar</button></div>`:''}</div>`:''}
   <div class="ejuso"><small>Para qué sirve</small><p>${esc(ejUso(x))}</p></div>
   ${x.rh && !x.pro
     ? `<div class="ejchips"><div class="ejchip main"><small>Lesión / condición</small><b>${esc(x.m)}</b></div><div class="ejchip"><small>Fase</small><b>${esc((x.s&&x.s[0])||'—')}</b></div><div class="ejchip"><small>Equipo</small><b>${esc(x.q)}</b></div></div>`

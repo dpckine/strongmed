@@ -1012,6 +1012,14 @@
     props: [{ type: 'kb', at: J => [(J.hd1[0] + J.hd2[0]) / 2, (J.hd1[1] + J.hd2[1]) / 2] }],
     frames: [{}, { y: 138 }]
   });
+  // sumo en déficit con landmine: un pie en cada cajón, la barra pasa entre las piernas desde el pivote
+  // de atrás y las manos toman la punta, con los discos adelante
+  add('squat_sumo_landmine', 'Sentadilla sumo en déficit con Landmine', {
+    base: { x: 98, y: 88, t: 180, F1: [104, 165], F2: [99, 165], H1: [106, 128], ts1: 0.92, ss1: 0.95, ts2: 0.92, ss2: 0.95, pf: true, f1: 78 },
+    props: [{ type: 'landmine', pivot: [6, 182] }, { type: 'box', x: 84, y: 170, w: 34 }],
+    props3: [{ type: 'landmine', pivot: [6, 182] }, { type: 'footbox', y: 170, w: 30, d: 18 }],
+    frames: [{ d: 1 }, { x: 84, y: 136, t: 156, H1: [108, 152], ts1: 0.78, ss1: 0.9, ts2: 0.78, ss2: 0.9, d: 1.2 }]
+  });
   add('squat_banded', 'Sentadilla con bandas / cadenas', {
     base: S({ t: 176, h1: [-3, -7], h: -4, F1: [97, AY], F2: [92, AY] }), props: [BBback, { type: 'band', from: J => A.mv(J.shc, J.t + 90, 7), to: [94, 184] }],
     frames: [{}, { x: 73, y: 136, t: 140, h: 12 }]
@@ -1163,31 +1171,39 @@
     base: S({ a1: 4, e1: 4, F2: [97, 174] }),
     frames: [{}, { x: 86, y: 104, t: 98, l2: -94, k2: -94, a1: 96, e1: 96 }]
   });
+  // abajo la barra queda con los discos en el suelo (centro a y 171) y por delante de la canilla
   add('deadlift', 'Peso muerto', {
-    base: { x: 80, y: 130, t: 124, F1: [104, AY], F2: [99, AY], H1: [106, 171] }, props: [BB],
-    frames: [{ d: 1 }, { x: 100, y: 100, t: 180, H1: [104, 112], d: 1.2 }], thumb: 0.04
+    base: { x: 78, y: 140, t: 118, F1: [110, AY], F2: [105, AY], H1: [119, 170] }, props: [BB],
+    frames: [{ d: 1 }, { x: 104, y: 100, t: 180, H1: [109, 113], d: 1.2 }], thumb: 0.04
   });
-  // resistencia acomodada: barra con cadenas que se levantan del suelo al subir
+  // resistencia acomodada: barra con cadenas que cuelgan de las mangas y se levantan del suelo al subir
   add('deadlift_banded', 'Peso muerto con bandas / cadenas', {
-    base: { x: 80, y: 130, t: 124, F1: [104, AY], F2: [99, AY], H1: [106, 171] }, props: [BB, { type: 'chain', at: 'wr1' }],
-    frames: [{ d: 1 }, { x: 100, y: 100, t: 180, H1: [104, 112], d: 1.2 }], thumb: 0.04
+    base: { x: 78, y: 140, t: 118, F1: [110, AY], F2: [105, AY], H1: [119, 170] }, props: [BB, { type: 'chain', at: 'wr1' }],
+    frames: [{ d: 1 }, { x: 104, y: 100, t: 180, H1: [109, 113], d: 1.2 }], thumb: 0.04
   });
   // sumo: pies muy abiertos, cadera más baja y tronco más vertical que el convencional.
   // De perfil el muslo y la canilla se ven acortados (ts/ss): en 3D eso abre las piernas hacia los lados.
+  // Barra con discos más afuera y agarre angosto (manos por dentro de las rodillas).
   add('deadlift_sumo', 'Peso muerto sumo', {
-    base: { x: 84, y: 142, t: 134, F1: [104, AY], F2: [99, AY], H1: [105, 171], ts1: 0.8, ss1: 0.9, ts2: 0.8, ss2: 0.9 }, props: [BB],
-    frames: [{ d: 1 }, { x: 100, y: 104, t: 180, H1: [104, 116], ts1: 0.95, ss1: 0.95, ts2: 0.95, ss2: 0.95, d: 1.2 }], thumb: 0.04
+    base: { x: 82, y: 150, t: 128, F1: [106, AY], F2: [101, AY], H1: [118, 170], ts1: 0.8, ss1: 0.9, ts2: 0.8, ss2: 0.9 },
+    props: [{ type: 'barbell', at: 'wr1', wide: true, grip: 15 }],
+    frames: [{ d: 1 }, { x: 104, y: 104, t: 180, H1: [108, 117], ts1: 0.95, ss1: 0.95, ts2: 0.95, ss2: 0.95, d: 1.2 }], thumb: 0.04
   });
-  // barra hexagonal: las manos van a los costados (agarre neutro) y la barra rodea al cuerpo;
-  // de perfil se ve como una barra a la altura de las manos
+  // barra hexagonal: las manos van a los costados (agarre neutro) y el marco rodea al cuerpo
   add('deadlift_trap', 'Peso muerto con barra hexagonal', {
-    base: { x: 82, y: 136, t: 140, F1: [100, AY], F2: [95, AY], H1: [96, 168] },
+    base: { x: 84, y: 150, t: 128, F1: [110, AY], F2: [105, AY], H1: [114, 170] },
     props: [{ type: 'barbell', at: 'wr1', hex: true }],
-    frames: [{ d: 1 }, { x: 98, y: 100, t: 180, H1: [97, 116], d: 1.2 }], thumb: 0.04
+    frames: [{ d: 1 }, { x: 104, y: 100, t: 180, H1: [105, 121], d: 1.2 }], thumb: 0.04
   });
+  add('deadlift_db', 'Peso muerto con mancuernas', {
+    base: { x: 84, y: 150, t: 128, F1: [110, AY], F2: [105, AY], H1: [114, 170] }, props: DB,
+    frames: [{ d: 1 }, { x: 104, y: 100, t: 180, H1: [105, 121], d: 1.2 }], thumb: 0.04
+  });
+  // la barra parte apoyada en dos bloques bajo los discos, a la altura de la rodilla
   add('rackpull', 'Rack pull', {
-    base: { x: 82, y: 112, t: 138, F1: [104, AY], F2: [99, AY], H1: [106, 140] },
-    props: [{ type: 'pad', a: [116, 152], b: [116, 184], w: 4 }, { type: 'pad', a: [110, 152], b: [124, 152], w: 3 }, BB],
+    base: { x: 82, y: 112, t: 138, F1: [104, AY], F2: [99, AY], H1: [108, 128] },
+    props: [{ type: 'pad', a: [108, 143], b: [108, 184], w: 16 }, BB],
+    props3: [BB, { type: 'blocks', x: 108, y: 141, z: [-44, 44], w: 24, d: 12 }],
     frames: [{}, { x: 100, y: 100, t: 180, H1: [104, 112] }]
   });
   add('goodmorning', 'Buenos días (good morning)', {
@@ -1235,16 +1251,23 @@
     props: [{ type: 'kb', at: 'hd1', along: 'hd1', from: 'el1' }],
     frames: [{ d: 1 }, { x: 102, y: 100, t: 184, H1: [146, 60], d: 1 }], dur: 1.6
   });
-  add('abduction_machine', 'Abducción en máquina', {
-    base: { view: 'front', x: 100, y: 126, t: 180, l1: 24, k1: 0, ts1: 0.38, ss1: 1, F1: undefined, pf: false, a1: 30, e1: 10, H1: [126, 130] },
-    props: [{ type: 'box', x: 70, y: 128, w: 60 }],
-    frames: [{ l1: 18 }, { l1: 70 }]
+  // máquina de cadera: asiento con respaldo, almohadillas en las rodillas (por fuera para abrir,
+  // por dentro para cerrar) y manillas a los lados del asiento. El muslo menos acortado = más abierto en 3D.
+  const hipMachine = (mode, l0, l1) => ({
+    base: { view: 'front', x: 100, y: 126, t: 180, l1: l0[0], ts1: l0[1], k1: 0, ss1: 1, pf: false, H1: [126, 134] },
+    props: [{ type: 'box', x: 70, y: 130, w: 60 }, { type: 'pad', a: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] - 9], b: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] + 9], w: 5 },
+      { type: 'pad', a: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] - 9], b: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] + 9], w: 5 }],
+    props3: [{ type: 'hipmachine', mode }],
+    frames: [{ l1: l0[0], ts1: l0[1] }, { l1: l1[0], ts1: l1[1] }]
   });
-  add('adduction_machine', 'Aducción en máquina', {
-    base: { view: 'front', x: 100, y: 126, t: 180, l1: 70, k1: 0, ts1: 0.38, pf: false, H1: [126, 130] },
-    props: [{ type: 'box', x: 70, y: 128, w: 60 }],
-    frames: [{ l1: 70 }, { l1: 16 }]
+  add('abduction_machine', 'Abducción en máquina', hipMachine('out', [18, 0.38], [72, 0.72]));
+  // sentado en un cajón, sin máquina (con banda en las rodillas)
+  add('abduction_seated', 'Abducción sentado con banda', {
+    base: { view: 'front', x: 100, y: 126, t: 180, l1: 18, ts1: 0.38, k1: 0, pf: false, H1: [126, 134] },
+    props: [{ type: 'box', x: 70, y: 130, w: 60 }, { type: 'band', from: 'kn1', to: 'kn2' }],
+    frames: [{ l1: 18, ts1: 0.38 }, { l1: 72, ts1: 0.72 }]
   });
+  add('adduction_machine', 'Aducción en máquina', hipMachine('in', [72, 0.72], [18, 0.38]));
   add('abduction_standing', 'Abducción de pie (polea / banda)', {
     base: { view: 'front', x: 96, y: 99, t: 180, l1: 2, k1: 2, l2: -2, k2: -2, a1: 4, e1: 4, H2: [56, 98] },
     props: [{ type: 'tower', x: 40, top: 40, pulleys: [176] }, { type: 'cable', from: [40, 176], to: 'an1' }],
@@ -1640,7 +1663,10 @@
   });
   add('row_machine', 'Remo en máquina', {
     base: { x: 76, y: 120, t: 182, F1: [128, AY], F2: [124, AY], H1: [138, 96] },
-    props: [{ type: 'bench', a: [56, 128], b: [96, 128], legs: [64, 90] }, { type: 'pad', a: [112, 74], b: [112, 108], w: 8 }],
+    // máquina: apoyo de pecho, brazos de palanca que bajan desde arriba hasta las manillas y torre con pesas
+    props: [{ type: 'bench', a: [56, 128], b: [96, 128], legs: [64, 90] }, { type: 'pad', a: [89, 78], b: [89, 106], w: 7 },
+      { type: 'pad', a: [93, 100], b: [152, 100], w: 2 }, { type: 'pad', a: [152, 36], b: [152, 184], w: 5 }, { type: 'pad', a: [152, 44], b: J => J.hd1, w: 3 }],
+    props3: [{ type: 'bench', a: [56, 128], b: [96, 128], legs: [64, 90] }, { type: 'rowmachine', pad: [89, 78, 106], col: 152, piv: [152, 44] }],
     frames: [{}, { H1: [100, 100] }]
   });
   add('row_tbar', 'Remo en barra T / Landmine', {
@@ -1878,6 +1904,12 @@
   add('side_plank', 'Plancha lateral', {
     base: { view: 'front', x: 108, y: 157, t: -112, pf: false, l1: 68, k1: 68, l2: 68, k2: 68, a2: 0, e2: -90, fs2: 0.6, a1: 158, e1: 158 },
     frames: [{ y: 160, t: -110 }, { y: 152, t: -114 }], pulse: true
+  });
+  // Copenhague: antebrazo en el suelo, pierna de arriba apoyada en el banco y la de abajo bajo el banco
+  add('copenhagen', 'Plancha Copenhague', {
+    base: { view: 'front', x: 104, y: 150, t: -100, pf: false, l1: 80, k1: 80, l2: 76, k2: 76, a2: 0, e2: -90, fs2: 0.6, a1: 170, e1: 150 },
+    props: [{ type: 'bench', a: [150, 164], b: [198, 164], legs: [156, 192] }],
+    frames: [{ y: 152, t: -99 }, { y: 147, t: -101 }], pulse: true
   });
   add('deadbug', 'Dead bug', {
     base: { x: 104, y: 175, t: -90, pf: false, l1: 180, k1: 92, l2: 180, k2: 92, a1: 180, e1: 180 },

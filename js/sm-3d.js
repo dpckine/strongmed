@@ -317,7 +317,7 @@
       for (const i of [1, 2]) {
         const w = J['wr' + i], s2 = J['S' + i], e2 = J['el' + i];
         if (!w || d2(w, bp) > 16) continue;
-        const sg = i === 1 ? 1 : -1, z = sg * GRIP;
+        const sg = i === 1 ? 1 : -1, z = sg * (bb.grip || GRIP);
         for (const k of ['wr', 'hd', 'tg']) OV[k + i + 'z'] = z;
         const S = V2(s2, sg * ZARM), Wt = V2(w, z), l1 = d2(s2, e2), l2 = d2(e2, w);
         const ax = Wt.clone().sub(S); let d = ax.length() || 0.01; ax.normalize(); d = Math.min(d, l1 + l2 - 0.1);
@@ -675,15 +675,56 @@
       handle: (J, o) => { const a = at3(J, o.at, 'hd1'); sph(V2(a.p, a.z), 3, 'metal'); },
       barbell: (J, o) => {
         const p = at3(J, o.at, 'wr1').p, r = o.r || 13;
-        if (o.hex) {        // barra hexagonal: marco que rodea al cuerpo, asas a los costados y mangas afuera
-          const H = [[-24, 0], [-12, -27], [12, -27], [24, 0], [12, 27], [-12, 27]].map(([dx, z]) => V2([p[0] + dx - 3, p[1]], z));
-          H.forEach((v, i) => cyl(v, H[(i + 1) % 6], 1.5, 'metal'));
-          for (const s of [-1, 1]) { cyl(latAt(p, s * 27), latAt(p, s * 58), 1.5, 'metal'); disc(latAt(p, s * 42), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 46.5), LAT, r * 0.72, 3.5, 'plate'); }
+        if (o.hex) {        // barra hexagonal: marco grande que rodea al cuerpo, asas a la altura de las manos y mangas afuera
+          const H = [[-38, 0], [-15, -34], [15, -34], [38, 0], [15, 34], [-15, 34]].map(([dx, z]) => V2([p[0] + dx, p[1]], z));
+          H.forEach((v, i) => cyl(v, H[(i + 1) % 6], 1.6, 'metal'));
+          for (const s of [-1, 1]) {
+            cyl(latAt([p[0] - 9, p[1]], s * 27), latAt([p[0] + 9, p[1]], s * 27), 1.9, 'metal');
+            for (const dx of [-9, 9]) cyl(latAt([p[0] + dx, p[1]], s * 27), latAt([p[0] + dx, p[1]], s * 34), 1.4, 'metal');
+            cyl(latAt(p, s * 34), latAt(p, s * 68), 1.5, 'metal'); disc(latAt(p, s * 50), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 54.5), LAT, r * 0.72, 3.5, 'plate');
+          }
           return;
         }
-        // discos por fuera del agarre (manos a ±27) para que no se toquen
-        cyl(latAt(p, -58), latAt(p, 58), 1.5, 'metal');
-        for (const s of [-1, 1]) { disc(latAt(p, s * 42), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 46.5), LAT, r * 0.72, 3.5, 'plate'); disc(latAt(p, s * 38.5), LAT, 2.6, 2.2, 'metal'); }
+        // discos por fuera del agarre (manos a ±27) para que no se toquen; wide: barra más larga (sumo, pies entre los discos)
+        const k = o.wide ? 1.3 : 1;
+        cyl(latAt(p, -58 * k), latAt(p, 58 * k), 1.5, 'metal');
+        for (const s of [-1, 1]) { disc(latAt(p, s * 42 * k), LAT, r, 4.5, 'plate'); disc(latAt(p, s * (42 * k + 4.5)), LAT, r * 0.72, 3.5, 'plate'); disc(latAt(p, s * (42 * k - 3.5)), LAT, 2.6, 2.2, 'metal'); }
+      },
+      // bloques bajo los discos (rack pull)
+      blocks: (J, o) => { for (const z of o.z) boxS([o.x, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, o.d, 'pad', z); },
+      // un cajón bajo cada pie (déficit con los pies separados)
+      footbox: (J, o) => { for (const i of [1, 2]) { const a = at3(J, 'an' + i); boxS([a.p[0] + 3, (o.y + FLOOR) / 2], o.w, FLOOR - o.y, o.d, 'pad', a.z); } },
+      // máquina de abductores / aductores (vista frontal): asiento, respaldo, almohadillas en las rodillas,
+      // brazos de palanca bajo los muslos, apoyapiés y torre de pesas atrás
+      hipmachine: (J, o) => {
+        const hx = J.hip[0], sy = J.hip[1] + 6, kz = Math.max(zk('kn1'), zk('kn2'), 20), back = -12;
+        boxS([hx, sy + 3], 46, 6, kz - back, 'pad', (kz + back) / 2);
+        boxS([hx, (J.hip[1] + J.shc[1]) / 2 - 4], 40, J.hip[1] - J.shc[1] + 14, 7, 'pad', back - 3);
+        boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 8);
+        boxS([hx, FLOOR - 2], 70, 4, 60, 'padDark', kz / 2);
+        boxS([hx, 70], 50, 220, 10, 'padDark', back - 22);
+        for (const i of [1, 2]) {
+          const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sg = (kn[0] < hx ? -1 : 1) * (o.mode === 'out' ? 1 : -1), px = kn[0] + sg * 7;
+          boxS([px, kn[1] - 2], 5, 20, 14, 'pad', z);
+          cyl(V2([px, kn[1] + 8], z), V2([hx + (kn[0] < hx ? -6 : 6), sy + 12], 0), 1.8, 'metal');
+          cyl(V2([an[0] - 8, an[1] + 5], zk('an' + i)), V2([an[0] + 8, an[1] + 5], zk('an' + i)), 1.6, 'metal');
+          const h = J['hd' + i]; if (h) cyl(V2([h[0], h[1] - 2], zk('hd' + i) - 6), V2([h[0], h[1] - 2], zk('hd' + i) + 6), 1.5, 'metal');
+        }
+      },
+      // máquina de remo con apoyo de pecho: almohadilla, columna, palancas que bajan desde el eje hasta cada manilla y pesas
+      rowmachine: (J, o) => {
+        const [px, py0, py1] = o.pad, c = o.col, pv = o.piv;
+        boxAB(V2([px, py0]), V2([px, py1]), 7, 24, 'pad');
+        cyl(V2([px + 4, (py0 + py1) / 2]), V2([c, (py0 + py1) / 2]), 2, 'padDark');
+        boxS([c, (pv[1] - 8 + FLOOR) / 2], 10, FLOOR - pv[1] + 8, 12, 'padDark');
+        boxS([c + 22, (pv[1] + 6 + FLOOR) / 2], 16, FLOOR - pv[1] - 6, 22, 'padDark');
+        boxS([c + 4, FLOOR - 2], 60, 4, 40, 'padDark');
+        cyl(V2(pv, -26), V2(pv, 26), 2.2, 'metal');
+        for (const i of [1, 2]) {
+          const h = at3(J, 'hd' + i), sg = i === 1 ? 1 : -1, z = h.z || sg * ZARM;
+          cyl(V2(pv, sg * 24), V2([h.p[0] + 3, h.p[1] - 4], z), 2, 'metal');
+          cyl(V2([h.p[0] + 1, h.p[1] - 9], z), V2([h.p[0] + 1, h.p[1] + 6], z), 1.5, 'metal');
+        }
       },
       plate: (J, o) => { const a = at3(J, o.at); disc(V2(a.p, a.z), LAT, o.r || 9, 3, 'plate'); },
       db: (J, o) => {
@@ -731,7 +772,14 @@
       bosu: (J, o) => sph(V2([o.x, FLOOR]), 22, 'teal', 14, 22),
       slant: (J, o) => boxAB(V2([o.x, FLOOR - 1]), V2([o.x + o.w, FLOOR - o.h]), 4, 34, 'pad'),
       crutch: (J, o) => { const a = at3(J, o.at); cyl(V2([a.p[0] + (o.dx || 0), a.p[1] - 6], a.z), V2([a.p[0] + (o.dx || 0) * 1.6, FLOOR], a.z), 1.6, 'metal'); },
-      chain: (J, o) => { const a = at3(J, o.at, 'wr1'); for (const z of [-30, 30]) cyl(V2([a.p[0] + 2, a.p[1] + 8], z), V2([a.p[0] + 2, FLOOR], z), 1.8, 'metal'); }
+      // cadenas colgando de las mangas, por fuera de los discos: la parte que no cuelga queda amontonada en el suelo
+      chain: (J, o) => {
+        const a = at3(J, o.at, 'wr1').p, len = 56, hang = Math.min(len, FLOOR - 2 - a[1]);
+        for (const z of [-52, 52]) {
+          for (let d = 0; d <= hang; d += 2.6) sph(V2([a[0], a[1] + d], z), 1.5, 'metal', 1.5, 1);
+          for (let d = 0, n = 0; d < len - hang; d += 2.6, n++) sph(V2([a[0] - 4 + (n % 4) * 2.6, FLOOR - 1.5 - Math.floor(n / 8) * 2], z + (Math.floor(n / 4) % 2 ? 3 : 0)), 1.5, 'metal', 1.5, 1);
+        }
+      }
     };
     function poseProps(J, tpl, Tm) {
       for (const k in used) used[k] = 0;

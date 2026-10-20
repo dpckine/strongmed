@@ -660,9 +660,11 @@
       twistball: (J, o) => { const c = [(J.hd1[0] + J.hd2[0]) / 2 + 3, (J.hd1[1] + J.hd2[1]) / 2 - 1]; sph(V2(c), 7 + 2 * (J.p.bs ?? 1), 'ball'); },
       hbar: (J, o) => { const hx = J.wr1 && Math.abs(J.wr1[1] - o.y) < 25 ? Math.min(o.x2, Math.max(o.x1, J.wr1[0])) : (o.x1 + o.x2) / 2; cyl(V2([hx, o.y], -42), V2([hx, o.y], 42), 1.6, 'metal'); for (const z of [-42, 42]) cyl(V2([hx, o.y], z), V2([hx, FLOOR], z), 2.2, 'padDark'); },
       pullbar: (J, o) => { cyl(V2([o.x, o.y], -40), V2([o.x, o.y], 40), 1.8, 'metal'); for (const z of [-40, 40]) cyl(V2([o.x, o.y], z), V2([o.x, FLOOR], z), 2.4, 'padDark'); },
-      tower: (J, o) => { const top = o.top ?? 6; boxS([o.x, (top + FLOOR) / 2], 10, FLOOR - top, 12, 'padDark'); (o.pulleys || []).forEach(y => disc(V2([o.x, y]), LAT, 4, 3, 'metal')); },
+      // z: torre corrida hacia un costado (p. ej. dos poleas a los lados del cuerpo)
+      tower: (J, o) => { const top = o.top ?? 6; boxS([o.x, (top + FLOOR) / 2], 10, FLOOR - top, 12, 'padDark', o.z || 0); (o.pulleys || []).forEach(y => disc(V2([o.x, y], o.z), LAT, 4, 3, 'metal')); },
       cable: (J, o) => {
         const a = at3(J, o.from), to = o.to || 'hd1', b = at3(J, to);
+        if (o.fz !== undefined) a.z = o.fz;
         // las dos manos juntas en la polea: barra o agarre entre ambas y el cable al centro
         const two = !front && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
         if (two && !o.band) { const w = ZARM + 7; cyl(V2(b.p, -w), V2(b.p, w), 1.5, 'metal'); b.z = 0; }
@@ -672,6 +674,12 @@
       handle: (J, o) => { const a = at3(J, o.at, 'hd1'); sph(V2(a.p, a.z), 3, 'metal'); },
       barbell: (J, o) => {
         const p = at3(J, o.at, 'wr1').p, r = o.r || 13;
+        if (o.hex) {        // barra hexagonal: marco que rodea al cuerpo, asas a los costados y mangas afuera
+          const H = [[-24, 0], [-12, -27], [12, -27], [24, 0], [12, 27], [-12, 27]].map(([dx, z]) => V2([p[0] + dx - 3, p[1]], z));
+          H.forEach((v, i) => cyl(v, H[(i + 1) % 6], 1.5, 'metal'));
+          for (const s of [-1, 1]) { cyl(latAt(p, s * 27), latAt(p, s * 58), 1.5, 'metal'); disc(latAt(p, s * 42), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 46.5), LAT, r * 0.72, 3.5, 'plate'); }
+          return;
+        }
         // discos por fuera del agarre (manos a ±27) para que no se toquen
         cyl(latAt(p, -58), latAt(p, 58), 1.5, 'metal');
         for (const s of [-1, 1]) { disc(latAt(p, s * 42), LAT, r, 4.5, 'plate'); disc(latAt(p, s * 46.5), LAT, r * 0.72, 3.5, 'plate'); disc(latAt(p, s * 38.5), LAT, 2.6, 2.2, 'metal'); }

@@ -285,7 +285,7 @@
     // inclinado) se convierte en profundidad real hacia la cámara
     const dep = (a, b, L) => { if (!a || !b) return 0; const l = d2(a, b); return l < L * 0.96 ? Math.sqrt(L * L - l * l) : 0; };
     function frontDepth(J) {
-      const L = A.L, zt = dep(J.hip, J.shc, L.torso);
+      const L = A.L, zt = dep(J.hip, J.shc, L.torso) * (J.p && J.p.recl ? -1 : 1);
       for (const k of ['shc', 'neck', 'head']) OV[k + 'z'] = zt;
       for (const i of [1, 2]) {
         const ze = zt + dep(J['S' + i], J['el' + i], L.ua), zw = ze + dep(J['el' + i], J['wr' + i], L.fa);
@@ -634,7 +634,7 @@
     function cyl(a, b, r, mat, kind) { const m = prim(kind || 'cyl', mat), d = b.clone().sub(a), l = d.length() || 0.01, perp = Math.abs(d.y) / l > 0.9 ? new T.Vector3(1, 0, 0) : UP; frame(m, a.clone().addScaledVector(d, 0.5), d, l, perp, r, r); }
     function disc(c, axis, r, th, mat, kind) { const a = axis.clone().normalize(); cyl(c.clone().addScaledVector(a, -th / 2), c.clone().addScaledVector(a, th / 2), r, mat, kind || 'disc'); }
     function sph(c, r, mat, ry, rz) { ball(prim('sph', mat), c, r, ry, rz); }
-    function boxAB(a, b, th, wd, mat) { const m = prim('box', mat), d = b.clone().sub(a), l = d.length() || 0.01, y = d.clone().normalize(); const z = new T.Vector3().crossVectors(LAT, y).normalize(); m.matrix.makeBasis(LAT.clone().multiplyScalar(wd), y.multiplyScalar(l), z.multiplyScalar(th)).setPosition(a.clone().addScaledVector(d, 0.5)); m.matrixWorldNeedsUpdate = true; }
+    function boxAB(a, b, th, wd, mat, ax) { const W = ax || LAT, m = prim('box', mat), d = b.clone().sub(a), l = d.length() || 0.01, y = d.clone().normalize(); const z = new T.Vector3().crossVectors(W, y).normalize(); m.matrix.makeBasis(W.clone().multiplyScalar(wd), y.multiplyScalar(l), z.multiplyScalar(th)).setPosition(a.clone().addScaledVector(d, 0.5)); m.matrixWorldNeedsUpdate = true; }
     function boxS(c2, along, h, lat, mat, z) { const m = prim('box', mat), c = V2(c2, z || 0); if (front) m.matrix.makeScale(along, h, lat); else m.matrix.makeScale(lat, h, along); m.matrix.setPosition(c); m.matrixWorldNeedsUpdate = true; }
     const latAt = (p2, z) => V2(p2, z);
     function at3(J, a, def) { a = a ?? def; if (typeof a === 'string') return { p: J[a], z: zk(a) }; if (typeof a === 'function') { const p = a(J); return { p, z: nearZ(J, p) }; } return { p: a, z: 0 }; }
@@ -669,6 +669,12 @@
         if (o.fz !== undefined) a.z = o.fz;
         // las dos manos juntas en la polea: barra o agarre entre ambas y el cable al centro
         const two = !front && o.fz === undefined && typeof to === 'string' && /^(hd|wr)1$/.test(to) && J.hd2 && Math.hypot(J.hd1[0] - J.hd2[0], J.hd1[1] - J.hd2[1]) < 10;
+        // cuerda: el cable llega a un nudo y de ahí salen dos cabos, uno a cada mano
+        if (two && o.rope) {
+          const k = [b.p[0] + (a.p[0] - b.p[0]) * 0.12, b.p[1] + (a.p[1] - b.p[1]) * 0.12], kn = V2(k, 0);
+          for (const i of [1, 2]) { const h = at3(J, 'hd' + i); const hz = h.z || (i === 1 ? ZARM : -ZARM); cyl(kn, V2(h.p, hz), 1.3, 'rope'); sph(V2(h.p, hz), 1.8, 'rope'); }
+          cyl(V2(a.p, a.z), kn, 0.7, 'cable'); return;
+        }
         if (two && !o.band) { const w = ZARM + 7; cyl(V2(b.p, -w), V2(b.p, w), 1.5, 'metal'); b.z = 0; }
         cyl(V2(a.p, a.z), V2(b.p, b.z), o.band ? 1.2 : 0.7, o.band ? 'band' : 'cable');
       },
@@ -700,7 +706,9 @@
       hipmachine: (J, o) => {
         const hx = J.hip[0], sy = J.hip[1] + 6, kz = Math.max(zk('kn1'), zk('kn2'), 20), back = -12;
         boxS([hx, sy + 3], 46, 6, kz - back, 'pad', (kz + back) / 2);
-        boxS([hx, (J.hip[1] + J.shc[1]) / 2 - 4], 40, J.hip[1] - J.shc[1] + 14, 7, 'pad', back - 3);
+        // respaldo inclinado como el tronco, con cabezal
+        const r0 = V2([hx, sy], back - 3), r1 = V2([hx, J.shc[1]], zk('shc') + back - 3), rd = r1.clone().sub(r0).normalize();
+        boxAB(r0, r1.clone().addScaledVector(rd, 22), 7, 40, 'pad', new T.Vector3(1, 0, 0));
         boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 8);
         boxS([hx, FLOOR - 2], 70, 4, 60, 'padDark', kz / 2);
         boxS([hx, (40 + FLOOR) / 2], 50, FLOOR - 40, 10, 'padDark', back - 22);
@@ -711,6 +719,38 @@
           cyl(V2([an[0] - 8, an[1] + 5], zk('an' + i)), V2([an[0] + 8, an[1] + 5], zk('an' + i)), 1.6, 'metal');
           const h = J['hd' + i]; if (h) cyl(V2([h[0], h[1] - 2], zk('hd' + i) - 6), V2([h[0], h[1] - 2], zk('hd' + i) + 6), 1.5, 'metal');
         }
+      },
+      // contractora (vista frontal): asiento, respaldo, marco sobre la cabeza, brazo de palanca desde arriba
+      // de cada hombro hasta la almohadilla del antebrazo y torre de pesas atrás
+      pecdeck: (J, o) => {
+        const hx = J.hip[0], sy = J.hip[1] + 6, back = -12, XA = new T.Vector3(1, 0, 0), top = J.shc[1] - 34;
+        boxS([hx, sy + 3], 40, 6, 30, 'pad', 3);
+        boxS([hx, (sy + 6 + FLOOR) / 2], 12, FLOOR - sy - 6, 12, 'padDark', back + 4);
+        boxS([hx, FLOOR - 2], 60, 4, 50, 'padDark', 0);
+        boxAB(V2([hx, sy - 2], back - 2), V2([hx, J.shc[1] - 8], back - 2), 7, 34, 'pad', XA);
+        boxS([hx, (top + FLOOR) / 2], 12, FLOOR - top, 10, 'padDark', back - 22);
+        cyl(V2([hx - 36, top], back - 22), V2([hx + 36, top], back - 22), 2.4, 'padDark');
+        for (const i of [1, 2]) {
+          const el = J['el' + i], z = zk('el' + i), s = el[0] < hx ? -1 : 1, pv = V2([hx + s * 22, top], back - 22);
+          cyl(V2([hx + s * 22, top], back - 22), V2([hx + s * 22, top + 4], back - 22), 3, 'metal');
+          const pt = V2([el[0] + s * 1, el[1] - 26], z);
+          cyl(pv, V2([el[0] + s * 1, top + 4], z), 1.8, 'metal'); cyl(V2([el[0] + s * 1, top + 4], z), pt, 1.8, 'metal');
+          boxS([el[0] + s * 1, el[1] - 12], 6, 26, 12, 'pad', z);
+          cyl(V2([el[0] + s * 1, el[1] - 26], z), V2([el[0] + s * 1, el[1] - 32], z - 4), 1.2, 'metal');
+        }
+      },
+      // máquina hack: rieles inclinados detrás de la espalda, patas, base, almohadillas sobre los hombros y manillas
+      hackframe: (J, o) => {
+        const [a, b] = o.rail;
+        for (const z of [-18, 18]) {
+          cyl(V2(a, z), V2(b, z), 2.4, 'padDark');
+          cyl(V2(a, z), V2([a[0], FLOOR], z), 2.4, 'padDark'); cyl(V2([b[0] + 8, b[1] + 11], z), V2([b[0] - 2, FLOOR], z), 2.4, 'padDark');
+          cyl(V2([b[0] - 6, FLOOR - 2], z), V2([a[0] + 40, FLOOR - 2], z), 2.4, 'padDark');
+        }
+        const t = J.t, s0 = A.mv(J.shc, t, 4), s1 = A.mv(s0, t - 90, 9);
+        for (const z of [-12, 12]) { boxAB(V2(s0, z), V2(s1, z), 6, 8, 'pad'); }
+        for (const z of [-24, 24]) cyl(V2(A.mv(s0, t + 90, 2), z), V2(A.mv(A.mv(s0, t + 90, 2), t - 90, 14), z), 1.4, 'metal');
+        boxAB(V2(A.mv(J.hip, t + 90, 9)), V2(A.mv(J.shc, t + 90, 9)), 8, 26, 'pad');
       },
       // máquina de remo con apoyo de pecho: almohadilla, columna, palancas que bajan desde el eje hasta cada manilla y pesas
       rowmachine: (J, o) => {

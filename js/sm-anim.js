@@ -1051,10 +1051,15 @@
     props3: [{ type: 'pad', a: [69, 164], b: [27, 136], w: 6 }, { type: 'pad', a: [62, 167], b: [92, 169], w: 6 }, { type: 'platform', at: J => A.mv(J.an1, 187, 6), a: 45 }, { type: 'pad', a: [76, 170], b: [72, 184], w: 4 }],
     frames: [{}, { F1: [107.6, 80.6], F2: [103.6, 82.6] }]
   });
+  // máquina hack: espalda apoyada en el carro inclinado (~35°), hombros bajo las almohadillas,
+  // pies en la plataforma inclinada; la cadera baja a lo largo de los rieles
   add('hack', 'Hack squat', {
-    base: { x: 100, y: 96, t: 164, F1: [120, 168], F2: [116, 168], h1: [-2, -7], f1: 70 },
-    props: [{ type: 'slant', x: 96, w: 50, h: 14 }, { type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 8 }],
-    frames: [{}, { x: 86, y: 132, t: 160 }]
+    base: { x: 88, y: 100, t: 215, F1: [128, 158], F2: [124, 158], h1: [4, -2], pf: true, f1: 110, f2: 110 },
+    props: [{ type: 'pad', a: [112, 156], b: [32, 41], w: 4 }, { type: 'pad', a: [112, 156], b: [112, 184], w: 4 }, { type: 'pad', a: [40, 52], b: [30, 184], w: 4 },
+      { type: 'platform', at: [134, 163], a: 110 }, { type: 'pad', a: [142, 166], b: [150, 184], w: 4 },
+      { type: 'pad', a: J => A.mv(J.hip, J.t + 90, 9), b: J => A.mv(J.shc, J.t + 90, 9), w: 8 }, { type: 'pad', a: J => A.mv(J.shc, J.t, 5), b: J => A.mv(A.mv(J.shc, J.t, 5), J.t - 90, 9), w: 5 }],
+    props3: [{ type: 'hackframe', rail: [[112, 156], [32, 41]] }, { type: 'platform', at: [134, 163], a: 110 }],
+    frames: [{}, { x: 109, y: 130 }]
   });
   add('leg_ext', 'Extensión de rodilla en máquina', {
     base: { x: 82, y: 118, t: 186, pf: false, l1: 90, k1: 2, H1: [88, 128], f1: 85 },
@@ -1254,7 +1259,8 @@
   // máquina de cadera: asiento con respaldo, almohadillas en las rodillas (por fuera para abrir,
   // por dentro para cerrar) y manillas a los lados del asiento. El muslo menos acortado = más abierto en 3D.
   const hipMachine = (mode, l0, l1) => ({
-    base: { view: 'front', x: 100, y: 126, t: 180, l1: l0[0], ts1: l0[1], k1: 0, ss1: 1, pf: false, H1: [126, 134] },
+    // recl: el tronco acortado va hacia atrás (respaldo reclinado), no hacia la cámara
+    base: { view: 'front', x: 100, y: 126, t: 180, sh: -8, recl: true, l1: l0[0], ts1: l0[1], k1: 0, ss1: 1, pf: false, H1: [127, 136] },
     props: [{ type: 'box', x: 70, y: 130, w: 60 }, { type: 'pad', a: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] - 9], b: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] + 9], w: 5 },
       { type: 'pad', a: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] - 9], b: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] + 9], w: 5 }],
     props3: [{ type: 'hipmachine', mode }],
@@ -1455,6 +1461,8 @@
   add('pecdeck', 'Contractora (pec deck)', {
     base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 92, e1: 182, us1: 1 },
     props: [{ type: 'box', x: 74, y: 128, w: 52 }, { type: 'pad', a: [100, 62], b: [100, 128], w: 6, layer: 'back' }, { type: 'pad', a: J => A.mv(J.el1, 180, 2), b: J => A.mv(J.el1, 180, 22), w: 7, layer: 'hand' }, { type: 'pad', a: J => A.mv(J.el2, 180, 2), b: J => A.mv(J.el2, 180, 22), w: 7, layer: 'hand' }],
+    // máquina: asiento, respaldo, marco sobre la cabeza con un brazo de palanca que baja a cada almohadilla y torre de pesas
+    props3: [{ type: 'pecdeck' }],
     frames: [{ d: 0.35 }, { d: 0.9 }, { a1: 92, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: -90, us1: 0.06, d: 0.5 }, { a1: -90, us1: 0.55, d: 0.35 },
              { a1: -90, us1: 0.55, d: 0.5 }, { a1: -90, us1: 0.06, d: 0.05 }, { a1: 0, us1: 0.06, d: 0.05 }, { a1: 92, us1: 0.06, d: 0.9 }], free: true, ease: 'linear', dur: 3.6
   });
@@ -1589,7 +1597,7 @@
   });
   add('face_pull', 'Face pull', {
     base: S({ F1: [104, AY], F2: [80, AY], H1: [150, 56] }),
-    props: [{ type: 'tower', x: 176, top: 6, pulleys: [44] }, { type: 'cable', from: [176, 44], to: 'hd1' }],
+    props: [{ type: 'tower', x: 176, top: 6, pulleys: [44] }, { type: 'cable', from: [176, 44], to: 'hd1', rope: true }],
     frames: [{}, { H1: [116, 40], e1s: 1 }]
   });
   add('y_raise', 'Y-raise', {

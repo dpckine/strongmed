@@ -316,7 +316,7 @@
         run.forEach((q, m) => { d[q] = dl[m]; });
         if (!all) for (let m = 1; m <= 6; m++) { const q = (run[run.length - 1] + m) % LOCK_N; if (cp[q]) break; d[q] = pv * (1 - m / 7); }
       }
-      if (d.some(v => Math.abs(v) > 0.3)) tr[eff] = d;
+      if (d.some(v => Math.abs(v) > 0.3)) { d.cp = cp; tr[eff] = d; }
     }
     return (tpl._lk = Object.keys(tr).length ? tr : null);
   }
@@ -328,11 +328,26 @@
       const d = tr[eff]; if (!d) continue;
       const dx = d[i] + (d[(i + 1) % LOCK_N] - d[i]) * u; if (Math.abs(dx) < 0.05) continue;
       const R = J[root], E = J[eff], M = J[mid], l1 = Math.hypot(M[0] - R[0], M[1] - R[1]), l2 = Math.hypot(E[0] - M[0], E[1] - M[1]);
-      const T = [E[0] + dx, E[1]], ma = ikPt(R, T, l1, l2, 1), mb = ikPt(R, T, l1, l2, -1);
+      let T = [E[0] + dx, E[1]], P = null;
+      // apoyado en la punta del pie: los dedos quedan fijos y el pie gira (el tobillo sube o baja), la pierna no se dobla
+      if (eff[0] === 'a' && d.cp[i] === 'to' + eff[2]) {
+        const to = J['to' + eff[2]], lf = Math.hypot(to[0] - E[0], to[1] - E[1]), r = Math.hypot(E[0] - R[0], E[1] - R[1]);
+        P = [to[0] + dx, to[1]];
+        const q = Math.hypot(P[0] - R[0], P[1] - R[1]);
+        if (q < r + lf && q > Math.abs(r - lf)) {
+          const a = (r * r - lf * lf + q * q) / (2 * q), h = Math.sqrt(Math.max(0, r * r - a * a)), ux = (P[0] - R[0]) / q, uy = (P[1] - R[1]) / q;
+          const c1 = [R[0] + ux * a - uy * h, R[1] + uy * a + ux * h], c2 = [R[0] + ux * a + uy * h, R[1] + uy * a - ux * h];
+          T = c1[1] < c2[1] ? c1 : c2;
+        } else P = null;
+      }
+      const ma = ikPt(R, T, l1, l2, 1), mb = ikPt(R, T, l1, l2, -1);
       const nm = Math.hypot(ma[0] - M[0], ma[1] - M[1]) < Math.hypot(mb[0] - M[0], mb[1] - M[1]) ? ma : mb;
       const ne = mv(nm, ang(T[0] - nm[0], T[1] - nm[1]), l2), ddx = ne[0] - E[0], ddy = ne[1] - E[1];
       J[mid] = nm; J[eff] = ne;
-      for (const k of pts) if (J[k]) J[k] = [J[k][0] + ddx, J[k][1] + ddy];
+      if (P) {                       // pie girado sobre los dedos
+        const k = eff[2], lf = Math.hypot(P[0] - ne[0], P[1] - ne[1]) || 1;
+        J['to' + k] = P; J['he' + k] = [ne[0] - (P[0] - ne[0]) / lf * 3.5, ne[1] - (P[1] - ne[1]) / lf * 3.5];
+      } else for (const k of pts) if (J[k]) J[k] = [J[k][0] + ddx, J[k][1] + ddy];
       if (eff[0] === 'w') { const k = 'tg' + eff[2]; if (J[k]) J[k] = [J[k][0] + ddx, J[k][1] + ddy]; }
     }
     return J;

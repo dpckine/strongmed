@@ -337,7 +337,8 @@
         if (q < r + lf && q > Math.abs(r - lf)) {
           const a = (r * r - lf * lf + q * q) / (2 * q), h = Math.sqrt(Math.max(0, r * r - a * a)), ux = (P[0] - R[0]) / q, uy = (P[1] - R[1]) / q;
           const c1 = [R[0] + ux * a - uy * h, R[1] + uy * a + ux * h], c2 = [R[0] + ux * a + uy * h, R[1] + uy * a - ux * h];
-          T = c1[1] < c2[1] ? c1 : c2;
+          const d1 = Math.hypot(c1[0] - T[0], c1[1] - T[1]), d2 = Math.hypot(c2[0] - T[0], c2[1] - T[1]);
+          T = d1 < d2 ? c1 : c2;                // la solución más cercana: el talón sigue detrás de los dedos
         } else P = null;
       }
       const ma = ikPt(R, T, l1, l2, 1), mb = ikPt(R, T, l1, l2, -1);

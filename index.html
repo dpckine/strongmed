@@ -1832,12 +1832,14 @@ const jorKey = () => `sm_jor_${S.pro?.id||''}_${todayISO()}`;
 const jorManual = () => { try{ return JSON.parse(localStorage.getItem(jorKey()))||[]; }catch(e){ return []; } };
 const jorManualSet = a => { try{ localStorage.setItem(jorKey(), JSON.stringify([...new Set(a)])); }catch(e){} };
 function jorHoy(){ const td=todayISO(), m={}, add=(p,o)=>{ if(!p || isPending(p)) return; const k=keyOf(p); m[k]=Object.assign(m[k]||{p, k}, o); };
-  allCitas().filter(x=>toISO(x.c.fecha)===td && ['confirmada','realizada'].includes(x.c.estado) && x.c.lugar!=='Online').forEach(x=>add(x.p,{hora:x.c.hora||'', cita:x.c, ...(x.c.sala?{sala:x.c.sala}:{})}));
+  allCitas().filter(x=>toISO(x.c.fecha)===td && ['confirmada','realizada'].includes(x.c.estado) && enSalaL(x.c.lugar)).forEach(x=>add(x.p,{hora:x.c.hora||'', cita:x.c, ...(x.c.sala?{sala:x.c.sala}:{})}));
   jorManual().forEach(k=>add(prof(k),{manual:true}));
   people().forEach(p=>{ if(presEnCurso(p)) add(p,{}); const f=presSes(p).filter(s=>s.fecha===td); if(f.length) add(p,{fin:f}); });
   return Object.values(m).sort((a,b)=>String(a.hora||'99').localeCompare(String(b.hora||'99')) || String(a.p.nombre).localeCompare(String(b.p.nombre))); }
+/* en Sala solo atenciones en el centro: no online ni a domicilio */
+const enSalaL = l => l!=='Online' && l!=='Domicilio';
 /* tipo con que parte: el que se eligió al agendar hoy, o el de su plan/perfil */
-const salaTipo = p => { const c=(p.citas||[]).find(c=>toISO(c.fecha)===todayISO() && c.sala && c.estado!=='cancelada'); return c ? c.sala : presTipoDef(p); };
+const salaTipo = p => { const c=(p.citas||[]).find(c=>toISO(c.fecha)===todayISO() && c.sala && enSalaL(c.lugar) && c.estado!=='cancelada'); return c ? c.sala : presTipoDef(p); };
 /* en qué va: primer ejercicio con series sin marcar */
 function jorAhora(w){ const i=w.ex.findIndex(e=>e.sets.some(s=>!s.done)); if(i<0) return w.ex.length?'Completó todas las series':'Sin ejercicios aún';
   const e=w.ex[i], j=e.sets.findIndex(s=>!s.done), s=e.sets[j]; return `${e.n} · serie ${j+1}/${e.sets.length}${s.kg?` · ${s.kg} kg`:''}`; }
@@ -4162,13 +4164,13 @@ window.sheetCita = (k, id, preset={}) => {
   S.ciBloque=c?.bloque||null; ciLugares(); ciHoras(); ciSala();
 };
 /* sesión en Sala: rehabilitación, o entrenamiento (entrenar o recovery) */
-window.ciSala = () => { const box=$('#ci-sala'); if(!box) return; const v=S.ci.sala||'', g=v==='rehabilitacion'?'rehabilitacion':v?'entrenamiento':'';
+window.ciSala = () => { const box=$('#ci-sala'); if(!box) return; if(!enSalaL(S.ci.lugar)){ box.innerHTML=''; return; } const v=S.ci.sala||'', g=v==='rehabilitacion'?'rehabilitacion':v?'entrenamiento':'';
   const pill=(on,js,l)=>`<button type="button" class="pill ${on?'on':''}" onclick="${js};ciSala()">${l}</button>`;
   box.innerHTML=`<div class="lbl">Sesión presencial en Sala</div><div class="pills" style="flex-wrap:wrap">${pill(!g,"S.ci.sala=''",'No')}${pill(g==='entrenamiento',"S.ci.sala='entrenamiento'",'Entrenamiento')}${pill(g==='rehabilitacion',"S.ci.sala='rehabilitacion'",'Rehabilitación')}</div>`
     + (g==='entrenamiento'?`<div class="pills" style="flex-wrap:wrap;margin-top:6px">${pill(v==='entrenamiento',"S.ci.sala='entrenamiento'",'Entrenar')}${pill(v==='recovery',"S.ci.sala='recovery'",'Recovery')}</div><div class="xs muted" style="margin-top:4px">Queda en su ficha de entrenamiento › Presencial.</div>`:g==='rehabilitacion'?`<div class="xs muted" style="margin-top:4px">Al finalizar completa una sesión de su programa de rehabilitación.</div>`:''); };
 window.ciLugares = () => { const box=$('#ci-lug'); if(!box) return; const a=agendaOf(S.ci.proId)||myAgenda(); const pl=placesOf(a);
   if(S.ci.lugar && !pl.find(x=>x.code===S.ci.lugar)) pl.unshift({code:S.ci.lugar, label:lugarLabel(S.ci.lugar)}); if(!S.ci.lugar) S.ci.lugar=pl[0]?.code||'Domicilio';
-  box.innerHTML=`<div class="pills" style="flex-wrap:wrap">${pl.map(x=>`<button type="button" class="pill ${S.ci.lugar===x.code?'on':''}" onclick="S.ci.lugar=${q(x.code)};ciLugares();ciHoras();ciDir()">${esc(x.label)}</button>`).join('')||'<span class="xs muted">Sin lugares configurados</span>'}</div>`; };
+  box.innerHTML=`<div class="pills" style="flex-wrap:wrap">${pl.map(x=>`<button type="button" class="pill ${S.ci.lugar===x.code?'on':''}" onclick="S.ci.lugar=${q(x.code)};ciLugares();ciHoras();ciDir();ciSala()">${esc(x.label)}</button>`).join('')||'<span class="xs muted">Sin lugares configurados</span>'}</div>`; };
 window.ciDir = () => { const i=$('#ci-n'); if(!i) return; const cen=String(S.ci.lugar).startsWith('C:')?centroById(S.ci.lugar.slice(2)):null; if(cen) i.value=cen.direccion||''; };
 window.ciHoras = () => { const box=$('#ci-free'); if(!box) return; const a=agendaOf(S.ci.proId)||myAgenda(), d=val('ci-f');
   if(!hasSlots(a)){ box.innerHTML=''; return; }
@@ -4182,7 +4184,7 @@ window.guardarCita = async id => {
     if(c.pago.requerido && c.pago.estado!=='pagado' && !confirm('El pago previo no está marcado como recibido. ¿Confirmar la hora igual?')) return; }
   const a=agendaOf(S.ci.proId);
   if(!c){ c={id:uid(), creadaPor:'pro', creada:Date.now()}; p.citas.push(c); }
-  Object.assign(c,{servicio:servAg(a), tipo:S.ci.tipo, lugar:S.ci.lugar, lugarNombre:lugarLabel(S.ci.lugar), proId:S.ci.proId, pro:a?.nombre||S.pro.nombre, fecha:f, hora:h, direccion:val('ci-n'), estado:'confirmada', confirmadaPor:S.pro.nombre, sala:S.ci.sala||''});
+  Object.assign(c,{servicio:servAg(a), tipo:S.ci.tipo, lugar:S.ci.lugar, lugarNombre:lugarLabel(S.ci.lugar), proId:S.ci.proId, pro:a?.nombre||S.pro.nombre, fecha:f, hora:h, direccion:val('ci-n'), estado:'confirmada', confirmadaPor:S.pro.nombre, sala:enSalaL(S.ci.lugar)?(S.ci.sala||''):''});
   if(c.lugar==='Online' && !c.link) c.link=videoRoomFor(p, c.proId);
   const when=`${fmtDate(f)} a las ${h} · ${lugarLabel(c)}${c.direccion&&c.lugar!=='Domicilio'?` (${c.direccion})`:''}`;
   (p.avisos||[]).forEach(x=>{ if(x.tipo==='cita') x.leido=true; });

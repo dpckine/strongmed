@@ -927,7 +927,7 @@
   const plank = (Sh, Ft, extra) => {
     const v = [Ft[0] - Sh[0], Ft[1] - Sh[1]], m = Math.hypot(v[0], v[1]), r = 46 + 79.6;
     const F = [Sh[0] + v[0] / m * r, Sh[1] + v[1] / m * r];      // cuerpo recto: sin rodillas dobladas hacia el suelo
-    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: F, F2: [F[0] + 2, F[1]] }, extra || {});
+    return Object.assign({ x: Sh[0] + v[0] / m * 46, y: Sh[1] + v[1] / m * 46, S: Sh, F1: F, F2: [F[0] - 3.5, F[1]] }, extra || {});
   };
   const kneePlank = (Sh, K, extra) => {
     const v = [K[0] - Sh[0], K[1] - Sh[1]], m = Math.hypot(v[0], v[1]);
@@ -1423,7 +1423,7 @@
   });
   add('planche', 'Planche lean / progresiones', {
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
-    frames: [{}, plank([148, 136], [26, 179], { h: -6 })]
+    frames: [{}, plank([144, 135], [12, 179], { h: -6 })]
   });
   add('dips', 'Fondos en paralelas', {
     base: { x: 100, y: 102, t: 176, H1: [106, 104], e1s: -1, pf: false, l1: 20, k1: -95 },
@@ -1936,7 +1936,7 @@
     frames: [{}, { t: 134, h: 0 }]
   });
   add('cobra_stretch', 'Estiramiento en prono / cobra', {
-    base: { x: 90, y: 176, t: 92, h: -8, pf: false, l1: -90, k1: -90, f1: 0, H1: [127, 182], e1s: 1 },
+    base: { x: 90, y: 176, t: 92, h: -8, pf: false, l1: -90, k1: -90, f1: 0, H1: [127, 182] },
     frames: [{}, { t: 126, h: 4 }]
   });
   add('thoracic_roller', 'Extensión torácica sobre foam roller', {
@@ -1953,12 +1953,24 @@
     props: [{ type: 'roller', at: [74, 176], r: 7 }],
     frames: [{ x: 106 }, { x: 94 }]
   });
-  add('getup', 'Turkish get-up', {
-    base: { x: 104, y: 174, t: -90, pf: false, F1: [134, AY], l2: 92, k2: 92, a1: 182, e1: 182, a2: -140, e2: -140 },
-    props: [{ type: 'kb', at: 'hd1', up: true }],
-    frames: [{ d: 1 }, { t: -140, H2: [62, 182], d: 1 }, { x: 98, y: 137, t: 182, pf: false, l2: 4, k2: -90, f2: 0, F1: [128, AY], a1: 182, e1: 182, d: 0.9 }, { x: 100, y: 118, t: 180, pf: true, F1: [128, AY], F2: [70, 172], f2: 25, d: 0.8 }, { x: 108, y: 101, F1: [128, AY], F2: [96, 166], f2: 60, d: 0.4 }, { x: 118, y: 100, t: 180, F1: [128, AY], F2: [123, AY], f2: 78, d: 1.2 }], dur: 5.3
-  });
-
+  // Turkish get-up real: codo → mano → puente alto → barrido de pierna por debajo → rodilla → zancada → de pie, y de vuelta.
+  // El brazo de la pesa queda vertical todo el tiempo; la mano de apoyo y el pie delantero no se mueven del suelo.
+  add('getup', 'Turkish get-up', (() => {
+    const kb = { a1: 180, e1: 180 }, F1 = [130, AY];
+    const K = [
+      { x: 104, y: 174, t: -90, h: 0, pf: true, F1, f1: 78, F2: [183, 175], f2: 170, a2: -95, e2: -95, ...kb, d: 0.6 },   // acostado
+      { x: 104, y: 174, t: -125, h: -10, H2: [44, 181], d: 0.7 },                                                          // al codo
+      { x: 104, y: 174, t: -148, h: -14, H2: [64, 182], d: 0.6 },                                                          // a la mano
+      { x: 102, y: 148, t: -105, h: -10, H2: [64, 182], F2: [172, AY], f2: 120, d: 0.7 },                                                  // puente alto
+      { x: 100, y: 142, t: -100, h: -8, H2: [64, 182], F2: [70, 178], f2: -70, d: 0.7 },                                                   // barrido de la pierna
+      { x: 98, y: 137, t: 180, h: 0, F2: [62, 177], f2: -70, a2: 4, e2: 8, d: 0.7 },                                         // media rodilla
+      { x: 101, y: 118, t: 180, F2: [70, 172], f2: 25, d: 0.5 },                                                            // zancada
+      { x: 110, y: 104, F2: [102, 166], f2: 60, d: 0.4 },                                                                   // paso
+      { x: 126, y: 100, F2: [125, AY], f2: 78, d: 0.8 }                                                                     // de pie
+    ];
+    const back = K.slice(1, -1).reverse().map(k => Object.assign({}, k));
+    return { base: K[0], props: [{ type: 'kb', at: 'hd1', up: true }], frames: [{ d: 0.6 }, ...K.slice(1), ...back], dur: 10, cx: 112 };
+  })());
   /* ============================== ESTIRAMIENTOS Y VARIOS ============================== */
   add('chest_stretch', 'Estiramiento de pecho', {
     base: S({ H1: [80, 92] }),

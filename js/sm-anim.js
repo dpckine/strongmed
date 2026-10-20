@@ -328,7 +328,8 @@
     return J;
   }
 
-  // ---------------------------------------------------------------- dibujo  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+  // ---------------------------------------------------------------- dibujo
+  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
   const poly = (pts, w, c, extra = '') => `<polyline points="${pts.map(pt).join(' ')}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
   const circ = (p, r, fill, stroke = 'none', sw = 0, extra = '') => `<circle cx="${f1(p[0])}" cy="${f1(p[1])}" r="${f1(r)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
 

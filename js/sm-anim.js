@@ -1868,10 +1868,13 @@
     base: plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }),
     frames: [{ d: 0.8 }, Object.assign(plank([134, 160], [12, 179], { h: -6 }), { d: 0.35 }), Object.assign(plank([136, 112], [12, 179], { h: -6, H1: undefined, a1: 30, e1: 40 }), { d: 0.35 }), Object.assign(plank([132, 131], [12, 179], { H1: [134, 182], h: -6 }), { d: 0.6 })], free: true, dur: 2
   });
+  // press de pecho sentado: espalda apoyada en el respaldo, pies en el suelo, manillas verticales a la altura del
+  // medio del pecho y algo más anchas que los hombros; empuja al frente hasta casi estirar los codos (sin bloquear)
   add('chest_press_machine', 'Press de pecho en máquina', {
-    base: { x: 76, y: 124, t: 182, F1: [118, AY], F2: [114, AY], h1: [-6, 10], e1s: -1 },
+    base: { x: 76, y: 124, t: 182, F1: [118, AY], F2: [114, AY], h1: [-9, 12] },
     props: [{ type: 'bench', a: [56, 132], b: [96, 132], legs: [64, 90] }, { type: 'pad', a: [56, 126], b: [52, 70], w: 8 }, { type: 'pad', a: J => [J.hd1[0] + 2, J.hd1[1] - 9], b: J => [J.hd1[0] + 2, J.hd1[1] + 9], w: 4, layer: 'hand' }],
-    frames: [{}, { h1: [-4, 46] }]
+    props3: [{ type: 'chestpress', grip: 29 }],
+    frames: [{}, { h1: [-8, 44] }]
   });
   add('situp', 'Abdominal completo (sit-up)', {
     base: { x: 100, y: 175, t: -90, h: -6, F1: [134, AY], F2: [130, AY], pf: true, h1: [8, -6] },

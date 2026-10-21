@@ -561,7 +561,7 @@
       const h = {};
       for (const o of tpl.props3 || tpl.props || []) {
         // pec fly: cada mano en su manilla vertical (agarre neutro)
-        if (o.type === 'pecdeck') { h[1] = h[2] = 1; h.kv = 'up'; continue; }
+        if (o.type === 'pecdeck' || o.type === 'chestpress') { h[1] = h[2] = 1; h.kv = 'up'; continue; }
         // cuerda: agarre neutro, pulgares hacia atrás
         if (o.type === 'cable' && o.rope) h.kv = 'rope';
         if (!HELD.test(o.type) || o.band) continue;
@@ -748,6 +748,28 @@
           cyl(pv, V2([h[0], top], z), 1.8, 'metal');
           cyl(V2([h[0], top], z), V2([h[0], h[1] - 9], z), 1.8, 'metal');
           cyl(V2([h[0], h[1] - 9], z), V2([h[0], h[1] + 9], z), 1.5, 'metal');
+        }
+      },
+      // press de pecho en máquina: asiento, respaldo alto, base, columna con pesas detrás del respaldo y un marco
+      // que pasa sobre la cabeza; de su eje (encima del recorrido de las manos) cuelga un brazo hasta cada manilla
+      // vertical, así el brazo de palanca casi no cambia de largo mientras la mano avanza
+      chestpress: (J, o) => {
+        const t = J.t, hx = J.hip[0], sy = J.hip[1] + 6, top = J.shc[1] - 36, cx = hx - 40, zf = (o.grip || 29) + 4;
+        const px = o.px ?? J.shc[0] + 28;
+        boxS([hx + 6, sy + 3], 34, 6, 30, 'pad');
+        boxS([hx + 6, (sy + 6 + FLOOR) / 2], 10, FLOOR - sy - 6, 10, 'padDark');
+        boxAB(V2(A.mv(J.hip, t + 90, 10)), V2(A.mv(A.mv(J.shc, t, 10), t + 90, 10)), 8, 30, 'pad');
+        cyl(V2(A.mv(J.hip, t + 90, 14)), V2([cx, sy]), 2.2, 'padDark');
+        boxS([hx - 10, FLOOR - 2], 100, 4, 54, 'padDark');
+        boxS([cx, (top + FLOOR) / 2], 10, FLOOR - top, 12, 'padDark');
+        for (let k = 0; k < 9; k++) boxS([cx - 13, FLOOR - 7 - k * 5], 12, 4, 22, 'plate');
+        for (const z of [-6, 6]) cyl(V2([cx - 13, FLOOR - 4], z), V2([cx - 13, top + 10], z), 0.8, 'metal');
+        for (const sg of [1, -1]) { cyl(V2([cx, top], sg * zf), V2([px, top], sg * zf), 2.2, 'padDark'); cyl(V2([px, top - 3], sg * zf), V2([px, top + 3], sg * zf), 3, 'metal'); }
+        cyl(V2([cx, top], -zf), V2([cx, top], zf), 2.2, 'padDark');
+        for (const i of [1, 2]) {
+          const h = J['hd' + i], z = zk('hd' + i), sg = i === 1 ? 1 : -1;
+          cyl(V2([px, top], sg * zf), V2([h[0], h[1] - 9], z), 1.9, 'metal');
+          cyl(V2([h[0], h[1] - 9], z), V2([h[0], h[1] + 9], z), 1.6, 'metal');
         }
       },
       // máquina hack: rieles inclinados detrás de la espalda, patas, base, almohadillas sobre los hombros y manillas

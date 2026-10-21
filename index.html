@@ -2149,7 +2149,7 @@ async function logroBlob(p, o, mode='sticker', foto=null){
     if(big){ let fs=330; x.font=F(fs); while(x.measureText(big).width>W-160 && fs>120){ fs-=10; x.font=F(fs); } x.fillStyle='#fff'; x.fillText(big,74,y+fs*.86); y+=fs*.92; }
     const L=wrapTxt(sub, F(big?92:140), W-160).slice(0,4); L.forEach(l=>{ x.fillStyle=big?ACC:'#fff'; x.font=F(big?92:140); x.fillText(l,80,y+(big?84:126)); y+=big?92:138; });
     if(o.tipo==='rm' && o.logrado){ x.fillStyle=MUTED; x.font=I(34,600); x.fillText(`1RM estimado ${o.logrado} kg${o.detalle&&o.detalle.reps>1?` · ${o.detalle.kg} kg × ${o.detalle.reps}`:''}`,80,y+50); y+=60; }
-    x.fillStyle=MUTED; x.font=I(32,600); x.fillText(quien,80,y+60); return y+90; };
+    x.fillStyle=MUTED; x.font=I(32,600); x.fillText(quien,80,y+60); firma(x,I,ACC,y+108); return y+138; };
   if(mode==='card'){ storyLogos(x,F,I,ACC,92); bloque(620); return new Promise(r=>cv.toBlob(r,'image/png')); }
   if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); bloque(big?1160:1300); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
   storyLogos(x,F,I,ACC,60,.9); bloque(250); return stickerBlob(cv); }
@@ -4893,6 +4893,8 @@ function storyLogos(x, F, I, ACC, y0, sc0=1){
   x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16*sc0) : x.rect(kx,ky,ks,ks); x.fill();
   x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
   x.fillStyle='#fff'; x.font=F(40*sc0,800); x.fillText('KIN AT HOME',kx+ks+18*sc0,ky+34*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología a domicilio',kx+ks+18*sc0,ky+64*sc0); }
+/* firma del kinesiólogo al pie de stickers, fotos y tarjetas */
+function firma(x, I, ACC, y){ x.font=I(28,700); x.fillStyle=ACC; x.fillText('Klgo. David Ponce',80,y); }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
@@ -4913,7 +4915,7 @@ async function storyBlob(p, d, mode='card', foto=null){
     x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill(); };
   const quien=`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`;
   if(mode==='card'){
-    storyLogos(x,F,I,ACC,92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-80); title(420);
+    storyLogos(x,F,I,ACC,92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66); title(420);
     if(ruta){ rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
     else { lista(560,6); stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat('Series', String(series||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600); }
     return new Promise(r=>cv.toBlob(r,'image/png'));
@@ -4923,14 +4925,14 @@ async function storyBlob(p, d, mode='card', foto=null){
     if(ruta){ rutaDraw([80,980,W-160,380]); title(1450,120); stat('Distancia', String(d.distancia), 'km', 80, 1520, 100); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, 1520, 100); }
     else { const n=Math.min(4, ej.length); title(1840-(n*112)-300,120); lista(1840-(n*112)-220, n, 112, 38, 46); x.fillStyle='rgba(0,0,0,0)';
       stat('Duración', String(d.duracion||'—'), 'min', 80, 1640, 96); stat('Series', String(series||'—'), '', 420, 1640, 96); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, 1640, 96); }
-    x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-60);
+    x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52);
     return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
   }
   // sticker sin fondo: bloque compacto que luego se recorta a su contenido
   storyLogos(x,F,I,ACC,60,.9); title(300,130); let y;
   if(ruta){ rutaDraw([80,340,W-160,520]); y=900; stat('Distancia', String(d.distancia), 'km', 80, y, 104); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, y, 104); y+=150; }
   else { y=lista(390, Math.min(5, ej.length), 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat('Series', String(series||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
-  x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10);
+  x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10); firma(x,I,ACC,y+58);
   return stickerBlob(cv);
 }
 /* recorta el PNG transparente al borde de lo dibujado, para que quede como sticker sin espacio vacío */

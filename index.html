@@ -3074,7 +3074,7 @@ function pRutinas(p){
    Los profesionales marcan con ★ las destacadas, que también ven las personas al crear su rutina. */
 const plLimpia = ej => (ej||[]).map(e=>({ejercicio:e.ejercicio, exId:e.exId||'', series:e.series||3, reps:e.reps||10, kg:e.kg||e.kilos||'', rir:e.rir||'', descanso:e.descanso||'', ...(+e.aprox>0?{aprox:+e.aprox}:{}), ...(e.video?{video:e.video}:{})})).filter(e=>e.ejercicio);
 const plFirma = (t, ej) => (String(t||'').trim().toLowerCase()+'|'+plLimpia(ej).map(e=>String(e.ejercicio).toLowerCase()).join(',')).slice(0,600);
-async function loadPlantillas(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'plantillas')); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.plantillas=a.sort((x,y)=>(y.destacada?1:0)-(x.destacada?1:0) || (y.usos||0)-(x.usos||0) || String(y.fecha||'').localeCompare(String(x.fecha||''))); }catch(e){ console.warn('plantillas', e); S.plantillas=S.plantillas||[]; } return S.plantillas; }
+async function loadPlantillas(){ try{ const sn=await S.fb.getDocs(S.fb.collection(S.dbs.sm,'plantillas')); const a=[]; sn.forEach(d=>a.push({id:d.id,...d.data()})); S.plBorradas=new Set(a.filter(x=>x.borrada).map(x=>x.firma)); S.plantillas=a.filter(x=>!x.borrada).sort((x,y)=>(y.destacada?1:0)-(x.destacada?1:0) || (y.usos||0)-(x.usos||0) || String(y.fecha||'').localeCompare(String(x.fecha||''))); }catch(e){ console.warn('plantillas', e); S.plantillas=S.plantillas||[]; } return S.plantillas; }
 /* guarda (o suma un uso a) la rutina en la biblioteca, sin duplicar */
 async function guardarPlantilla(r, rol){ try{ const ej=plLimpia(r.ejercicios); if(!r.titulo || !ej.length) return; const firma=plFirma(r.titulo, ej);
   if(!S.plantillas) await loadPlantillas(); const ex=(S.plantillas||[]).find(x=>x.firma===firma);
@@ -3098,7 +3098,10 @@ window.plRender = plRender;
 window.destacarPlantilla = async id => { if(S.role==='pro' && !$('#sheet') && S.proTab==='rutinas'){ const x=(S.plantillas||[]).find(y=>y.id===id); if(x){ await destacarPlantillaSilencio(x,!x.destacada); toast(x.destacada?'Rutina destacada ★ · ya la ven las personas':'Ya no está destacada'); keepScroll(render); } return; } const x=(S.plantillas||[]).find(y=>y.id===id); if(!x) return; x.destacada=!x.destacada; x.destacadaPor=x.destacada?S.pro.nombre:'';
   try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',id), {destacada:x.destacada, destacadaPor:x.destacadaPor}, {merge:true}); toast(x.destacada?'Rutina destacada ★':'Ya no está destacada'); }catch(e){ toast('No se pudo guardar','err'); }
   if($('#sheet')) plRender(); else keepScroll(render); };
-window.borrarPlantilla = async id => { if(!confirm('¿Quitar esta rutina de la biblioteca? Las personas que ya la tienen no la pierden.')) return; if(await fsDel('plantillas', id)){ S.plantillas=(S.plantillas||[]).filter(y=>y.id!==id); plRender(); } };
+/* quitar de la biblioteca: queda marcada como borrada (no se elimina) para que plBackfill no la vuelva a crear desde las rutinas de las personas */
+window.borrarPlantilla = async id => { const x=(S.plantillas||[]).find(y=>y.id===id); if(!x || !confirm('¿Quitar esta rutina de la biblioteca? Las personas que ya la tienen no la pierden.')) return;
+  try{ await S.fb.setDoc(S.fb.doc(S.dbs.sm,'plantillas',id), {borrada:true, destacada:false, borradaPor:S.pro?.nombre||'', borradaEl:todayISO()}, {merge:true}); }catch(e){ console.error(e); return toast('No se pudo quitar','err'); }
+  S.plantillas=S.plantillas.filter(y=>y.id!==id); (S.plBorradas=S.plBorradas||new Set()).add(x.firma); toast('Rutina quitada de la biblioteca'); if($('#sheet .sheet')) plRender(); else keepScroll(render); };
 window.usarPlantilla = id => { const x=(S.plantillas||[]).find(y=>y.id===id); if(!x) return; closeSheet(); S.rbEdit=null; S.rbEditMis=false;
   if(S.role==='pat'){ sheetMiRutina(x); return; }
   const t=$('#rb-t'), m=$('#rb-m'), rows=$('#rb-rows'); if(!rows) return; t.value=x.titulo; m.value=x.tiempo||''; rows.innerHTML=(x.ejercicios||[]).map(e=>exRow(e,true)).join('');
@@ -3108,7 +3111,7 @@ window.tomarPlantilla = async id => { const x=(S.plantillas||[]).find(y=>y.id===
   if(await save(p)){ closeSheet(); toast('Rutina agregada a tu plan'); S.planSeg='rutinas'; S.patTab='plan'; render(); } };
 /* ---- pestaña Rutinas del profesional ---- */
 async function plBackfill(){ // las rutinas que existían antes de la biblioteca también entran (una sola vez por sesión)
-  if(S._plBack) return; S._plBack=true; await loadPlantillas(); const firmas=new Set((S.plantillas||[]).map(x=>x.firma)); let n=0;
+  if(S._plBack) return; S._plBack=true; await loadPlantillas(); const firmas=new Set([...(S.plantillas||[]).map(x=>x.firma), ...(S.plBorradas||[])]); let n=0; // las quitadas no vuelven
   for(const p of people()){ const todas=[...(p.rutinasAsignadas||[]).map(r=>[r, r.creador==='user'?'pat':'pro']), ...(p.misRutinas||[]).map(r=>[r,'pat'])];
     for(const [r,rol] of todas){ const f=plFirma(r.titulo, r.ejercicios); if(!r.titulo || !plLimpia(r.ejercicios).length || firmas.has(f)) continue; firmas.add(f);
       await guardarPlantilla({...r, _sinUso:true, _autor: rol==='pro'?(r.pro||r.editor||S.pro.nombre):`Paciente · ${first(p.nombre)}`, _org:p.org, _fecha:toISO(r.fecha||r.creada)||todayISO()}, rol); if(++n>=150) break; } if(n>=150) break; }

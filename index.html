@@ -191,6 +191,13 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .glos-c dd{margin:2px 0 0;font-size:13.5px;color:var(--mu)}
 .setrow.head{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);text-align:center;margin-top:12px}
 .setrow .sn{text-align:center;font-weight:800;color:var(--mu);font-size:13px;height:42px;padding:0;border:0;border-radius:11px;background:none;cursor:pointer}
+.vs-r{display:grid;grid-template-columns:104px 1fr 26px;gap:8px;align-items:center;margin-top:9px;font-size:13px;font-weight:600}
+.vs-r b{text-align:right}
+.vs-b{position:relative;height:14px;background:var(--card2);border-radius:7px;overflow:hidden}
+.vs-z,.vs-ley{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--acc) 18%,transparent);border-left:1.5px dashed var(--acc);border-right:1.5px dashed var(--acc)}
+.vs-ley{position:static;display:inline-block;width:16px;height:10px;vertical-align:middle;margin-right:4px}
+.vs-f{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:var(--mu)}
+.vs-f.ok{background:var(--acc)}
 .setrow .sn.ap{background:var(--card2);color:var(--tx);border:1.5px dashed var(--mu)}
 .setrow input{height:42px;text-align:center;background:var(--card2);border:1px solid transparent;border-radius:11px;outline:none;font-weight:700;width:100%;min-width:0}
 .setrow input:focus{border-color:var(--acc)}
@@ -2080,9 +2087,30 @@ function vProgreso(p){
   ${rh?`<section class="card"><div class="row between"><span class="b">Dolor por sesión (EVA)</span><span class="xs muted">0–10</span></div><div class="chart" style="margin-top:10px"><canvas id="c-eva"></canvas></div></section>`:''}
   ${stepsCard(p)}
   ${pasosCard(p)}
+  ${volSemCard(p)}
   <div class="sec-t"><h2>Historial</h2><button class="xs b acc-t" onclick="sheetActividad()">+ Otra actividad</button></div>
   ${historialList(ss.slice(0,25), p)}</div>`;
 }
+/* Volumen semanal: series efectivas (sin aproximación) por grupo muscular, según el músculo principal del ejercicio.
+   Si el ejercicio no está en la biblioteca, el grupo se deduce del nombre. */
+const VOL_NOMBRE = [[/lumbar|hiperextension/,'Lumbar'], [/curl.*(femoral|isquio)|femoral|rumano|isquio|nordic/,'Isquiotibiales'], [/hip thrust|gluteo|patada/,'Glúteos'], [/gemelo|pantorrilla|talones/,'Pantorrillas'],
+  [/abdominal|crunch|plancha|core|pallof/,'Core'], [/triceps|fondos|press frances/,'Tríceps'], [/curl|biceps/,'Bíceps'], [/press militar|hombro|elevaciones? lateral|deltoides|face pull|pajaro/,'Hombros'],
+  [/banca|pecho|aperturas|flexiones de brazo|pectoral/,'Pecho'], [/remo|jalon|dominada|espalda|encogimiento/,'Espalda'], [/sentadilla|prensa|zancada|estocada|extension de (rodilla|cuadriceps)|cuadriceps|bulgara/,'Cuádriceps'], [/peso muerto/,'Isquiotibiales']];
+function grupoEj(e){ const x=libFind(e.ejercicio, e.exId); if(x && x.m){ const g=Object.keys(RECO_MUS).find(k=>RECO_MUS[k].includes(x.m)); if(g) return g; }
+  const f=fold(e.ejercicio), h=VOL_NOMBRE.find(([re])=>re.test(f)); return h ? h[1] : 'Otros'; }
+function volSemana(p, off){ const ws=weekStart(new Date()); ws.setDate(ws.getDate()+7*off); const we=new Date(ws); we.setDate(we.getDate()+6); const a=iso(ws), b=iso(we), g={};
+  (p.diarios||[]).forEach(d=>{ const f=toISO(d.fecha); if(f<a || f>b) return;
+    (d.ejercicios||[]).forEach(e=>{ const n=e.sets&&e.sets.length ? e.sets.filter(s=>!s.ap).length : (+e.series||0); if(n>0){ const k=grupoEj(e); g[k]=(g[k]||0)+n; } }); });
+  return {a, b, g}; }
+function volSemCard(p){ if(!S.lib) loadLib().then(()=>{ const el=$('#volsem'); if(el) el.outerHTML=volSemCard(p); });
+  const off=S.volOff||0, {a,b,g}=volSemana(p,off), arr=Object.entries(g).sort((x,y)=>(x[0]==='Otros')-(y[0]==='Otros') || y[1]-x[1]), tot=arr.reduce((s,x)=>s+x[1],0), mx=Math.max(22,...arr.map(x=>x[1])), pc=v=>v/mx*100;
+  const dm=f=>`${+f.slice(8)}/${+f.slice(5,7)}`, lab=off===0?'Esta semana':off===-1?'Semana pasada':`Semana del ${dm(a)}`;
+  return `<section class="card" id="volsem"><div class="row between"><span class="b">Series por grupo muscular</span><span class="xs muted">${tot} series</span></div>
+  <div class="row between" style="margin-top:8px"><button type="button" class="ibtn" onclick="volSem(-1)" aria-label="Semana anterior">‹</button><span class="sm b">${lab} <span class="muted xs">${dm(a)} al ${dm(b)}</span></span><button type="button" class="ibtn" onclick="volSem(1)" aria-label="Semana siguiente" ${off>=0?'disabled style="opacity:.3"':''}>›</button></div>
+  ${arr.length ? arr.map(([k,n])=>`<div class="vs-r"><span class="trunc">${esc(k)}</span><div class="vs-b"><i class="vs-z" style="left:${pc(10)}%;width:${pc(10)}%"></i><i class="vs-f ${n>=10&&n<=20?'ok':''}" style="width:${pc(n)}%"></i></div><b>${n}</b></div>`).join('')
+    : `<div class="xs muted" style="margin-top:12px">Sin series registradas esta semana.</div>`}
+  <div class="xs muted" style="margin-top:12px"><i class="vs-ley"></i> Zona de 10 a 20 series semanales por músculo, recomendada para ganar masa muscular. Solo cuentan las series efectivas; las de aproximación (A) no suman.</div></section>`; }
+window.volSem = d => { S.volOff=Math.min(0,(S.volOff||0)+d); const p=me(), el=$('#volsem'); if(p && el) el.outerHTML=volSemCard(p); };
 /* detalle de cada entrenamiento: series reales (kg × reps · RIR) y cómo se sintió ese día */
 const setsTxt = e => e.sets && e.sets.length ? e.sets.map(s=>`${s.ap?'<small class="muted">A</small> ':''}${s.kg&&+s.kg?esc(s.kg)+' kg × ':''}${esc(s.reps||'—')}${s.rir!==''&&s.rir!=null?` <small>RIR ${esc(s.rir)}</small>`:''}`).join('<span class="muted"> · </span>') : `${esc(e.series||'')}×${esc(e.reps||'')}${e.kilos||e.kg?` · ${esc(e.kilos||e.kg)} kg`:''}`;
 const animoDia = (p,f) => { const a=p && animoList(p).find(x=>x.fecha===toISO(f)); return a && ANIMO[a.v-1] ? `${ANIMO[a.v-1][0]} ${ANIMO[a.v-1][1]}` : ''; };

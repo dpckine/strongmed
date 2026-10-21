@@ -1873,7 +1873,8 @@
   add('chest_press_machine', 'Press de pecho en máquina', {
     base: { x: 76, y: 124, t: 182, F1: [118, AY], F2: [114, AY], h1: [-9, 12] },
     props: [{ type: 'bench', a: [56, 132], b: [96, 132], legs: [64, 90] }, { type: 'pad', a: [56, 126], b: [52, 70], w: 8 }, { type: 'pad', a: J => [J.hd1[0] + 2, J.hd1[1] - 9], b: J => [J.hd1[0] + 2, J.hd1[1] + 9], w: 4, layer: 'hand' }],
-    props3: [{ type: 'chestpress', grip: 29 }],
+    // flare: codos abiertos ~45-60° del tronco, como en la máquina (no pegados al cuerpo)
+    props3: [{ type: 'chestpress', grip: 31, flare: 1.4 }],
     frames: [{}, { h1: [-8, 44] }]
   });
   add('situp', 'Abdominal completo (sit-up)', {

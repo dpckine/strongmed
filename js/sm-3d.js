@@ -328,7 +328,7 @@
         // mano detrás del hombro (barra en la espalda): codo hacia abajo y atrás; si no, como en la animación 2D
         const behind = (w[0] - s2[0]) * J.n[0] + (w[1] - s2[1]) * J.n[1] < 0;
         const pole = behind ? new T.Vector3(0, -1, 0).addScaledVector(D2(J.n), -0.45).addScaledVector(out, 0.5)
-          : V2(e2, sg * ZARM).sub(S.clone().add(Wt).multiplyScalar(0.5)).addScaledVector(out, 0.25 * l1);
+          : V2(e2, sg * ZARM).sub(S.clone().add(Wt).multiplyScalar(0.5)).addScaledVector(out, (bb.flare ?? 0.25) * l1);
         pole.addScaledVector(ax, -pole.dot(ax)); if (pole.lengthSq() < 1e-6) pole.copy(out); pole.normalize();
         OV['el' + i] = S.clone().addScaledVector(ax, a).addScaledVector(pole, h);
       }

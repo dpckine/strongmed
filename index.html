@@ -4959,11 +4959,8 @@ function recoveryBlock(x, F, I, ACC, d, y){ const rr=(a,b,w,h,r)=>{ x.beginPath(
     const n=4, pad=24, gap=14, sw=(bw-pad*2-gap*(n-1))/n; for(let i=0;i<n;i++){ x.globalAlpha=.35+.65*(i+1)/n; x.fillStyle=ACC; rr(bx+pad+i*(sw+gap),by+pad,sw,bh-pad*2,12); x.fill(); } x.globalAlpha=1;
     const cx=bx+bw/2, cy=by+bh/2, h=bh*.86, w=h*.56, P=[[.62,0],[.08,.58],[.46,.58],[.34,1],[.92,.38],[.54,.38],[.7,0]];
     x.beginPath(); P.forEach(([a,b],i)=>{ const px=cx-w/2+a*w, py=cy-h/2+b*h; i?x.lineTo(px,py):x.moveTo(px,py); }); x.closePath(); x.shadowColor='rgba(0,0,0,0)'; x.lineWidth=12; x.lineJoin='round'; x.strokeStyle='#0b0b0c'; x.stroke(); x.fillStyle='#fff'; x.fill(); x.restore(); }
-  // cápsula
-  let yy=yD+44; const txt='CUERPO RECARGADO'; x.font=F(62); const tw=x.measureText(txt).width, ph=92; x.fillStyle=ACC; rr(80,yy,tw+84,ph,ph/2); x.fill();
-  x.save(); x.shadowColor='rgba(0,0,0,0)'; x.fillStyle='#0b0b0c'; x.fillText(txt,122,yy+ph*.72); x.restore(); yy+=ph+62;
-  // duración y terapias en una línea
-  const ter=(d.terapias||[]).map(t=>`${t.n}${t.min?` ${t.min}′`:''}`), lin=[d.duracion?`${d.duracion} min`:'', ...ter].filter(Boolean); x.fillStyle='#fff'; x.font=I(36,700);
+  // terapias (sin tiempos)
+  let yy=yD+80; const lin=(d.terapias||[]).map(t=>t.n).filter(Boolean); x.fillStyle='#fff'; x.font=I(38,700);
   const L=[]; let c=''; lin.forEach(t=>{ const tt=c?c+'  ·  '+t:t; if(c && x.measureText(tt).width>920){ L.push(c); c=t; } else c=tt; }); if(c) L.push(c);
   L.slice(0,3).forEach(l=>{ x.fillText(l,80,yy); yy+=50; }); if(L.length) yy-=30;
   return yy; }
@@ -5031,12 +5028,12 @@ const salaShareOk = s => !!s && s.tipo!=='rehabilitacion' && ((s.ejercicios||[])
 function regSala(p, id){ const sid=String(id).replace(/^sala-/,''), s=presSes(p).find(x=>String(x.id)===sid); if(!salaShareOk(s)) return null; const rec=s.tipo==='recovery';
   const d=!rec && (p.diarios||[]).find(x=>x.presencial && String(x.presencial.sesionId)===sid); if(d) return d;
   return {id:'sala-'+sid, fecha:s.fecha, duracion:s.dur, rpe:s.rpe, nombreSesion:rec?'Recovery day':(s.titulo||'Entrenamiento'), ejercicios:s.ejercicios||[], terapias:s.terapias||[], recovery:rec, presencial:{origen:'sala', proId:s.proId, por:s.pro, sesionId:s.id}}; }
-window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id); if(!d) return; mode=mode||'sticker'; S.shareMode=mode; S.shareId=id;
+window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
   const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const ayuda = mode==='sticker' ? AYUDA_STK
     : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
-  sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
+  sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.filter(([k])=>!(d.recovery&&k==='foto')).map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
   <p class="muted sm" style="margin-top:8px">${ayuda}</p>
   <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}

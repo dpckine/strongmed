@@ -1560,9 +1560,11 @@
     props: DBF, frames: [{}, { a1: 86, e1: 92 }]
   });
   add('lateral_cable', 'Elevación lateral en polea', {
-    base: { view: 'front', x: 96, y: 99, t: 180, F1: [108, AY], a1: -10, e1: -6, a2: -10, e2: -10, H2: [70, 104] },
-    props: [{ type: 'tower', x: 40, top: 40, pulleys: [176] }, { type: 'cable', from: [40, 176], to: 'hd1' }],
-    frames: [{}, { a1: 84, e1: 90 }]
+    // polea baja al lado contrario: el cable cruza por DELANTE del cuerpo hasta la mano. El brazo se dibuja un poco
+    // acortado (us1/fs1) para que en 3D vaya adelantado (plano escapular) y la mano parta delante de la cadera
+    base: { view: 'front', x: 96, y: 99, t: 180, F1: [108, AY], a1: -12, e1: -8, us1: 0.9, fs1: 0.92, a2: -10, e2: -10, H2: [70, 104] },
+    props: [{ type: 'tower', x: 40, top: 40, pulleys: [176], z: 8 }, { type: 'cable', from: [40, 176], to: 'hd1', fz: 8 }],
+    frames: [{}, { a1: 84, e1: 90, us1: 0.94, fs1: 0.96 }]
   });
   add('lateral_machine', 'Elevaciones laterales en máquina', {
     base: { view: 'front', x: 100, y: 124, t: 180, l1: 20, k1: 0, ts1: 0.4, pf: false, a1: 8, e1: 8, fs1: 0.35 },

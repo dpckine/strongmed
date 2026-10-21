@@ -2108,7 +2108,7 @@ function volSemCard(p){ if(!S.lib) loadLib().then(()=>{ const el=$('#volsem'); i
   return `<section class="card" id="volsem"><div class="row between"><span class="b">Series por grupo muscular</span><span class="xs muted">${tot} series</span></div>
   <div class="row between" style="margin-top:8px"><button type="button" class="ibtn" onclick="volSem(-1)" aria-label="Semana anterior">‹</button><span class="sm b">${lab} <span class="muted xs">${dm(a)} al ${dm(b)}</span></span><button type="button" class="ibtn" onclick="volSem(1)" aria-label="Semana siguiente" ${off>=0?'disabled style="opacity:.3"':''}>›</button></div>
   ${arr.length ? arr.map(([k,n])=>`<div class="vs-r"><span class="trunc">${esc(k)}</span><div class="vs-b"><i class="vs-z" style="left:${pc(10)}%;width:${pc(10)}%"></i><i class="vs-f ${n>=10&&n<=20?'ok':''}" style="width:${pc(n)}%"></i></div><b>${n}</b></div>`).join('')
-    : `<div class="xs muted" style="margin-top:12px">Sin series registradas esta semana.</div>`}
+    : `<div class="xs muted" style="margin-top:12px">Sin series registradas ${off===0?'esta':'esa'} semana.</div>`}
   <div class="xs muted" style="margin-top:12px"><i class="vs-ley"></i> Zona de 10 a 20 series semanales por músculo, recomendada para ganar masa muscular. Solo cuentan las series efectivas; las de aproximación (A) no suman.</div></section>`; }
 window.volSem = d => { S.volOff=Math.min(0,(S.volOff||0)+d); const p=me(), el=$('#volsem'); if(p && el) el.outerHTML=volSemCard(p); };
 /* detalle de cada entrenamiento: series reales (kg × reps · RIR) y cómo se sintió ese día */

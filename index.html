@@ -336,6 +336,8 @@ button.stat{text-align:left}
 /* builder rows */
 .exrow{background:var(--card2);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .exrow .inp{background:var(--card);min-height:40px;padding:9px 12px;font-size:14px}
+.exmv{display:flex;flex-direction:column;gap:2px;flex:none}.exmv button{width:28px;height:19px;border:0;border-radius:7px;background:var(--card);color:var(--tx);font-size:9px;line-height:1;padding:0;cursor:pointer}.exmv button:active{background:var(--acc,#c6f432);color:#111}
+.exrow:first-child .exmv .up,.exrow:last-child .exmv .dn{opacity:.3}.exrow.mvd{animation:mvd .6s ease}@keyframes mvd{0%{box-shadow:0 0 0 2px var(--acc,#c6f432)}100%{box-shadow:0 0 0 2px transparent}}
 .g6{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .g6 label{font-size:9.5px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.03em;text-align:center}
 .g6 .inp{text-align:center;padding:8px 2px;margin-top:3px}
@@ -1624,12 +1626,15 @@ window.toggleEj = async (rid,i) => { const p=me(); const r=(p.rutinasAsignadas||
 
 /* exercise rows (builder) */
 function exRow(e={}, full=true){
-  return `<div class="exrow"><div class="row" style="gap:8px"><input class="inp e-n" list="dl-ej" placeholder="Ejercicio (escribe para buscar)" value="${esc(e.ejercicio||'')}" onchange="exMatch(this)"><button type="button" class="ibtn" onclick="verEjRow(this)" aria-label="Ver técnica">${ic('video','s')}</button><button type="button" class="ibtn red" onclick="this.closest('.exrow').remove()" aria-label="Quitar">${ic('x','s')}</button></div>
+  return `<div class="exrow"><div class="row" style="gap:8px"><div class="exmv"><button type="button" class="up" onclick="exMove(this,-1)" aria-label="Subir ejercicio">▲</button><button type="button" class="dn" onclick="exMove(this,1)" aria-label="Bajar ejercicio">▼</button></div><input class="inp e-n" list="dl-ej" placeholder="Ejercicio (escribe para buscar)" value="${esc(e.ejercicio||'')}" onchange="exMatch(this)"><button type="button" class="ibtn" onclick="verEjRow(this)" aria-label="Ver técnica">${ic('video','s')}</button><button type="button" class="ibtn red" onclick="this.closest('.exrow').remove()" aria-label="Quitar">${ic('x','s')}</button></div>
   <div class="${full?'g6':'g5'}"><label>Aprox.${iBtn('aprox')}<input class="inp e-a" inputmode="numeric" placeholder="0" value="${esc(+e.aprox||'')}"></label><label>Series${iBtn('series')}<input class="inp e-s" inputmode="numeric" value="${esc(e.series??3)}"></label><label>Reps${iBtn('reps')}<input class="inp e-r" value="${esc(e.reps??10)}"></label><label>Kg${iBtn('kg')}<input class="inp e-k" inputmode="decimal" value="${esc(e.kg||e.kilos||'')}"></label><label>RIR${iBtn('rir')}<input class="inp e-i" value="${esc(e.rir||'')}"></label>${full?`<label>Desc.${iBtn('desc')}<input class="inp e-d" placeholder="90s" value="${esc(e.descanso||'')}"></label>`:''}</div>
   ${full?`<input class="inp e-v" placeholder="Link de video propio (opcional)" value="${esc(e.video||'')}">`:''}<input type="hidden" class="e-x" value="${esc(e.exId||'')}"></div>`;
 }
 window.exMatch = el => { const x=libFind(el.value); el.closest('.exrow').querySelector('.e-x').value = x ? x.i : ''; };
 window.verEjRow = el => { const n=el.closest('.exrow').querySelector('.e-n').value; const x=libFind(n); if(x) verEj(x.i); else toast(n?'Ese ejercicio no está en la biblioteca':'Escribe un ejercicio primero','err'); };
+/* mover un ejercicio dentro de la rutina: el orden de las filas es el orden en que se guarda */
+window.exMove = (b, d) => { const r=b.closest('.exrow'), o=d<0 ? r.previousElementSibling : r.nextElementSibling; if(!o || !o.classList.contains('exrow')) return;
+  if(d<0) o.before(r); else o.after(r); r.classList.remove('mvd'); void r.offsetWidth; r.classList.add('mvd'); r.scrollIntoView({block:'nearest', behavior:'smooth'}); };
 window.addRow = (id, full) => document.getElementById(id).insertAdjacentHTML('beforeend', exRow({}, full));
 function collectRows(id){ return [...document.querySelectorAll(`#${id} .exrow`)].map(r=>{ const g=c=>{const x=r.querySelector(c); return x?x.value.trim():'';};
   const o={ejercicio:g('.e-n'), series:g('.e-s')||3, reps:g('.e-r')||10, kg:g('.e-k'), rir:g('.e-i'), descanso:g('.e-d'), video:g('.e-v'), hecho:false}; const x=g('.e-x')||(libFind(o.ejercicio)||{}).i; if(x) o.exId=x; const ap=Math.min(5,parseInt(g('.e-a'))||0); if(ap>0) o.aprox=ap; return o; }).filter(x=>x.ejercicio); }

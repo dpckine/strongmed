@@ -4964,7 +4964,8 @@ function recoveryBlock(x, F, I, ACC, d, y){ const rr=(a,b,w,h,r)=>{ x.beginPath(
   x.save(); x.shadowColor='rgba(0,0,0,0)'; x.fillStyle='#0b0b0c'; x.fillText(txt,122,yy+ph*.72); x.restore(); yy+=ph+62;
   // duración y terapias en una línea
   const ter=(d.terapias||[]).map(t=>`${t.n}${t.min?` ${t.min}′`:''}`), lin=[d.duracion?`${d.duracion} min`:'', ...ter].filter(Boolean); x.fillStyle='#fff'; x.font=I(36,700);
-  let s=lin.join('  ·  '); while(s.length>4 && x.measureText(s).width>920) s=s.slice(0,-2); if(s!==lin.join('  ·  ')) s=s.trim()+'…'; if(s) { x.fillText(s,80,yy); yy+=20; }
+  const L=[]; let c=''; lin.forEach(t=>{ const tt=c?c+'  ·  '+t:t; if(c && x.measureText(tt).width>920){ L.push(c); c=t; } else c=tt; }); if(c) L.push(c);
+  L.slice(0,3).forEach(l=>{ x.fillText(l,80,yy); yy+=50; }); if(L.length) yy-=30;
   return yy; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');

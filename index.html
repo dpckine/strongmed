@@ -1493,6 +1493,7 @@ function routineCard(r){
   <h3 class="disp h2" style="font-size:26px;margin-top:10px">${esc(r.titulo||'Rutina')}</h3>${conDias(r)?`<div class="row" style="gap:8px;margin-top:8px;align-items:center">${diaTag(r)}${hechaHoy(r)?`<span class="xs b acc-t">✓ Hecha hoy</span>`:(r.dias.includes(hoyDia())?`<span class="xs b">Te toca hoy</span>`:'')}</div>`:''}
   <div class="exl">${ex.map((e,i)=>`<div class="ex"><button class="cc ${e.hecho?'on':''}" onclick="toggleEj(${r.id},${i})" aria-label="Marcar">${ic('check')}</button>${exThumb(e)}<div class="grow"><div class="b sm">${esc(e.ejercicio)}</div><div class="xs muted">${[e.kg||e.kilos?`${esc(e.kg||e.kilos)} kg`:'', e.rir?`RIR ${esc(e.rir)}`:'', e.descanso?`desc. ${esc(e.descanso)}`:''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>${safeUrl(e.video)?`<a class="vid" href="${safeUrl(e.video)}" target="_blank" rel="noopener" aria-label="Ver video">${ic('video','s')}</a>`:''}<span class="sr">${esc(e.series||3)}×${esc(e.reps||10)}</span></div>`).join('')}</div>
   ${r.completada?`<div class="donebar">${ic('check','s')} Completada</div>`:''}
+  ${(()=>{ const ult=entrenosDe(me()).find(d=>d.rutinaId===r.id); return ult?`<button class="btn sec sm block" style="margin-top:10px" onclick="compartir(${q(ult.id)})">${ic('download','s')} Guardar o compartir mi entrenamiento del ${fmtDate(ult.fecha)}</button>`:''; })()}
   <div class="row" style="gap:8px;margin-top:12px"><button class="btn ${r.completada?'sec':'pri'} grow" onclick="startWorkout(${r.id})">${ic('play','s')} ${r.completada?'Repetir rutina':'Hacer rutina'}</button><button class="ibtn" onclick="shareRutina(${r.id})" aria-label="Compartir">${ic('upload','s')}</button><button class="ibtn red" onclick="borrarRutinaPat(${r.id})" aria-label="Eliminar">${ic('trash','s')}</button></div></article>`;
 }
 function fichaHTML(res, pro){ const rows=(res||[]).map(String).filter(r=>pro||!r.includes('data-pro')).map(r=>{
@@ -2141,7 +2142,7 @@ async function logroBlob(p, o, mode='sticker', foto=null){
   if(mode==='foto' && foto){ const r=Math.max(W/foto.width,H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
     let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
     g=x.createLinearGradient(0,980,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(.5,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,.9)'); x.fillStyle=g; x.fillRect(0,980,W,H-980); }
-  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=22; x.shadowOffsetY=3; }
+  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=mode==='sticker'?8:22; x.shadowOffsetY=mode==='sticker'?2:3; }
   const big = o.tipo==='rm' ? `${o.kg} KG` : '', sub = o.tipo==='rm' ? String(o.ejercicio||'').toUpperCase() : String(o.texto||'').toUpperCase(), quien=`${first(p.nombre)} · ${fmtLong(parseISO(o.cumplidoFecha||todayISO()))}`;
   const wrapTxt=(t,font,maxW)=>{ x.font=font; const w=t.split(' '), L=[]; let c=''; w.forEach(v=>{ const tt=(c+' '+v).trim(); if(x.measureText(tt).width>maxW && c){ L.push(c); c=v; } else c=tt; }); L.push(c); return L; };
   const bloque=(y0)=>{ let y=y0; x.fillStyle=ACC; x.font=I(40,800); x.fillText('🏆  OBJETIVO CUMPLIDO',80,y); y+=40;
@@ -2151,14 +2152,14 @@ async function logroBlob(p, o, mode='sticker', foto=null){
     x.fillStyle=MUTED; x.font=I(32,600); x.fillText(quien,80,y+60); return y+90; };
   if(mode==='card'){ storyLogos(x,F,I,ACC,92); bloque(620); return new Promise(r=>cv.toBlob(r,'image/png')); }
   if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); bloque(big?1160:1300); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
-  storyLogos(x,F,I,ACC,60,.9); const h=Math.min(H, Math.ceil(bloque(250)+10)); const out=document.createElement('canvas'); out.width=W; out.height=h; out.getContext('2d').drawImage(cv,0,0,W,h,0,0,W,h); return new Promise(r=>out.toBlob(r,'image/png')); }
-window.compartirLogro = async (id, mode) => { const p=me(), o=(p.objetivos||[]).find(x=>x.id===id); if(!o) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareAgain=()=>compartirLogro(id,'foto');
+  storyLogos(x,F,I,ACC,60,.9); bloque(250); return stickerBlob(cv); }
+window.compartirLogro = async (id, mode) => { const p=me(), o=(p.objetivos||[]).find(x=>x.id===id); if(!o) return; mode=mode||'sticker'; S.shareMode=mode; S.shareAgain=()=>compartirLogro(id,'foto');
   if(mode==='foto' && !S.shareFoto) return elegirFotoHistoria();
   const blob=await logroBlob(p,o,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
-  sheet(`<h2 class="disp h2">Compartir logro</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?`S.shareAgain=()=>compartirLogro(${q(id)},'foto');elegirFotoHistoria()`:`compartirLogro(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
+  sheet(`<h2 class="disp h2">Compartir logro</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?`S.shareAgain=()=>compartirLogro(${q(id)},'foto');elegirFotoHistoria()`:`compartirLogro(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>${mode==='sticker'?`<p class="muted sm" style="margin-top:8px">${AYUDA_STK}</p>`:''}
   <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
-  <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button><a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_logro.${mode==='foto'?'jpg':'png'}">${ic('download','s')} Descargar imagen</a>`); };
+  ${shareBtns(mode, `StrongMed_logro${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}`); };
 function rmCard(p){
   const log=(p.rmLog||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
   const names=[...new Set(log.slice().reverse().map(r=>r.ejercicio))];
@@ -4901,7 +4902,7 @@ async function storyBlob(p, d, mode='card', foto=null){
   if(mode==='foto' && foto){ const r=Math.max(W/foto.width, H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
     let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
     g=x.createLinearGradient(0,880,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(.45,'rgba(0,0,0,.62)'); g.addColorStop(1,'rgba(0,0,0,.88)'); x.fillStyle=g; x.fillRect(0,880,W,H-880); }
-  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=22; x.shadowOffsetY=3; }
+  if(mode!=='card'){ x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=mode==='sticker'?8:22; x.shadowOffsetY=mode==='sticker'?2:3; }
   const num=v=>{ const n=parseFloat(String(v).replace(',','.')); return isFinite(n)&&n>0?n:null; };
   const ej=(d.ejercicios||[]), vol=ej.reduce((s,e)=>s+(e.sets||[]).reduce((a,t)=>a+(+t.kg||0)*(+t.reps||0),0),0), series=ej.reduce((s,e)=>s+(+e.series||0),0);
   const ruta=d.ruta && d.ruta.length>1;
@@ -4925,25 +4926,38 @@ async function storyBlob(p, d, mode='card', foto=null){
     x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-60);
     return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
   }
-  // sticker sin fondo: bloque compacto que luego se recorta a su alto
+  // sticker sin fondo: bloque compacto que luego se recorta a su contenido
   storyLogos(x,F,I,ACC,60,.9); title(300,130); let y;
   if(ruta){ rutaDraw([80,340,W-160,520]); y=900; stat('Distancia', String(d.distancia), 'km', 80, y, 104); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, y, 104); y+=150; }
   else { y=lista(390, Math.min(5, ej.length), 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat('Series', String(series||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
-  x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10); const h=Math.min(H, Math.ceil(y+50));
-  const out=document.createElement('canvas'); out.width=W; out.height=h; out.getContext('2d').drawImage(cv,0,0,W,h,0,0,W,h);
-  return new Promise(r=>out.toBlob(r,'image/png'));
+  x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10);
+  return stickerBlob(cv);
 }
+/* recorta el PNG transparente al borde de lo dibujado, para que quede como sticker sin espacio vacío */
+function stickerBlob(cv, pad=16){ const W=cv.width, H=cv.height, a=cv.getContext('2d').getImageData(0,0,W,H).data; let x0=W, y0=H, x1=-1, y1=-1;
+  for(let yy=0; yy<H; yy++) for(let xx=0; xx<W; xx++) if(a[(yy*W+xx)*4+3]>24){ if(xx<x0) x0=xx; if(xx>x1) x1=xx; if(yy<y0) y0=yy; if(yy>y1) y1=yy; }
+  if(x1<0){ x0=0; y0=0; x1=W-1; y1=H-1; } x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W-1,x1+pad); y1=Math.min(H-1,y1+pad);
+  const w=x1-x0+1, h=y1-y0+1, out=document.createElement('canvas'); out.width=w; out.height=h; out.getContext('2d').drawImage(cv,x0,y0,w,h,0,0,w,h);
+  return new Promise(r=>out.toBlob(r,'image/png')); }
 const SHARE_MODOS=[['sticker','Sticker sin fondo'],['foto','Con mi foto'],['card','Tarjeta']];
-window.compartir = async (id, mode) => { S.shareAgain=null; const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; mode=mode||S.shareMode||'sticker'; S.shareMode=mode; S.shareId=id;
+const AYUDA_STK='Sticker <b>sin fondo</b>: guárdalo en tu galería y luego, en tu historia, toca el ícono de stickers → <b>Foto</b> y ponlo donde quieras sobre tu foto. Si lo compartes directo, la red social le agrega un fondo.';
+/* en sticker lo principal es guardarlo en la galería; en iPhone se guarda desde el menú de compartir (Guardar imagen) */
+const shareBtns = (mode, nombre) => { const stk=mode==='sticker';
+  const g=`<button class="btn ${stk?'pri':'sec'} block" onclick="guardarImg(${q(nombre)})">${ic('download','s')} ${stk?'Guardar sticker en mi galería':'Guardar imagen'}</button>`, c=`<button class="btn ${stk?'sec':'pri'} block" onclick="shareNow()">${ic('upload','s')} Compartir</button>`;
+  return stk ? g+`<div style="margin-top:8px">${c}</div>` : c+`<div style="margin-top:8px">${g}</div>`; };
+window.guardarImg = async nombre => { const b=S.shareBlob; if(!b) return; const f=new File([b], nombre, {type:b.type});
+  if(isIOS() && navigator.canShare && navigator.canShare({files:[f]})){ toast('Elige "Guardar imagen"'); try{ await navigator.share({files:[f]}); }catch(e){} return; }
+  const a=document.createElement('a'); a.href=S.shareUrl; a.download=nombre; document.body.appendChild(a); a.click(); a.remove(); toast('Imagen guardada'); };
+window.compartir = async (id, mode) => { S.shareAgain=null; const p=me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)); if(!d) return; mode=mode||'sticker'; S.shareMode=mode; S.shareId=id;
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
   const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
-  const ayuda = mode==='sticker' ? 'Imagen <b>sin fondo</b>: en tu historia de Instagram toca el ícono de stickers → <b>Foto</b>, elige esta imagen y ubícala sobre tu foto.'
+  const ayuda = mode==='sticker' ? AYUDA_STK
     : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
   sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
   <p class="muted sm" style="margin-top:8px">${ayuda}</p>
   <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
-  <button class="btn pri block" onclick="shareNow()">${ic('upload','s')} Compartir</button>${(d.ejercicios||[]).length&&!d.guardadaComoRutina?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}<a class="btn sec block" style="margin-top:8px" href="${url}" download="StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}">${ic('download','s')} Descargar imagen</a>`); };
+  ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${(d.ejercicios||[]).length&&!d.guardadaComoRutina?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
 window.elegirFotoHistoria = () => { const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; (S.shareAgain||(()=>compartir(S.shareId,'foto')))(); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
   inp.click(); };

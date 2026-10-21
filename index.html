@@ -4943,10 +4943,16 @@ function storyLogos(x, F, I, ACC, y0, sc0=1){
   x.fillStyle='#fff'; x.font=F(40*sc0,800); x.fillText('KIN AT HOME',kx+ks+18*sc0,ky+34*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología a domicilio',kx+ks+18*sc0,ky+64*sc0); }
 /* profesional que atendió: el de la sesión presencial, el que dio la rutina, el de la última cita o el de la ficha */
 function proFirma(p, fecha, d=null){ const f=toISO(fecha)||todayISO(), ok=n=>n && !/^equipo/i.test(String(n).trim()) ? String(n).trim() : '';
-  const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return n; }
-  const r=d?.rutinaId ? (p.rutinasAsignadas||[]).find(x=>x.id===d.rutinaId) : null; if(ok(r?.pro)) return ok(r.pro);
+  const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return conProfesion(n, pres.proId); }
+  const r=d?.rutinaId ? (p.rutinasAsignadas||[]).find(x=>x.id===d.rutinaId) : null; if(ok(r?.pro)) return conProfesion(ok(r.pro));
   const cs=(p.citas||[]).filter(c=>c.estado!=='cancelada' && c.servicio!=='oral' && ok(c.pro)).sort((a,b)=>toISO(a.fecha).localeCompare(toISO(b.fecha)));
-  const c=cs.filter(c=>toISO(c.fecha)<=f).pop() || cs[0]; return ok(c?.pro) || ok(p.klgo); }
+  const c=cs.filter(c=>toISO(c.fecha)<=f).pop() || cs[0]; return ok(c?.pro) ? conProfesion(ok(c.pro), c.proId) : conProfesion(ok(p.klgo)); }
+/* nombre con su profesión, igual que en la firma de informes (título configurable en la agenda; por defecto Kinesiólogo/a) */
+function conProfesion(n, id){ if(!n) return ''; const sinT=s=>String(s).replace(/^(Klg[oa]\.|Kinesi[oó]log[oa]|Dra?\.)\s*/i,'').trim(), fem=/^(Klga\.|Kinesi[oó]loga|Dra\.)/i.test(n);
+  const ags=S.agendas||[], ag=(id&&ags.find(a=>a.id===id)) || ags.find(a=>a.nombre && sinT(a.nombre)===sinT(n));
+  const pr=[...BUILTIN_PROS, ...(S.pros||[])].find(x=>(id&&x.id===id) || sinT(x.nombre||'')===sinT(n));
+  let t=(ag?.tituloFirma ?? pr?.titulo ?? '').trim(); if(!t) t=(ag&&servAg(ag)==='oral')||pr?.esp==='odonto' ? (fem?'Cirujana dentista':'Cirujano dentista') : (fem?'Kinesióloga':'Kinesiólogo');
+  return `${t} ${sinT(n)}`; }
 /* firma del profesional en el borde inferior derecho de stickers, fotos y tarjetas */
 function firma(x, I, ACC, y, nombre){ if(!nombre) return; x.save(); x.font=I(28,700); x.fillStyle=ACC; x.textAlign='right'; x.fillText(String(nombre).slice(0,40),1000,y); x.restore(); }
 /* diseño propio del día de recovery: RECOVERY / DAY + batería cargando + cápsula "cuerpo recargado"; devuelve dónde termina */

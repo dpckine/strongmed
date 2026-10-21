@@ -4984,7 +4984,7 @@ async function storyBlob(p, d, mode='card', foto=null){
     x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill(); };
   const quien=`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`, fpro=proFirma(p,d.fecha,d);
   if(d.recovery){
-    if(mode==='card'){ storyLogos(x,F,I,ACC,92); recoveryBlock(x,F,I,ACC,d,560); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
+    if(mode==='card'){ storyLogos(x,F,I,ACC,92); recoveryBlock(x,F,I,ACC,d,700); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
     if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); recoveryBlock(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
     storyLogos(x,F,I,ACC,60,.9); const y=recoveryBlock(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
   if(mode==='card'){

@@ -3906,7 +3906,7 @@ const modsDe = a => MODS.filter(([m])=> m==='centro' ? (a?.centros||[]).length :
 /* Servicios y valores: los definen solo los 3 perfiles principales; cada profesional marca cuáles de esos hace (servIds) */
 const PRINC = ['b-sm','b-kah','b-oral'];
 const esPrinc = id => PRINC.includes(id);
-const svcCat = a => { const ids = servAg(a)==='oral' ? ['b-oral'] : [...(a?.orgs||['sm']).map(o=>o==='kah'?'b-kah':'b-sm'), ...((a?.centros||[]).length?['b-sm']:[])]; const vis=new Set(); return [...new Set(ids)].flatMap(id=>(agendaOf(id)?.servicios||[]).filter(x=>x && x.nombre)).filter(x=>{ const k=x.nombre.trim().toLowerCase(); if(vis.has(k)) return false; vis.add(k); return true; }); };
+const svcCat = a => { const ids = servAg(a)==='oral' ? ['b-oral'] : [...(a?.orgs||['sm']).map(o=>o==='kah'?'b-kah':'b-sm'), ...((a?.centros||[]).length?['b-sm']:[])]; const vis=new Set(); return [...new Set(ids)].flatMap(id=>(agendaOf(id)?.servicios||[]).filter(x=>x && x.nombre)).filter(x=>{ const k=[x.nombre.trim().toLowerCase(), ...Object.keys(x.mod||{}).filter(m=>x.mod[m]?.on).sort(), ...(x.centros||[])].join('|'); if(vis.has(k)) return false; vis.add(k); return true; }); };
 const svcsAg = a => { if(!a) return []; if(esPrinc(a.id) || !Array.isArray(a.servIds)) return (a.servicios||[]).filter(x=>x && x.nombre); return svcCat(a).filter(x=>a.servIds.includes(x.id)); };
 /* descuento ocasional (ej. 10% Dcto Octubre): rige hasta su fecha y después vuelve solo al valor normal */
 const dctoOn = x => { const d=x?.dcto; return !!(d && +d.pct>0 && +d.pct<100 && (!d.hasta || todayISO()<=d.hasta)); };
@@ -4212,34 +4212,53 @@ window.guardarDisp = async (silencio) => { if(!S.dispDraft) return; const ags=ag
 
 /* servicios y precios del profesional */
 window.guardarServElegidos = async id => { const a={...(agendaOf(id)||myAgenda())}; a.servIds=[...document.querySelectorAll('#svc-ck input:checked')].map(i=>i.value); if(await saveAgenda(a)){ toast('Servicios guardados'); keepScroll(render); } };
+/* Servicios y precios por lugar: cada centro, domicilio y online tienen su propia lista de servicios y valores */
+const svPlaces = (a,cen) => { const oral=servAg(a)==='oral'; return [...cen.map(c=>({k:'C:'+c.id, m:'centro', cid:c.id, label:c.nombre, sub:c.direccion||'', icn:'pin'})),
+  ...(a.domicilio!==false?[{k:'Domicilio', m:'domicilio', label:'Domicilio', sub:'Atención en la casa de la persona', icn:'home'}]:[]),
+  ...(a.online?[{k:'Online', m:'online', label:'Online', sub:'Videollamada', icn:'video'}]:[]),
+  ...(!oral&&cen.length?[{k:'C:'+OTROS, m:'centro', cid:OTROS, label:'Otros centros', sub:'Centros que agregue cada profesional: sin valor se muestra "a confirmar"', icn:'pin'}]:[])]; };
+const svEnPlace = (x,p) => !!x.mod?.[p.m]?.on && (p.m!=='centro' || !(x.centros||[]).length || x.centros.includes(p.cid));
+const svValPlace = (x,p) => p.m==='centro' ? (x.mod.centro.precios ? x.mod.centro.precios[p.cid] : x.mod.centro.precio) : x.mod[p.m]?.precio;
+/* servicios antiguos con un solo valor de centro: se pasan a valor por centro */
+const svNorm = (x,cen) => { const c=x.mod?.centro; if(c?.on && !c.precios){ const ids=(x.centros||[]).length?x.centros:cen.map(z=>z.id); x.centros=ids; c.precios=+c.precio?Object.fromEntries(ids.map(id=>[id,+c.precio])):{}; } return x; };
+const svPlaceAct = () => { const D=S.svDraft; return D ? svPlaces(agendaOf(D.id)||myAgenda(), D.cen).find(p=>p.k===D.place) : null; };
 function agServicios(a){ if(!esPrinc(a.id)) return `<section class="card stack">${svcChecks(a)}<button class="btn pri block" onclick="guardarServElegidos(${q(a.id)})">${ic('check','s')} Guardar servicios</button></section>`;
-  if(!S.svDraft || S.svDraft.id!==a.id) S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a))), cen:JSON.parse(JSON.stringify(a.centros||[])), nota:a.notaAg||''};
-  const D=S.svDraft, L=D.list, ms=modsDe({...a, centros:D.cen}), oral=servAg(a)==='oral', tr=a.pagoModo==='transferencia', ofi=SVC_OFICIAL[a.id];
-  return `<div class="note">${ic('info','s')}<span>Define qué servicios ofreces y en qué modalidad. Cada modalidad tiene su propio valor${tr?'':' y link de pago'} (por ejemplo, domicilio y online cuestan distinto). Las personas solo verán lo que actives aquí.${tr?' Cobras por <b>transferencia</b>: la persona verá el valor y tus datos bancarios.':''}</span></div>
-  ${ms.length?'':`<div class="note">${ic('alert','s')}<span>Primero activa tus lugares de atención (centros, domicilio u online) en Ajustes → Mi agenda.</span></div>`}
-  <div class="stack" id="sv-list">${L.map((x,i)=>svcCard(x,i,ms,oral,tr,D.cen)).join('')||`<div class="card empty">Aún no tienes servicios. Las personas verán los tipos de sesión generales.</div>`}</div>
-  <div class="grid2"><button class="btn sec" onclick="svAdd()">${ic('plus','s')} Agregar servicio</button>${ofi?`<button class="btn sec" onclick="svOficial()">${ic('spark','s')} Cargar valores oficiales</button>`:L.length?`<span></span>`:`<button class="btn sec" onclick="svSugeridos()">${ic('spark','s')} Cargar sugeridos</button>`}</div>
+  if(!S.svDraft || S.svDraft.id!==a.id){ const cen=JSON.parse(JSON.stringify(a.centros||[])); if(a.id==='b-sm' && !cen.some(c=>c.id===CEN_SM.id)) cen.unshift({...CEN_SM});
+    S.svDraft={id:a.id, list:JSON.parse(JSON.stringify(svcsAg(a))).map(x=>svNorm(x,cen)), cen, nota:a.notaAg||'', place:null}; }
+  const D=S.svDraft, P=svPlaces(a,D.cen), oral=servAg(a)==='oral', tr=a.pagoModo==='transferencia', ofi=SVC_OFICIAL[a.id];
+  if(!P.some(p=>p.k===D.place)) D.place=P[0]?.k||null; const p=P.find(x=>x.k===D.place);
+  const L=p ? D.list.map((x,i)=>[x,i]).filter(([x])=>svEnPlace(x,p)) : [];
+  return `<div class="note">${ic('info','s')}<span>Cada lugar donde atiendes tiene su <b>propia lista de servicios y valores</b>. Elige el lugar y agrega sus servicios.${tr?' Cobras por <b>transferencia</b>: la persona verá el valor y tus datos bancarios.':''}</span></div>
+  ${P.length?`<div class="pills" style="flex-wrap:wrap">${P.map(x=>`<button type="button" class="pill ${x.k===D.place?'on':''}" onclick="svPlace(${q(x.k)})">${esc(x.label)} · ${D.list.filter(s=>svEnPlace(s,x)).length}</button>`).join('')}</div><div class="xs muted">Para agregar o quitar un centro, ve a Ajustes → Mi agenda.</div>`
+    :`<div class="note">${ic('alert','s')}<span>Primero activa tus lugares de atención (centros, domicilio u online) en Ajustes → Mi agenda.</span></div>`}
+  ${p?`<div><div class="b">${ic(p.icn,'s')} ${esc(p.label)}</div>${p.sub?`<div class="xs muted">${esc(p.sub)}</div>`:''}</div>
+  <div class="stack" id="sv-list">${L.map(([x,i])=>svcCard(x,i,p,oral,tr)).join('')||`<div class="card empty">Aún no hay servicios en ${esc(p.label)}.</div>`}</div>
+  <div class="grid2"><button class="btn sec" onclick="svAdd()">${ic('plus','s')} Agregar servicio</button>${ofi?`<button class="btn sec" onclick="svOficial()">${ic('spark','s')} Cargar valores oficiales</button>`:L.length?`<span></span>`:`<button class="btn sec" onclick="svSugeridos()">${ic('spark','s')} Cargar sugeridos</button>`}</div>`:''}
   <label class="field"><span class="lbl">Nota para quien agenda <small class="muted">(convenios, reembolso, promociones)</small></span><textarea class="inp" id="sv-nota" rows="3" placeholder="Ej: 20% de descuento para socios del club…">${esc(D.nota)}</textarea></label>
   <button class="btn pri block" onclick="guardarServicios()">${ic('check','s')} Guardar servicios</button>`; }
-const svcCard = (x,i,ms,oral,tr,cen=[]) => `<section class="card stack sv" data-id="${esc(x.id)}"><div class="row" style="gap:6px"><input class="inp sv-n" placeholder="Nombre del servicio" value="${esc(x.nombre||'')}"><button class="ibtn red" onclick="svDel(${i})" aria-label="Quitar">${ic('trash','s')}</button></div>
+const svcCard = (x,i,p,oral,tr) => { const v=x.mod?.[p.m]||{}, cobra=p.m!=='centro'||oral, lk=cobra&&!tr;
+  return `<section class="card stack sv" data-i="${i}"><div class="row" style="gap:6px"><input class="inp sv-n" placeholder="Nombre del servicio" value="${esc(x.nombre||'')}"><button class="ibtn red" onclick="svDel(${i})" aria-label="Quitar de ${esc(p.label)}">${ic('trash','s')}</button></div>
   <div class="grid2"><input class="inp sv-d" placeholder="Descripción breve (opcional)" value="${esc(x.desc||'')}"><input class="inp sv-t" inputmode="numeric" placeholder="Duración (min)" value="${esc(x.dur||'')}"></div>
-  ${ms.map(([m,l,icn])=>{ const v=x.mod?.[m]||{}; if(m==='centro' && !oral && cen.length) return svCentrosHTML(x,v,l,icn,cen); return `<div class="trow sv-m" data-m="${m}"><label class="check"><input type="checkbox" class="sv-on" ${v.on?'checked':''}><span><b style="color:var(--tx)">${ic(icn,'s')} ${l}</b>${m==='centro'&&!oral?' · se paga en el centro':''}</span></label>
-    <div class="${m==='centro'&&!oral||tr?'':'g2'}" style="${m==='centro'&&!oral||tr?'':'display:grid;grid-template-columns:1fr 1.6fr;gap:6px'}"><input class="inp sv-p" inputmode="numeric" placeholder="Valor $" value="${esc(v.precio||'')}">${m==='centro'&&!oral?'':tr?`<input type="hidden" class="sv-l" value="${esc(v.link||'')}">`:`<input class="inp sv-l" placeholder="Link de pago (Mercado Pago, Flow…)" value="${esc(v.link||'')}">`}</div></div>`; }).join('')}
-  <details ${dctoOn(x)||x.dcto?.pct?'open':''}><summary class="sm b" style="cursor:pointer">Descuento ocasional${dctoOn(x)?' · vigente':x.dcto?.pct?' · vencido':''}</summary><div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:6px;margin-top:6px"><input class="inp sv-dp" inputmode="numeric" placeholder="%" value="${esc(x.dcto?.pct||'')}"><input class="inp sv-dt" placeholder="Etiqueta (ej. 10% Dcto Octubre)" value="${esc(x.dcto?.txt||'')}"><input class="inp sv-dh" type="date" value="${esc(x.dcto?.hasta||'')}" aria-label="Válido hasta"></div><div class="xs muted" style="margin-top:4px">Se muestra el valor normal tachado y el valor con descuento. Después de la fecha vuelve solo al valor normal.</div></details></section>`;
-/* modalidad centro de los perfiles principales: un valor por centro; sin valor = "a confirmar" */
-const svCentrosHTML = (x,v,l,icn,cen) => `<div class="trow sv-m" data-m="centro"><label class="check"><input type="checkbox" class="sv-on" ${v.on?'checked':''}><span><b style="color:var(--tx)">${ic(icn,'s')} ${l}</b> · valor por centro, se paga en el centro</span></label>
-  <div class="stack" style="gap:6px">${[...cen, {id:OTROS, nombre:'Otros centros (los que agregue cada profesional)'}].map(c=>{ const on=(x.centros||[]).length ? x.centros.includes(c.id) : !!v.on, pv=v.precios ? v.precios[c.id] : v.precio;
-    return `<div class="sv-cr" data-c="${esc(c.id)}" style="display:grid;grid-template-columns:1.2fr 1fr;gap:6px;align-items:center"><label class="check"><input type="checkbox" class="sv-ck" ${on?'checked':''}><span class="sm">${esc(c.nombre)}</span></label><input class="inp sv-cp" inputmode="numeric" placeholder="Valor (vacío = a confirmar)" value="${esc(pv||'')}"></div>`; }).join('')}</div></div>`;
-function svCollect(){ S.svDraft.list=[...document.querySelectorAll('#sv-list .sv')].map(c=>{ const g=k=>c.querySelector(k)?.value.trim()||''; const mod={};
-  const num=v=>parseInt(String(v||'').replace(/\D/g,''))||''; let centros=[];
-  c.querySelectorAll('.sv-m').forEach(r=>{ mod[r.dataset.m]={on:r.querySelector('.sv-on').checked, precio:num(r.querySelector('.sv-p')?.value), link:(r.querySelector('.sv-l')?.value||'').trim()};
-    const filas=[...r.querySelectorAll('.sv-cr')]; if(filas.length){ const on=filas.filter(f=>f.querySelector('.sv-ck').checked); centros=on.map(f=>f.dataset.c);
-      mod.centro.precios=Object.fromEntries(on.map(f=>[f.dataset.c, num(f.querySelector('.sv-cp').value)]).filter(([,p])=>p)); if(!centros.length) mod.centro.on=false; } });
-  const pct=parseInt(g('.sv-dp'))||0, dcto=pct>0&&pct<100?{pct, txt:g('.sv-dt'), hasta:g('.sv-dh')}:null;
-  return {id:c.dataset.id, nombre:g('.sv-n'), desc:g('.sv-d'), dur:parseInt(g('.sv-t'))||'', mod, centros, dcto}; });
-  const n=$('#sv-nota'); if(n) S.svDraft.nota=n.value.trim(); return S.svDraft.list; }
+  <div style="display:grid;grid-template-columns:${lk?'1fr 1.6fr':'1fr'};gap:6px"><input class="inp sv-p" inputmode="numeric" placeholder="${cobra?'Valor $':'Valor $ (vacío = a confirmar)'}" value="${esc(svValPlace(x,p)||'')}">${lk?`<input class="inp sv-l" placeholder="Link de pago (Mercado Pago, Flow…)" value="${esc(v.link||'')}">`:''}</div>
+  ${cobra?'':`<div class="xs muted">Se paga en el centro.</div>`}
+  <details ${dctoOn(x)||x.dcto?.pct?'open':''}><summary class="sm b" style="cursor:pointer">Descuento ocasional${dctoOn(x)?' · vigente':x.dcto?.pct?' · vencido':''}</summary><div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:6px;margin-top:6px"><input class="inp sv-dp" inputmode="numeric" placeholder="%" value="${esc(x.dcto?.pct||'')}"><input class="inp sv-dt" placeholder="Etiqueta (ej. 10% Dcto Octubre)" value="${esc(x.dcto?.txt||'')}"><input class="inp sv-dh" type="date" value="${esc(x.dcto?.hasta||'')}" aria-label="Válido hasta"></div><div class="xs muted" style="margin-top:4px">Se muestra el valor normal tachado y el valor con descuento. Después de la fecha vuelve solo al valor normal.</div></details></section>`; };
+function svCollect(){ const D=S.svDraft, p=svPlaceAct(), num=v=>parseInt(String(v||'').replace(/\D/g,''))||'';
+  if(p) document.querySelectorAll('#sv-list .sv').forEach(c=>{ const x=D.list[+c.dataset.i]; if(!x) return; const g=k=>c.querySelector(k)?.value.trim()||'';
+    x.nombre=g('.sv-n'); x.desc=g('.sv-d'); x.dur=parseInt(g('.sv-t'))||''; const pct=parseInt(g('.sv-dp'))||0; x.dcto=pct>0&&pct<100?{pct, txt:g('.sv-dt'), hasta:g('.sv-dh')}:null;
+    x.mod=x.mod||{}; const pr=num(g('.sv-p')), lk=c.querySelector('.sv-l');
+    if(p.m==='centro'){ const v=x.mod.centro={...(x.mod.centro||{}), on:true}; x.centros=[...new Set([...(x.centros||[]), p.cid])]; v.precios={...(v.precios||{})}; if(pr) v.precios[p.cid]=pr; else delete v.precios[p.cid]; if(lk) v.link=lk.value.trim(); }
+    else x.mod[p.m]={...(x.mod[p.m]||{}), on:true, precio:pr, link:lk?lk.value.trim():(x.mod[p.m]?.link||'')}; });
+  const n=$('#sv-nota'); if(n) D.nota=n.value.trim(); return D.list; }
+/* un servicio nuevo pertenece solo al lugar elegido */
+const svEnLugar = (p, s={}) => p.m==='centro' ? {...s, mod:{centro:{on:true, precios:s.precio?{[p.cid]:s.precio}:{}}}, centros:[p.cid]} : {...s, mod:{[p.m]:{on:true, precio:s.precio||''}}};
+window.svPlace = k => { svCollect(); S.svDraft.place=k; keepScroll(render); };
+window.svAdd = () => { svCollect(); const p=svPlaceAct(); if(!p) return; S.svDraft.list.push({id:'sv'+uid(), nombre:'', ...svEnLugar(p)}); keepScroll(render); };
+window.svDel = i => { svCollect(); const D=S.svDraft, x=D.list[i], p=svPlaceAct(); if(!x || !p) return; if(x.nombre && !confirm(`¿Quitar "${x.nombre}" de ${p.label}?`)) return;
+  if(p.m==='centro'){ x.centros=(x.centros||[]).filter(id=>id!==p.cid); if(x.mod.centro.precios) delete x.mod.centro.precios[p.cid]; if(!x.centros.length) x.mod.centro.on=false; } else x.mod[p.m].on=false;
+  if(!Object.values(x.mod||{}).some(v=>v&&v.on)) D.list.splice(i,1); keepScroll(render); };
+window.svSugeridos = () => { svCollect(); const a=agendaOf(S.svDraft.id)||myAgenda(), p=svPlaceAct(); if(!p) return; SVC_SUGERIDOS[servAg(a)].forEach(([nombre,desc,dur])=>S.svDraft.list.push({id:'sv'+uid(), nombre, desc, dur, ...svEnLugar(p, {precio:nombre==='Evaluación odontológica'?20000:''})})); keepScroll(render); };
 /* valores oficiales (oct 2026): domicilio (StrongMed y Kin At Home) y presencial en centro StrongMed (Baquedano 172).
-   FISIOMET y los centros que agregue cada profesional tienen sus propios valores: sus servicios quedan "a confirmar" */
+   FISIOMET, MDkine y los centros que agregue cada profesional tienen sus propios valores: sus servicios quedan "a confirmar" */
 const DCTO_OCT = {pct:10, txt:'10% Dcto Octubre', hasta:'2026-10-31'};
 const SVC_DOM = [
   {nombre:'Sesión de Evaluación y Asesorías', desc:'Incluye evaluación + plan de ejercicios asincrónicos', mod:{domicilio:{on:true, precio:15000}}},
@@ -4247,34 +4266,29 @@ const SVC_DOM = [
   {nombre:'Sesión Individual General', desc:'Atención kinesiológica integral', mod:{domicilio:{on:true, precio:25000}}},
   {nombre:'Plan 10 sesiones a domicilio · Particular/Isapre', desc:'Sesiones de rehabilitación a domicilio', mod:{domicilio:{on:true, precio:250000}}, dcto:DCTO_OCT},
   {nombre:'Plan 10 sesiones a domicilio · Fonasa', desc:'Tarifa preferencial para tratamiento continuo', mod:{domicilio:{on:true, precio:180000}}, dcto:DCTO_OCT}];
-const CEN_EXT = ['fisiomet','mdkine',OTROS];
-const enCentros = (precios, centros) => ({mod:{centro:{on:true, precios}}, centros});
+const enCentro = (cid, precio) => ({mod:{centro:{on:true, precios:precio?{[cid]:precio}:{}}}, centros:[cid]});
 const SVC_SMC = [
-  {nombre:'Plan 4 sábados', desc:'Valor mensual · un sábado por semana', ...enCentros({strongmed:50000}, ['strongmed'])},
-  {nombre:'Plan 8 sesiones sábados y domingos', desc:'Valor mensual', ...enCentros({strongmed:80000}, ['strongmed'])},
-  {nombre:'Recovery', desc:'Terapias de recuperación y ejercicios', ...enCentros({strongmed:25000}, ['strongmed'])},
-  {nombre:'Plan 10 sesiones de kinesiología · Particular/Isapre', desc:'', ...enCentros({strongmed:200000}, ['strongmed',...CEN_EXT])},
-  {nombre:'Plan 10 sesiones de kinesiología · Fonasa', desc:'En StrongMed, valor referencial', ...enCentros({strongmed:150000}, ['strongmed',...CEN_EXT])},
-  {nombre:'Entrenamiento 2 veces por semana · Particular', desc:'', ...enCentros({}, CEN_EXT)},
-  {nombre:'Entrenamiento 2 veces por semana · Fonasa', desc:'', ...enCentros({}, CEN_EXT)},
-  {nombre:'Entrenamiento 3 veces por semana · Particular', desc:'', ...enCentros({}, CEN_EXT)},
-  {nombre:'Entrenamiento 3 veces por semana · Fonasa', desc:'', ...enCentros({}, CEN_EXT)}];
+  {nombre:'Plan 4 sábados', desc:'Valor mensual · un sábado por semana', ...enCentro('strongmed',50000)},
+  {nombre:'Plan 8 sesiones sábados y domingos', desc:'Valor mensual', ...enCentro('strongmed',80000)},
+  {nombre:'Recovery', desc:'Terapias de recuperación y ejercicios', ...enCentro('strongmed',25000)},
+  {nombre:'Plan 10 sesiones de kinesiología · Particular/Isapre', desc:'', ...enCentro('strongmed',200000)},
+  {nombre:'Plan 10 sesiones de kinesiología · Fonasa', desc:'Valor referencial', ...enCentro('strongmed',150000)}];
+const SVC_EXT = cid => ['Plan 10 sesiones de kinesiología · Particular/Isapre','Plan 10 sesiones de kinesiología · Fonasa','Entrenamiento 2 veces por semana · Particular','Entrenamiento 2 veces por semana · Fonasa','Entrenamiento 3 veces por semana · Particular','Entrenamiento 3 veces por semana · Fonasa'].map(nombre=>({nombre, desc:'', ...enCentro(cid)}));
 const SVC_ALIAS = {'plan 10 sesiones kinésicas · particular':'Plan 10 sesiones de kinesiología · Particular/Isapre', 'plan 10 sesiones kinésicas · fonasa':'Plan 10 sesiones de kinesiología · Fonasa'};
 const NOTA_OFI = 'Emisión de boleta para reembolso en Isapre o seguro.\nConvenio Club Vieux Gaulois: 20% de descuento en tu plan o sesión presentando tu acreditación de socio (sobre el valor particular base).\nLos descuentos no son acumulables.';
 const CEN_SM = {id:'strongmed', nombre:'StrongMed', direccion:'Baquedano 172, Concepción'};
-const SVC_OFICIAL = {'b-kah':{servicios:SVC_DOM, nota:NOTA_OFI}, 'b-sm':{servicios:[...SVC_SMC, ...SVC_DOM], centros:[CEN_SM], nota:NOTA_OFI}};
-window.svOficial = () => { svCollect(); const D=S.svDraft, o=SVC_OFICIAL[D.id]; if(!o) return; const k=s=>String(s||'').trim().toLowerCase();
-  (o.centros||[]).forEach(c=>{ if(!D.cen.some(x=>x.id===c.id)) D.cen.push({...c}); });
-  let n=0, u=0; o.servicios.forEach(s=>{ const cp=JSON.parse(JSON.stringify(s)), i=D.list.findIndex(x=>k(SVC_ALIAS[k(x.nombre)]||x.nombre)===k(s.nombre));
-    if(i<0){ D.list.push({id:'sv'+uid(), ...cp}); n++; } else { const x=D.list[i]; D.list[i]={...x, ...cp, id:x.id, mod:{...x.mod, ...cp.mod}}; u++; } });
+const SVC_OFICIAL = {'b-kah':{servicios:SVC_DOM, nota:NOTA_OFI}, 'b-sm':{servicios:[...SVC_SMC, ...SVC_EXT('fisiomet'), ...SVC_EXT('mdkine'), ...SVC_EXT(OTROS), ...SVC_DOM], centros:[CEN_SM], nota:NOTA_OFI}};
+window.svOficial = () => { svCollect(); const D=S.svDraft, o=SVC_OFICIAL[D.id]; if(!o) return; const k=s=>String(s||'').trim().toLowerCase(), cids=new Set(D.cen.map(c=>c.id).concat(OTROS));
+  (o.centros||[]).forEach(c=>{ if(!D.cen.some(x=>x.id===c.id)) D.cen.push({...c}); cids.add(c.id); });
+  let n=0, u=0; o.servicios.forEach(s=>{ const cp=JSON.parse(JSON.stringify(s)), cid=cp.centros?.[0], m=cid?'centro':Object.keys(cp.mod)[0]; if(cid && !cids.has(cid)) return;
+    const x=D.list.find(x=>k(SVC_ALIAS[k(x.nombre)]||x.nombre)===k(cp.nombre) && (cid ? x.mod?.centro?.on && (x.centros||[]).includes(cid) : x.mod?.[m]?.on));
+    if(!x){ D.list.push({id:'sv'+uid(), ...cp}); n++; return; }
+    x.nombre=cp.nombre; if(cp.desc) x.desc=cp.desc; if(cp.dcto) x.dcto=cp.dcto;
+    if(cid) x.mod.centro.precios={...(x.mod.centro.precios||{}), ...cp.mod.centro.precios}; else x.mod[m]={...x.mod[m], ...cp.mod[m]}; u++; });
   if(o.nota && !D.nota.includes('Vieux Gaulois')) D.nota=[D.nota, o.nota].filter(Boolean).join('\n');
-  toast(`${n} servicios agregados y ${u} actualizados: revísalos y toca Guardar`); keepScroll(render); };
-window.svAdd = () => { svCollect(); const a=agendaOf(S.svDraft.id)||myAgenda(); S.svDraft.list.push({id:'sv'+uid(), nombre:'', mod:Object.fromEntries(modsDe(a).map(([m])=>[m,{on:true}]))}); keepScroll(render); };
-window.svDel = i => { svCollect(); if(S.svDraft.list[i]?.nombre && !confirm(`¿Quitar "${S.svDraft.list[i].nombre}"?`)) return; S.svDraft.list.splice(i,1); keepScroll(render); };
-window.svSugeridos = () => { const a=agendaOf(S.svDraft.id)||myAgenda(); S.svDraft.list=SVC_SUGERIDOS[servAg(a)].map(([nombre,desc,dur])=>({id:'sv'+uid(), nombre, desc, dur, mod:Object.fromEntries(modsDe(a).map(([m])=>[m,{on:true, precio:nombre==='Evaluación odontológica'?20000:''}]))})); keepScroll(render); };
-window.guardarServicios = async () => { const L=svCollect().filter(x=>x.nombre); const a={...(agendaOf(S.svDraft.id)||myAgenda())};
-  const sinMod=L.find(x=>!Object.values(x.mod||{}).some(v=>v.on)); if(sinMod) return toast(`"${sinMod.nombre}" no tiene ninguna modalidad activa`,'err');
-  a.servicios=L; a.centros=S.svDraft.cen; a.notaAg=S.svDraft.nota||''; if(await saveAgenda(a)){ S.svDraft=null; toast('Servicios guardados'); keepScroll(render); } };
+  toast(`${n} servicios agregados y ${u} actualizados: revisa cada lugar y toca Guardar`); keepScroll(render); };
+window.guardarServicios = async () => { const D=S.svDraft, L=svCollect().filter(x=>x.nombre && Object.values(x.mod||{}).some(v=>v&&v.on)); const a={...(agendaOf(D.id)||myAgenda())};
+  a.servicios=L; a.centros=D.cen; a.notaAg=D.nota||''; if(await saveAgenda(a)){ S.svDraft=null; toast('Servicios guardados'); keepScroll(render); } };
 
 /* horas trabajadas */
 function agHoras(a){

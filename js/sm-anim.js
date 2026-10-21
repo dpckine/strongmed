@@ -1467,16 +1467,17 @@
   const crossProps = py => ({
     props: [{ type: 'tower', x: 186, top: 6, pulleys: [py] }, { type: 'tower', x: 14, top: 6, pulleys: [py] },
       { type: 'cable', from: [186, py], to: 'hd1' }, { type: 'cable', from: [14, py], to: 'hd2' }, { type: 'handle', at: 'hd1' }, { type: 'handle', at: 'hd2' }],
-    props3: [{ type: 'tower', x: 186, top: 6, pulleys: [py], z: -14 }, { type: 'tower', x: 14, top: 6, pulleys: [py], z: -14 },
-      { type: 'cable', from: [186, py], fz: -14, to: 'hd1' }, { type: 'cable', from: [14, py], fz: -14, to: 'hd2' }, { type: 'handle', at: 'hd1' }, { type: 'handle', at: 'hd2' }]
+    // en 3D las torres van más separadas (como una estación real): con los brazos abiertos queda cable entre mano y polea
+    props3: [{ type: 'tower', x: 218, top: 6, pulleys: [py], z: -14 }, { type: 'tower', x: -18, top: 6, pulleys: [py], z: -14 },
+      { type: 'cable', from: [218, py], fz: -14, to: 'hd1' }, { type: 'cable', from: [-18, py], fz: -14, to: 'hd2' }, { type: 'handle', at: 'hd1' }, { type: 'handle', at: 'hd2' }]
   });
-  add('cable_cross_mid', 'Cruce de poleas medio', Object.assign(crossProps(70), {
+  add('cable_cross_mid', 'Cruce de poleas medio', Object.assign(crossProps(53), {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [114, AY], a1: 90, e1: 90, us1: 1, fs1: 0.92 },
     frames: [{ d: 0.5 }, { us1: 0.87, fs1: 0.75, d: 0.3 }, { us1: 0.5, fs1: 0.4, d: 0.3 }, { us1: 0.05, fs1: 0.05, d: 0.03 }, { a1: 0, e1: 0, us1: 0.05, fs1: 0.05, d: 0.03 },
              { a1: -90, e1: -90, us1: 0.05, fs1: 0.05, d: 0.2 }, { a1: -90, e1: -90, us1: 0.22, fs1: 0.2, d: 0.6 }, { a1: -90, e1: -90, us1: 0.05, fs1: 0.05, d: 0.03 }, { a1: 0, e1: 0, us1: 0.05, fs1: 0.05, d: 0.03 },
              { a1: 90, e1: 90, us1: 0.05, fs1: 0.05, d: 0.45 }, { a1: 90, e1: 90, us1: 0.5, fs1: 0.4, d: 0.45 }, { a1: 90, e1: 90, us1: 0.87, fs1: 0.75, d: 0.45 }], free: true, ease: 'linear', dur: 3.4
   }));
-  add('cable_cross_high', 'Cruce de poleas alto', Object.assign(crossProps(14), {
+  add('cable_cross_high', 'Cruce de poleas alto', Object.assign(crossProps(10), {
     base: { view: 'front', x: 100, y: 99, t: 180, F1: [118, AY], a1: 132, e1: 138, us1: 1, fs1: 0.94 },
     // arco con un punto medio (manos ya adelantadas a la altura del hombro) para que no corten camino por el costado
     frames: [{ d: 0.35 }, { d: 0.55, ease: 'in' }, { a1: 56, e1: 50, us1: 0.8, fs1: 0.78, d: 0.55, ease: 'out' }, { a1: -18, e1: -24, us1: 0.84, fs1: 0.8, d: 0.35 },

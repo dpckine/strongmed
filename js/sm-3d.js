@@ -15,7 +15,7 @@
   const MODEL_URL = 'modelos/cuerpo.glb?v=2';
   const FLOOR = A.FLOOR;
   const C = {
-    bg: '#121417', floor: '#181b1f', grid: '#262b31', skin: '#cfd3d8', hl: '#bbf426', hl2: '#d4ec95',
+    bg: '#16191d', floor: '#1d2126', grid: '#2c3239', skin: '#c9ccd0', hl: '#bbf426', hlSkin: '#9fd61a', hl2: '#d4ec95',
     shorts: '#1b1f25', shoe: '#2a3038', metal: '#c3ccd6', plate: '#1d2228', pad: '#353d48', padDark: '#262c34',
     cable: '#8a96a6', band: '#ff6b8b', wood: '#c08a55', teal: '#2f6f73', ball: '#3b4655', rope: '#c9a46a', orange: '#f59e0b'
   };
@@ -26,7 +26,7 @@
   const ZW = { S: ZARM, el: ZARM + 1.5, wr: ZARM + 1, hd: ZARM + 1, tg: ZARM + 1 };
   const zOf = key => { const m = /^(S|el|wr|hd|tg|H|kn|an|to|he)([12])$/.exec(key || ''); if (!m) return 0; const w = ZW[m[1]] ?? ZLEG; return m[2] === '1' ? w : -w; };
 
-  let loading = null;
+  let loading = null, SKIN = null;
   function loadThree() {
     if (G.THREE) return Promise.resolve(G.THREE);
     if (!loading) loading = new Promise((ok, ko) => {
@@ -138,14 +138,27 @@
     if ('physicallyCorrectLights' in renderer) renderer.physicallyCorrectLights = true;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = T.SRGBColorSpace; else renderer.outputEncoding = T.sRGBEncoding;
+    // tono de cine: luces altas suaves, sin quemar la piel
+    renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
     const scene = new T.Scene(); scene.background = new T.Color(C.bg);
     const cam = new T.PerspectiveCamera(32, W / H, 1, 6000);
-    scene.add(new T.HemisphereLight(0xffffff, 0x2a2f36, 0.85));
-    const key = new T.DirectionalLight(0xffffff, 2.5); key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0008; key.shadow.normalBias = 0.6;
+    // entorno de estudio (reflejos y luz ambiente suaves): caja oscura con softboxes
+    try {
+      const pm = new T.PMREMGenerator(renderer), env = new T.Scene();
+      env.add(new T.Mesh(new T.BoxGeometry(20, 20, 20), new T.MeshBasicMaterial({ color: 0x23272d, side: T.BackSide })));
+      const panel = (c, k, x, y, z, w, h) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(k), side: T.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+      panel(0xfff4e8, 7, 5, 6, 6, 7, 5);      // softbox principal, cálido
+      panel(0xd6e4ff, 2.6, -8, 2, 4, 6, 7);   // relleno frío
+      panel(C.hl, 2.4, -1, 4, -9, 9, 3);      // contraluz de la marca
+      panel(0xffffff, 1.4, 0, 9.5, 0, 12, 12); // techo
+      scene.environment = pm.fromScene(env, 0.035).texture; pm.dispose();
+    } catch (e) { }
+    scene.add(new T.HemisphereLight(0xf2f5ff, 0x1c2026, 0.3));
+    const key = new T.DirectionalLight(0xfff3e6, 2.6); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0006; key.shadow.normalBias = 0.5;
     scene.add(key); scene.add(key.target);
-    const rim = new T.DirectionalLight(new T.Color(C.hl), 0.4); scene.add(rim);
-    const fill = new T.DirectionalLight(0xbfd2ff, 0.35); scene.add(fill);
+    const rim = new T.DirectionalLight(new T.Color(C.hl), 1.1); scene.add(rim);
+    const fill = new T.DirectionalLight(0xc4d6ff, 0.3); scene.add(fill);
     // piso con grilla y brillo de la marca
     const floor = new T.Mesh(new T.CircleGeometry(1400, 64), new T.MeshBasicMaterial({ color: C.floor }));
     floor.rotation.x = -Math.PI / 2; scene.add(floor);
@@ -197,6 +210,10 @@
     const S = makeScene(T, el, P);
     S.renderer.domElement.style.cssText = 'width:100%;height:100%;display:block';
     wrap.appendChild(S.renderer.domElement);
+    // viñeta: centra la mirada en el cuerpo
+    const vig = document.createElement('div');
+    vig.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 46%,rgba(0,0,0,0) 60%,rgba(0,0,0,.3) 100%)';
+    wrap.appendChild(vig);
     const Ms = A.muscleSet(P.hl);
 
     // materiales
@@ -448,6 +465,48 @@
       }
       g.computeVertexNormals(); g.computeBoundingSphere();
     }
+    // piel: los bordes de cada músculo iluminado se funden con la piel y los pliegues (entre músculos,
+    // axilas, rodillas) se oscurecen un poco, como una oclusión ambiental pintada en el modelo
+    // (la malla y sus vecinos se calculan una sola vez por sesión)
+    function skinShade(g, col) {
+      const pos = g.attributes.position, n = pos.count;
+      const smooth = (arr, dim, it) => {
+        const { wel, off, adj } = SKIN;
+        for (let k = 0; k < it; k++) {
+          const out = arr.slice();
+          for (let i = 0; i < n; i++) { if (wel[i] !== i || off[i] === off[i + 1]) continue; const m = off[i + 1] - off[i]; for (let d = 0; d < dim; d++) { let s = arr[i * dim + d] * 2; for (let q = off[i]; q < off[i + 1]; q++) s += arr[adj[q] * dim + d]; out[i * dim + d] = s / (m + 2); } }
+          arr.set(out);
+        }
+      };
+      if (!SKIN || SKIN.n !== n) {
+        const nor = g.attributes.normal, idx = g.index ? g.index.array : null, ni = idx ? idx.length : n, I = t => idx ? idx[t] : t;
+        // vértices en la misma posición (costuras de UV) se tratan como uno
+        const key = new Map(), wel = new Int32Array(n);
+        for (let i = 0; i < n; i++) { const k = Math.round(pos.getX(i) * 2e3) + ',' + Math.round(pos.getY(i) * 2e3) + ',' + Math.round(pos.getZ(i) * 2e3); const r = key.get(k); if (r === undefined) { key.set(k, i); wel[i] = i; } else wel[i] = r; }
+        const off = new Int32Array(n + 1);
+        for (let t = 0; t < ni; t += 3) for (let e = 0; e < 3; e++) { const a = wel[I(t + e)], b = wel[I(t + (e + 1) % 3)]; if (a !== b) { off[a + 1]++; off[b + 1]++; } }
+        for (let i = 0; i < n; i++) off[i + 1] += off[i];
+        const adj = new Int32Array(off[n]), fill = off.slice(0, n);
+        for (let t = 0; t < ni; t += 3) for (let e = 0; e < 3; e++) { const a = wel[I(t + e)], b = wel[I(t + (e + 1) % 3)]; if (a !== b) { adj[fill[a]++] = b; adj[fill[b]++] = a; } }
+        // concavidad: el promedio de los vecinos queda "por delante" de la normal en un pliegue
+        const cav = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          if (wel[i] !== i || off[i] === off[i + 1]) continue;
+          let x = 0, y = 0, z = 0, el = 0; const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i), m = off[i + 1] - off[i];
+          for (let q = off[i]; q < off[i + 1]; q++) { const j = adj[q], dx = pos.getX(j) - px, dy = pos.getY(j) - py, dz = pos.getZ(j) - pz; x += dx; y += dy; z += dz; el += Math.hypot(dx, dy, dz); }
+          cav[i] = (x * nor.getX(i) + y * nor.getY(i) + z * nor.getZ(i)) / m / ((el / m) || 1);
+        }
+        SKIN = { n, wel, off, adj, cav };
+        smooth(cav, 1, 3);
+      }
+      const { wel, cav } = SKIN;
+      smooth(col, 3, 2);
+      const base = col.slice();
+      for (let i = 0; i < n; i++) {
+        const r = wel[i], c = cav[r], ao = 1 - Math.min(0.42, Math.max(0, c) * 3) + Math.min(0.04, Math.max(0, -c) * 0.3);
+        for (let d = 0; d < 3; d++) col[i * 3 + d] = base[r * 3 + d] * ao;
+      }
+    }
     function setupModel(gltf) {
       const root = gltf.scene; let skinned = null;
       root.traverse(o => { if (o.isSkinnedMesh && !skinned) skinned = o; });
@@ -497,7 +556,7 @@
         if (/pelvis/.test(n)) return 'hips';
         return roleUp(b);
       });
-      const col = new Float32Array(pos.count * 3), sk = new T.Color(C.skin), hl1 = new T.Color(C.hl), hl2c = new T.Color(C.hl2);
+      const col = new Float32Array(pos.count * 3), sk = new T.Color(C.skin), hl1 = new T.Color(C.hlSkin), hl2c = new T.Color(C.hl2);
       const v = new V3(), hipH = wp(R.hips);
       skinned.updateMatrixWorld(true);
       for (let i = 0; i < pos.count; i++) {
@@ -522,8 +581,11 @@
         const lv = mus && Ms[mus], c = lv ? (lv < 1 ? hl2c : hl1) : sk;
         col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       }
+      skinShade(g, col);
       g.setAttribute('color', new T.BufferAttribute(col, 3));
-      root.traverse(o => { if (o.isMesh) { o.material = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.55, metalness: 0 }); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+      // piel satinada: algo de terciopelo (sheen) y un brillo muy leve, reflejando el estudio
+      const skinMat = new T.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.52, metalness: 0, sheen: 0.45, sheenRoughness: 0.55, sheenColor: new T.Color(0xffffff), clearcoat: 0.12, clearcoatRoughness: 0.55, envMapIntensity: 0.45 });
+      root.traverse(o => { if (o.isMesh) { o.material = skinMat; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
       const grp = new T.Group(); grp.add(root); grp.scale.setScalar(scale); S.scene.add(grp);
       // dedos: cerrados sobre el implemento si el ejercicio usa barra, mancuerna, polea…; si no, un poco flexionados
       const FCURL = holds ? 1.25 : 0.25;
@@ -614,6 +676,13 @@
         else { const f = footDir(J, i); to = f.to; fu = f.up; }
         aim('foot' + ls, to, fu);
       }
+      // suavizado: cada hueso sigue su pose con un filtro corto (quita los tirones entre cuadros clave)
+      const pq = M.prevQ || (M.prevQ = {});
+      for (const k in M.R) {
+        const b = M.R[k]; if (!b) continue;
+        if (pq[k] && M.smooth < 1) b.quaternion.copy(pq[k].slerp(b.quaternion, M.smooth)); else (pq[k] || (pq[k] = new Q())).copy(b.quaternion);
+      }
+      M.grp.updateMatrixWorld(true);
       // la cadera del modelo queda en la cadera de la animación
       const hp = M.R.hips.getWorldPosition(new V3());
       M.grp.position.copy(hip.clone().sub(hp)); M.grp.updateMatrixWorld(true);
@@ -939,6 +1008,7 @@
       const k = 1 - Math.pow(0.0015, dt);
       cam.yaw += (cam.ty - cam.yaw) * k; cam.pitch += (cam.tp - cam.pitch) * k; cam.dist += (cam.td - cam.dist) * k;
       const ph = (P.clock / dur + P.off) % 1, R = A.pose3(P.tplName, ph); FL = flipOf(P.tplName); let J = joints(R.J);
+      MODEL.smooth = dt ? 1 - Math.exp(-dt * 30) : 1;
       gripFix(J, R.tpl); if (MODEL.ok) { poseModel(J, R.tpl); J = snapProps(J, R.tpl); } else poseBody(J); poseProps(J, R.tpl, P.clock);
       placeCam();
       S.renderer.render(S.scene, S.cam);

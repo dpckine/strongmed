@@ -1149,7 +1149,7 @@ const keepScroll = fn => { const y=scrollY; fn(); scrollTo({top:y}); };
 async function loadLib(){
   if(S.lib){ if(!S.libProOk && S.lib.length && S.fb && S.dbs && S.dbs.sm){ S.libProOk=true; const [p, mods, vis]=await Promise.all([loadEjPro(), loadEjMod(), loadEjVis()]); const all=S.libAll.concat(p); applyEjMod(all, mods); applyEjVis(all, vis); S.lib=S.lib.filter(x=>!x.o).concat(p.filter(x=>!x.o)); libIndex(all); EJ_THUMBS.clear(); } return S.lib; }
   S.libProOk=!!(S.fb && S.dbs && S.dbs.sm);
-  try{ let r=null; for(const u of ['data/ejercicios.json?v=36', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
+  try{ let r=null; for(const u of ['data/ejercicios.json?v=37', MEDIA_BASE+'data/ejercicios.json']){ try{ r=await fetch(u); if(r.ok) break; }catch(x){} r=null; } if(!r) throw 0;
     // "o": ejercicio oculto (repetido con otro nombre). No se muestra en la biblioteca, pero las rutinas antiguas lo siguen abriendo.
     const [pro, mods, vis]=await Promise.all([loadEjPro(), loadEjMod(), loadEjVis()]), all=(await r.json()).concat(EJ_EXTRA, pro);
     all.forEach(x=>{ if(!x.a && EJ_ANIM[x.i]){ x.a=EJ_ANIM[x.i][0]; x.h=EJ_ANIM[x.i][1]; } });

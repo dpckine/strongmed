@@ -557,7 +557,19 @@
         return roleUp(b);
       });
       const col = new Float32Array(pos.count * 3), sk = new T.Color(C.skin), hl1 = new T.Color(C.hlSkin), hl2c = new T.Color(C.hl2);
-      const v = new V3(), hipH = wp(R.hips);
+      const v = new V3(), hipC = wp(R.hips), hipY = wp(R.thighL).y, shW = wp(R.upperL).distanceTo(wp(R.upperR)) || 0.35, trunk = (wp(R.upperL).y - hipY) || 0.5;
+      // tronco por altura (0 = articulación de la cadera, 1 = hombro) y distancia a la línea media
+      const torsoMus = (h, fr, x) => fr > 0
+        ? (h < 0.06 ? (x > 0.12 * shW ? 'hipflex' : h < 0 ? null : 'abs') : h < 0.6 ? 'abs' : h < 0.97 ? 'chest' : null)
+        : (h < 0.16 ? 'glutes' : h < 0.42 ? (x > 0.24 * shW && h > 0.34 ? 'lats' : 'lowback') : h < 0.74 ? (x > 0.17 * shW ? 'lats' : 'upperback') : 'upperback');
+      // muslo: según la línea cadera → rodilla de su lado (los pesos de huesos del modelo no son simétricos)
+      const TH = {}; for (const s of ['L', 'R']) { const a = wp(R['thigh' + s]), d = wp(R['shin' + s]).sub(a); TH[s] = { a, d, l2: d.lengthSq() || 0.1, sg: s === 'L' ? 1 : -1 }; }
+      const thighMus = xs => {
+        const q = TH[xs > 0 ? 'L' : 'R'], r = v.clone().sub(q.a), t = r.dot(q.d) / q.l2;
+        r.addScaledVector(q.d, -Math.max(0, Math.min(1, t)));
+        const fr = r.dot(fwd), lat = r.dot(left) * q.sg;
+        return t < 0.15 && fr < 0 ? 'glutes' : lat < -0.03 && fr > -0.045 && t < 0.78 ? 'adductors' : fr > 0.01 ? (t < 0.25 && lat > -0.02 ? 'hipflex' : 'quads') : 'hams';
+      };
       skinned.updateMatrixWorld(true);
       for (let i = 0; i < pos.count; i++) {
         let bi = 0, bw = -1; const gc = (at, c) => c === 0 ? at.getX(i) : c === 1 ? at.getY(i) : c === 2 ? at.getZ(i) : at.getW(i);
@@ -568,15 +580,14 @@
         const rr = rest[role] || { d: upW, len: 0.15 }, b = R[role] || bones[bi];
         if (b) {
           const rel = v.clone().sub(wp(b)), t = rel.dot(rr.d) / (rr.len || 0.1), fr = rel.dot(fwd), lat = rel.dot(left) * side;
-          if (base === 'thigh') mus = t < 0.15 && fr < 0 ? 'glutes' : fr > 0.01 ? (t < 0.3 ? 'hipflex' : 'quads') : lat < -0.01 && Math.abs(fr) < 0.04 ? 'adductors' : 'hams';
+          const c0 = v.clone().sub(hipC), h = (v.y - hipY) / trunk, xs = c0.dot(left), trunkLike = /^(hips|spine[123]|shoulder)$/.test(base);
+          if (base === 'thigh' || (trunkLike && h < -0.03 && Math.abs(xs) > 0.04)) mus = thighMus(xs);
           else if (base === 'shin') mus = fr < 0 ? 'calves' : 'tib';
           else if (base === 'upper') mus = t < 0.28 ? 'delts' : fr > 0 ? 'biceps' : 'triceps';
           else if (base === 'fore' || base === 'hand') mus = base === 'fore' ? 'forearm' : null;
-          else if (base === 'shoulder') mus = lat > 0.04 ? 'delts' : 'upperback';
+          else if (base === 'shoulder' && h > 0.85) mus = lat > 0.04 ? 'delts' : fr > 0.03 ? 'chest' : 'upperback';
           else if (base === 'neck' || base === 'head') mus = base === 'neck' ? 'neck' : null;
-          else if (base === 'hips' || base === 'spine1') mus = fr > 0 ? (v.y > hipH.y ? 'abs' : 'hipflex') : (v.y < hipH.y + 0.04 ? 'glutes' : 'lowback');
-          else if (base === 'spine2') mus = fr > 0 ? 'abs' : (Math.abs(rel.dot(left)) > 0.08 ? 'lats' : 'lowback');
-          else if (base === 'spine3') mus = fr > 0 ? (t > 0.15 ? 'chest' : 'abs') : (Math.abs(rel.dot(left)) > 0.07 ? 'lats' : 'upperback');
+          else if (trunkLike) mus = torsoMus(h, c0.dot(fwd), Math.abs(xs));
         }
         const lv = mus && Ms[mus], c = lv ? (lv < 1 ? hl2c : hl1) : sk;
         col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;

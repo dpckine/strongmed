@@ -1650,27 +1650,11 @@ window.sheetImportar = (rowsId, tId) => { loadLib(); S.imp={rowsId, tId, dia:0};
   impOverlay(`<div class="row between"><h2 class="disp h2">Pegar rutina</h2><button class="ibtn" onclick="impCerrar()" aria-label="Cerrar">${ic('x','s')}</button></div>
   <p class="sm muted" style="margin-top:6px">Copia la rutina desde WhatsApp, notas o Hevy y pégala aquí. Antes de cargarla revisas cada ejercicio.</p>
   <textarea class="inp" id="imp-txt" rows="11" style="margin-top:12px;width:100%;resize:vertical;font-family:inherit;line-height:1.45" placeholder="Día 1: Pecho y tríceps&#10;Press banca 4x10 60kg&#10;Aperturas en máquina 3x12 descanso 60s&#10;Tríceps polea 3x12-15 RIR 2"></textarea>
-  <div class="grid2" style="margin-top:10px"><label class="btn sec" style="cursor:pointer">${ic('upload','s')} Subir archivo<input type="file" accept=".txt,.csv,text/plain,text/csv" hidden onchange="impArchivo(this)"></label><button class="btn pri" onclick="impLeer()">Revisar</button></div>
-  <p class="xs muted" style="margin-top:10px">Sirve un .txt o el .csv que exporta Hevy (Ajustes → Exportar datos). Entiende 4x10, 3 series de 12, 60kg, RIR 2, RPE 8, descanso 90s, días y series una a una.</p>`);
+  <div class="grid2" style="margin-top:10px"><label class="btn sec" style="cursor:pointer">${ic('upload','s')} Subir .txt<input type="file" accept=".txt,text/plain" hidden onchange="impArchivo(this)"></label><button class="btn pri" onclick="impLeer()">Revisar</button></div>
+  <p class="xs muted" style="margin-top:10px">También sirve el texto que comparte Hevy o un archivo .txt. Entiende 4x10, 3 series de 12, 60kg, RIR 2, RPE 8, descanso 90s, días y series una a una.</p>`);
   setTimeout(()=>{ const t=$('#imp-txt'); if(t) t.focus(); }, 60); };
-/* CSV: el de Hevy (una fila por serie) o una tabla simple con columnas de ejercicio, series, reps, kg… */
-function impCSV(txt){ const rows=[]; let r=[], c='', qq=false;
-  for(let i=0;i<txt.length;i++){ const ch=txt[i];
-    if(qq){ if(ch==='"' && txt[i+1]==='"'){ c+='"'; i++; } else if(ch==='"') qq=false; else c+=ch; }
-    else if(ch==='"') qq=true; else if(ch===',' || ch===';' || ch==='\t'){ r.push(c); c=''; } else if(ch==='\n'){ r.push(c); rows.push(r); r=[]; c=''; } else if(ch!=='\r') c+=ch; }
-  if(c || r.length){ r.push(c); rows.push(r); }
-  const H=(rows.shift()||[]).map(h=>fold(h).trim()), col=re=>H.findIndex(h=>re.test(h));
-  if(H.includes('exercise_title')){ const [ti,st,ex,ty,kg,rp,du,rpe]=['title','start_time','exercise_title','set_type','weight_kg','reps','duration_seconds','rpe'].map(k=>H.indexOf(k));
-    const out=[]; let w='', e='', n=0, k=0;
-    rows.filter(x=>x.length>ex).forEach(x=>{ const wk=x[ti]+'|'+x[st]; if(wk!==w){ if(n>=12) return; w=wk; e=''; n++; out.push('', `Rutina: ${x[ti]}${x[st]?` (${String(x[st]).split(',')[0]})`:''}`); }
-      if(x[ex]!==e){ e=x[ex]; k=0; out.push(e); } const sk=+x[kg]>0?`${+x[kg]} kg x `:'';
-      out.push(`${/warm/i.test(x[ty])?'W':'Set '+(++k)}: ${sk}${x[rp]?x[rp]+' reps':x[du]?x[du]+' s':''}${x[rpe]?` @${x[rpe]}`:''}`); });
-    return out.join('\n'); }
-  const iN=col(/^(ejercicio|exercise|nombre|name)/), iS=col(/^(series|sets)/), iR=col(/^(reps|repeticiones|repes)/), iK=col(/^(kg|peso|carga|kilos|weight)/), iI=col(/^rir/), iD=col(/^(descanso|rest|pausa)/);
-  if(iN<0) return [H.join(' ')].concat(rows.map(x=>x.join(' '))).join('\n');
-  return rows.map(x=>x[iN] ? `${x[iN]} ${iS>=0&&x[iS]?x[iS]:3}x${iR>=0&&x[iR]?x[iR]:10}${iK>=0&&x[iK]?` ${x[iK]}kg`:''}${iI>=0&&x[iI]?` RIR ${x[iI]}`:''}${iD>=0&&x[iD]?` descanso ${x[iD]}`:''}` : '').join('\n'); }
 window.impArchivo = inp => { const f=inp.files&&inp.files[0]; if(!f) return; if(f.size>3e6) return toast('El archivo es muy grande','err');
-  const rd=new FileReader(); rd.onload=()=>{ let t=String(rd.result||''); if(/\.csv$/i.test(f.name) || /^[^\n]*(exercise_title|ejercicio)[^\n]*[,;\t]/i.test(t)) t=impCSV(t); $('#imp-txt').value=t; impLeer(); }; rd.readAsText(f); };
+  const rd=new FileReader(); rd.onload=()=>{ $('#imp-txt').value=String(rd.result||''); impLeer(); }; rd.readAsText(f); };
 window.impLeer = async () => { const txt=val('imp-txt'); if(!txt) return toast('Pega la rutina primero','err');
   await loadLib(); const r=SMImport.parse(txt); if(!r.dias.length) return toast('No encontré ejercicios en el texto','err');
   r.dias.forEach(d=>d.ejercicios.forEach(e=>{ e.c=SMImport.match(e.nombre, S.lib||[]); e.lv=SMImport.nivel(e.c); e.x=e.lv==='no'?null:e.c[0].x; e.sel=e.x?e.x.n:e.nombre; }));

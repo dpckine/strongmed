@@ -819,10 +819,21 @@ let toastT;
 function toast(msg, type=''){ let t=$('#toast'); if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
   t.className='toast '+type; t.textContent=msg; requestAnimationFrame(()=>t.classList.add('in'));
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('in'), 2800); }
-function sheet(html){ closeSheet(); const d=document.createElement('div'); d.className='sheet-bg'; d.id='sheet';
+/* ventanas: una con cambios sin guardar no se cierra al tocar fuera (pide confirmar) y, si se abre otra encima
+   (p. ej. la ficha de un ejercicio desde la rutina), queda guardada debajo y vuelve al cerrar la de arriba */
+const SHEETS=[]; let sheetEncima=false;
+function sheet(html){ const cur=$('#sheet');
+  if(cur && (sheetEncima || cur.dataset.sucio)){ cur.id='sheet-bajo'; cur.style.display='none'; SHEETS.push(cur); } else if(cur) cur.remove();
+  sheetEncima=false; const d=document.createElement('div'); d.className='sheet-bg'; d.id='sheet';
   d.innerHTML=`<div class="sheet" onclick="event.stopPropagation()"><div class="grab"></div>${html}</div>`;
-  d.onclick=closeSheet; document.body.appendChild(d); requestAnimationFrame(()=>d.classList.add('in')); }
-function closeSheet(){ const s=$('#sheet'); if(s) s.remove(); }
+  d.onclick=()=>sheetSalir(); document.body.appendChild(d); requestAnimationFrame(()=>d.classList.add('in'));
+  const sucio=e=>{ if(!e.target.closest('.searchbox') && d.querySelector('.sheet input:not([type=hidden]):not(.searchbox input), .sheet textarea, .sheet select')) d.dataset.sucio=1; };
+  d.addEventListener('input', sucio); d.addEventListener('change', sucio); d.addEventListener('click', e=>{ if(e.target.closest('button')) sucio(e); });
+  // si la nueva ventana repite la de abajo (mismos campos), la de abajo sobra
+  const ids=[...d.querySelectorAll('[id]')].map(x=>x.id); for(let i=SHEETS.length-1;i>=0;i--) if(ids.some(k=>SHEETS[i].querySelector('#'+CSS.escape(k)))) SHEETS.splice(i,1)[0].remove(); }
+function closeSheet(){ const s=$('#sheet'); if(s) s.remove(); const p=SHEETS.pop(); if(p){ p.id='sheet'; p.style.display=''; } }
+/* tocar fuera o Atrás: si hay cambios sin guardar, pregunta antes de cerrar */
+function sheetSalir(){ const s=$('#sheet'); if(!s) return; if(s.dataset.sucio && !confirm('Tienes cambios sin guardar. ¿Cerrar y perderlos?')) return; closeSheet(); }
 Object.assign(window,{toast,closeSheet,$});
 
 /* ---------------- Firebase ---------------- */
@@ -1643,9 +1654,10 @@ function collectRows(id){ return [...document.querySelectorAll(`#${id} .exrow`)]
 const apx = e => +e.aprox>0 ? `${+e.aprox}A + ` : '';
 const apxSets = (e, mk) => Array.from({length:Math.min(5,+e.aprox||0)}, ()=>({...mk(), kg:'', rir:'', ap:true}));
 /* importar rutina desde texto (WhatsApp, notas, Hevy): se pega o se sube el archivo → se revisa cada ejercicio → se cargan las filas del editor */
-function impOverlay(html){ let d=$('#imp'); if(!d){ d=document.createElement('div'); d.className='sheet-bg'; d.id='imp'; d.style.zIndex=70; d.onclick=impCerrar; document.body.appendChild(d); requestAnimationFrame(()=>d.classList.add('in')); }
+function impOverlay(html){ let d=$('#imp'); if(!d){ d=document.createElement('div'); d.className='sheet-bg'; d.id='imp'; d.style.zIndex=70; d.onclick=impSalir; document.body.appendChild(d); requestAnimationFrame(()=>d.classList.add('in')); }
   d.innerHTML=`<div class="sheet" onclick="event.stopPropagation()"><div class="grab"></div>${html}</div>`; }
 window.impCerrar = () => { const d=$('#imp'); if(d) d.remove(); };
+function impSalir(){ if((val('imp-txt') || $('#imp .card')) && !confirm('¿Cerrar sin cargar la rutina pegada?')) return; impCerrar(); }
 window.sheetImportar = (rowsId, tId) => { loadLib(); S.imp={rowsId, tId, dia:0};
   impOverlay(`<div class="row between"><h2 class="disp h2">Pegar rutina</h2><button class="ibtn" onclick="impCerrar()" aria-label="Cerrar">${ic('x','s')}</button></div>
   <p class="sm muted" style="margin-top:6px">Copia la rutina desde WhatsApp, notas o Hevy y pégala aquí. Antes de cargarla revisas cada ejercicio.</p>
@@ -2771,7 +2783,7 @@ function ejUso(x){ if(x.u && String(x.u).trim()) return String(x.u).trim(); cons
   if(/pararse y sentarse|sit to stand/.test(n)) return 'Fortalecer cuádriceps y glúteos para levantarte de la silla, subir escaleras y moverte con más seguridad en el día a día.';
   if(/isometr|plancha|plank|sostenid/.test(n)) return `Fortalecer ${m} manteniendo la posición, para ganar estabilidad y control.`;
   return `Fortalecer ${m}${sec.length?` y, en menor medida, ${sec.join(' y ')}`:''}.`; }
-window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return; ejStop();
+window.verEj = async id => { await loadLib(); const x=libById(id); if(!x) return; ejStop(); sheetEncima=true;
   const n=x.b ? (x.k||2) : 0, pos=[...Array(n).keys()];
   const stage = x.a && window.SMAnim ? `<div class="ejstage ejanim" id="ejan" onclick="ejAnTap()"><span class="ejpp">${ic('play','s')}</span></div>
     <div class="row between" style="margin-top:10px;gap:8px;flex-wrap:wrap"><div class="row" style="gap:6px;flex-wrap:wrap"><span class="row" id="ejviews" style="gap:6px"><button type="button" class="pill" onclick="ejView('front')">Frente</button><button type="button" class="pill" onclick="ejView('side')">Lado</button><button type="button" class="pill" onclick="ejView('back')">Atrás</button></span><button type="button" class="pill" id="ejsp" onclick="ejAnSpeed()">Ver lento</button></div>
@@ -5584,7 +5596,8 @@ window.pgo = (t, arg) => { if(!navSilencio && (t!==S.proTab || arg!==undefined))
 /* el botón Atrás: cierra la ventana abierta, vuelve a la pantalla anterior, y recién en Inicio pide confirmar para salir */
 let salirT=0;
 function navAtras(){
-  if($('#sheet')){ closeSheet(); return true; }
+  if($('#imp')){ impSalir(); return true; }
+  if($('#sheet')){ sheetSalir(); return true; }
   if(!S.role){ if(['reservar','signup','voucher'].includes(S.loginMode)){ S.loginMode='pat'; render(); return true; } return false; }
   while(S.navStack.length){ const p=S.navStack.pop(); if(p.r!==S.role) continue;
     navSilencio=true; try{ if(p.r==='pat') go(p.t); else { S.pSeg=p.s||S.pSeg; pgo(p.t, p.a); } } finally{ navSilencio=false; } return true; }

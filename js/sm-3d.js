@@ -793,20 +793,26 @@
       // máquina de abductores / aductores (vista frontal): asiento, respaldo, almohadillas en las rodillas,
       // brazos de palanca bajo los muslos, apoyapiés y torre de pesas atrás
       hipmachine: (J, o) => {
-        const hx = J.hip[0], sy = J.hip[1] + 6, kz = Math.max(zk('kn1'), zk('kn2'), 20), back = -12;
-        boxS([hx, sy + 3], 46, 6, kz - back, 'pad', (kz + back) / 2);
-        // respaldo inclinado como el tronco, con cabezal
-        const r0 = V2([hx, sy], back - 3), r1 = V2([hx, J.shc[1]], zk('shc') + back - 3), rd = r1.clone().sub(r0).normalize();
-        boxAB(r0, r1.clone().addScaledVector(rd, 22), 7, 40, 'pad', new T.Vector3(1, 0, 0));
-        boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 8);
-        boxS([hx, FLOOR - 1], 50, 2, 40, 'padDark', back);
-        boxS([hx, (40 + FLOOR) / 2], 50, FLOOR - 40, 10, 'padDark', back - 22);
+        // el modelo 3D es más grueso que el esqueleto 2D: asiento ancho, respaldo apoyado en la espalda
+        // (no en la línea de la columna) y torre de pesas detrás del respaldo, lejos de la cabeza
+        const hx = J.hip[0], sy = J.hip[1] + 7, kz = Math.max(zk('kn1'), zk('kn2'), 20), back = -13, zs = zk('shc');
+        boxS([hx, sy + 3], 58, 6, kz - back, 'pad', (kz + back) / 2);
+        const r0 = V2([hx, sy], back - 2), r1 = V2([hx, J.shc[1]], zs + back - 2), rd = r1.clone().sub(r0).normalize();
+        boxAB(r0, r1.clone().addScaledVector(rd, 24), 7, 44, 'pad', new T.Vector3(1, 0, 0));
+        const tz = Math.min(back, zs + back) - 26;
+        boxS([hx, (sy + 6 + FLOOR) / 2], 14, FLOOR - sy - 6, 14, 'padDark', back + 6);
+        boxS([hx, FLOOR - 1], 56, 2, kz - tz + 10, 'padDark', (kz + tz) / 2);
+        boxS([hx, (40 + FLOOR) / 2], 50, FLOOR - 40, 10, 'padDark', tz);
+        cyl(V2([hx, sy + 14], back + 6), V2([hx, sy + 14], tz), 1.8, 'padDark');
         for (const i of [1, 2]) {
-          // almohadilla al costado de la rodilla, separada del muslo para que la pierna no la atraviese
-          const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sg = (kn[0] < hx ? -1 : 1) * (o.mode === 'out' ? 1 : -1), px = kn[0] + sg * 11;
-          boxS([px, kn[1] - 2], 4, 22, 10, 'pad', z);
-          cyl(V2([px, kn[1] + 8], z), V2([hx + (kn[0] < hx ? -6 : 6), sy + 12], 0), 1.8, 'metal');
-          cyl(V2([an[0] - 8, an[1] + 5], zk('an' + i)), V2([an[0] + 8, an[1] + 5], zk('an' + i)), 1.6, 'metal');
+          // almohadilla al costado de la rodilla, separada del muslo (el muslo 3D mide ~10 de radio);
+          // la palanca baja por fuera de la pierna y llega al eje por debajo del asiento, sin cruzar el muslo
+          const kn = J['kn' + i], z = zk('kn' + i), an = J['an' + i], sd = kn[0] < hx ? -1 : 1, sg = sd * (o.mode === 'out' ? 1 : -1), px = o.mode === 'out' ? kn[0] + sg * 14.5 : (sd > 0 ? Math.max(hx + 3, kn[0] - 14.5) : Math.min(hx - 3, kn[0] + 14.5));
+          boxS([px, kn[1] - 1], 4, 20, 12, 'pad', z);
+          const lo = Math.max(kn[1] + 11, sy + 15), piv = V2([hx + sd * 5, sy + 15], z * 0.5);
+          cyl(V2([px, kn[1] + 9], z), V2([px, lo], z), 1.8, 'metal');
+          cyl(V2([px, lo], z), piv, 1.8, 'metal');
+          cyl(V2([an[0] - 8, an[1] + 6], zk('an' + i)), V2([an[0] + 8, an[1] + 6], zk('an' + i)), 1.6, 'metal');
           const h = J['hd' + i]; if (h) cyl(V2([h[0], h[1] - 2], zk('hd' + i) - 6), V2([h[0], h[1] - 2], zk('hd' + i) + 6), 1.5, 'metal');
         }
       },

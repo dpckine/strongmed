@@ -1261,7 +1261,7 @@
   // por dentro para cerrar) y manillas a los lados del asiento. El muslo menos acortado = más abierto en 3D.
   const hipMachine = (mode, l0, l1) => ({
     // recl: el tronco acortado va hacia atrás (respaldo reclinado), no hacia la cámara
-    base: { view: 'front', x: 100, y: 126, t: 180, sh: -8, recl: true, l1: l0[0], ts1: l0[1], k1: 0, ss1: 1, pf: false, H1: [127, 136] },
+    base: { view: 'front', x: 100, y: 126, t: 180, sh: -4, recl: true, l1: l0[0], ts1: l0[1], k1: 0, ss1: 1, pf: false, H1: [127, 136] },
     props: [{ type: 'box', x: 70, y: 130, w: 60 }, { type: 'pad', a: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] - 9], b: J => [J.kn1[0] + (mode === 'out' ? 7 : -7), J.kn1[1] + 9], w: 5 },
       { type: 'pad', a: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] - 9], b: J => [J.kn2[0] + (mode === 'out' ? -7 : 7), J.kn2[1] + 9], w: 5 }],
     props3: [{ type: 'hipmachine', mode }],
@@ -1274,7 +1274,8 @@
     props: [{ type: 'box', x: 70, y: 130, w: 60 }, { type: 'band', from: 'kn1', to: 'kn2' }],
     frames: [{ l1: 18, ts1: 0.38 }, { l1: 72, ts1: 0.72 }]
   });
-  add('adduction_machine', 'Aducción en máquina', hipMachine('in', [72, 0.72], [18, 0.38]));
+  // aducción: termina con las rodillas a un palmo (las almohadillas quedan juntas al centro), no pegadas
+  add('adduction_machine', 'Aducción en máquina', hipMachine('in', [72, 0.72], [32, 0.46]));
   add('abduction_standing', 'Abducción de pie (polea / banda)', {
     base: { view: 'front', x: 96, y: 99, t: 180, l1: 2, k1: 2, l2: -2, k2: -2, a1: 4, e1: 4, H2: [56, 98] },
     props: [{ type: 'tower', x: 40, top: 40, pulleys: [176] }, { type: 'cable', from: [40, 176], to: 'an1' }],

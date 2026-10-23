@@ -662,6 +662,7 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 <datalist id="dl-ej"><option value="Press de banca"><option value="Sentadilla"><option value="Hip thrust"><option value="Peso muerto"><option value="Peso muerto rumano"><option value="Jalón al pecho"><option value="Remo con barra"><option value="Press militar"><option value="Dominadas"><option value="Sentadilla búlgara"><option value="Prensa de piernas"><option value="Puente de glúteo"><option value="Plancha frontal"><option value="Elevación de talones"><option value="Curl de bíceps"><option value="Extensión de tríceps"></datalist>
 <script src="js/sm-anim.js?v=45"></script>
 <script src="js/sm-3d.js?v=44"></script>
+<script src="js/sm-import.js?v=1"></script>
 <script type="module">
 /* =====================================================================
    StrongMed × Kin At Home · App clínica y de entrenamiento
@@ -1641,6 +1642,73 @@ function collectRows(id){ return [...document.querySelectorAll(`#${id} .exrow`)]
 /* series de aproximación indicadas en la rutina: "2A + 5×8" */
 const apx = e => +e.aprox>0 ? `${+e.aprox}A + ` : '';
 const apxSets = (e, mk) => Array.from({length:Math.min(5,+e.aprox||0)}, ()=>({...mk(), kg:'', rir:'', ap:true}));
+/* importar rutina desde texto (WhatsApp, notas, Hevy): se pega o se sube el archivo → se revisa cada ejercicio → se cargan las filas del editor */
+function impOverlay(html){ let d=$('#imp'); if(!d){ d=document.createElement('div'); d.className='sheet-bg'; d.id='imp'; d.style.zIndex=70; d.onclick=impCerrar; document.body.appendChild(d); requestAnimationFrame(()=>d.classList.add('in')); }
+  d.innerHTML=`<div class="sheet" onclick="event.stopPropagation()"><div class="grab"></div>${html}</div>`; }
+window.impCerrar = () => { const d=$('#imp'); if(d) d.remove(); };
+window.sheetImportar = (rowsId, tId) => { loadLib(); S.imp={rowsId, tId, dia:0};
+  impOverlay(`<div class="row between"><h2 class="disp h2">Pegar rutina</h2><button class="ibtn" onclick="impCerrar()" aria-label="Cerrar">${ic('x','s')}</button></div>
+  <p class="sm muted" style="margin-top:6px">Copia la rutina desde WhatsApp, notas o Hevy y pégala aquí. Antes de cargarla revisas cada ejercicio.</p>
+  <textarea class="inp" id="imp-txt" rows="11" style="margin-top:12px;width:100%;resize:vertical;font-family:inherit;line-height:1.45" placeholder="Día 1: Pecho y tríceps&#10;Press banca 4x10 60kg&#10;Aperturas en máquina 3x12 descanso 60s&#10;Tríceps polea 3x12-15 RIR 2"></textarea>
+  <div class="grid2" style="margin-top:10px"><label class="btn sec" style="cursor:pointer">${ic('upload','s')} Subir archivo<input type="file" accept=".txt,.csv,text/plain,text/csv" hidden onchange="impArchivo(this)"></label><button class="btn pri" onclick="impLeer()">Revisar</button></div>
+  <p class="xs muted" style="margin-top:10px">Sirve un .txt o el .csv que exporta Hevy (Ajustes → Exportar datos). Entiende 4x10, 3 series de 12, 60kg, RIR 2, RPE 8, descanso 90s, días y series una a una.</p>`);
+  setTimeout(()=>{ const t=$('#imp-txt'); if(t) t.focus(); }, 60); };
+/* CSV: el de Hevy (una fila por serie) o una tabla simple con columnas de ejercicio, series, reps, kg… */
+function impCSV(txt){ const rows=[]; let r=[], c='', qq=false;
+  for(let i=0;i<txt.length;i++){ const ch=txt[i];
+    if(qq){ if(ch==='"' && txt[i+1]==='"'){ c+='"'; i++; } else if(ch==='"') qq=false; else c+=ch; }
+    else if(ch==='"') qq=true; else if(ch===',' || ch===';' || ch==='\t'){ r.push(c); c=''; } else if(ch==='\n'){ r.push(c); rows.push(r); r=[]; c=''; } else if(ch!=='\r') c+=ch; }
+  if(c || r.length){ r.push(c); rows.push(r); }
+  const H=(rows.shift()||[]).map(h=>fold(h).trim()), col=re=>H.findIndex(h=>re.test(h));
+  if(H.includes('exercise_title')){ const [ti,st,ex,ty,kg,rp,du,rpe]=['title','start_time','exercise_title','set_type','weight_kg','reps','duration_seconds','rpe'].map(k=>H.indexOf(k));
+    const out=[]; let w='', e='', n=0, k=0;
+    rows.filter(x=>x.length>ex).forEach(x=>{ const wk=x[ti]+'|'+x[st]; if(wk!==w){ if(n>=12) return; w=wk; e=''; n++; out.push('', `Rutina: ${x[ti]}${x[st]?` (${String(x[st]).split(',')[0]})`:''}`); }
+      if(x[ex]!==e){ e=x[ex]; k=0; out.push(e); } const sk=+x[kg]>0?`${+x[kg]} kg x `:'';
+      out.push(`${/warm/i.test(x[ty])?'W':'Set '+(++k)}: ${sk}${x[rp]?x[rp]+' reps':x[du]?x[du]+' s':''}${x[rpe]?` @${x[rpe]}`:''}`); });
+    return out.join('\n'); }
+  const iN=col(/^(ejercicio|exercise|nombre|name)/), iS=col(/^(series|sets)/), iR=col(/^(reps|repeticiones|repes)/), iK=col(/^(kg|peso|carga|kilos|weight)/), iI=col(/^rir/), iD=col(/^(descanso|rest|pausa)/);
+  if(iN<0) return [H.join(' ')].concat(rows.map(x=>x.join(' '))).join('\n');
+  return rows.map(x=>x[iN] ? `${x[iN]} ${iS>=0&&x[iS]?x[iS]:3}x${iR>=0&&x[iR]?x[iR]:10}${iK>=0&&x[iK]?` ${x[iK]}kg`:''}${iI>=0&&x[iI]?` RIR ${x[iI]}`:''}${iD>=0&&x[iD]?` descanso ${x[iD]}`:''}` : '').join('\n'); }
+window.impArchivo = inp => { const f=inp.files&&inp.files[0]; if(!f) return; if(f.size>3e6) return toast('El archivo es muy grande','err');
+  const rd=new FileReader(); rd.onload=()=>{ let t=String(rd.result||''); if(/\.csv$/i.test(f.name) || /^[^\n]*(exercise_title|ejercicio)[^\n]*[,;\t]/i.test(t)) t=impCSV(t); $('#imp-txt').value=t; impLeer(); }; rd.readAsText(f); };
+window.impLeer = async () => { const txt=val('imp-txt'); if(!txt) return toast('Pega la rutina primero','err');
+  await loadLib(); const r=SMImport.parse(txt); if(!r.dias.length) return toast('No encontré ejercicios en el texto','err');
+  r.dias.forEach(d=>d.ejercicios.forEach(e=>{ e.c=SMImport.match(e.nombre, S.lib||[]); e.lv=SMImport.nivel(e.c); e.x=e.lv==='no'?null:e.c[0].x; e.sel=e.x?e.x.n:e.nombre; }));
+  S.imp.r=r; S.imp.txt=txt; S.imp.dia=0; impRender(); };
+const impEst = e => e.quitado ? 'fuera' : e.x ? (e.lv==='ok'||e.ok ? 'ok' : 'duda') : 'libre';
+window.impRender = () => { const I=S.imp, R=I.r, D=R.dias, d=D[I.dia], all=D.flatMap(x=>x.ejercicios), cnt=k=>all.filter(e=>impEst(e)===k).length;
+  const col={ok:'var(--green)', duda:'var(--orange)', libre:'var(--red)', fuera:'var(--mu)'}, sc=$('#imp .sheet'), y=sc?sc.scrollTop:0;
+  impOverlay(`<div class="row between"><h2 class="disp h2">Revisar rutina</h2><button class="ibtn" onclick="impCerrar()" aria-label="Cerrar">${ic('x','s')}</button></div>
+  <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><span class="badge" style="color:var(--green)">● ${cnt('ok')} listos</span>${cnt('duda')?`<span class="badge" style="color:var(--orange)">● ${cnt('duda')} por confirmar</span>`:''}${cnt('libre')?`<span class="badge" style="color:var(--red)">● ${cnt('libre')} sin encontrar</span>`:''}</div>
+  <p class="xs muted" style="margin-top:8px">Naranjo: elige la opción correcta o confírmala. Rojo: busca el ejercicio; si lo dejas así se guarda con ese nombre, sin animación.</p>
+  ${D.length>1?`<div class="pills" style="margin-top:10px">${D.map((x,i)=>`<button class="pill ${i===I.dia?'on':''}" onclick="S.imp.dia=${i};impRender()">${esc(x.titulo||`Día ${i+1}`)} (${x.ejercicios.filter(e=>!e.quitado).length})</button>`).join('')}</div>`:''}
+  <div class="stack" style="gap:10px;margin-top:12px">${d.ejercicios.map((e,i)=>{ const st=impEst(e), alt=(e.c||[]).filter(c=>c.x.n!==e.sel).slice(0,3);
+    return `<div class="card" style="padding:10px 12px;border-left:4px solid ${col[st]};${e.quitado?'opacity:.45':''}"><div class="row between" style="gap:8px"><span class="xs muted trunc" title="${esc(e.linea)}">“${esc(e.linea)}”</span><button class="ibtn" onclick="impQuitar(${i})" aria-label="${e.quitado?'Volver a incluir':'Quitar'}">${ic(e.quitado?'plus':'x','s')}</button></div>
+      ${e.quitado?'':`<div class="row" style="gap:6px;margin-top:6px"><input class="inp" list="dl-ej" value="${esc(e.sel)}" onchange="impSel(${i},this.value)" style="flex:1;min-width:0">${st==='duda'?`<button class="btn sec sm" style="flex:none" onclick="impOk(${i})">${ic('check','s')}</button>`:''}</div>
+      ${alt.length&&st!=='ok'?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${alt.map(c=>`<button class="pill" style="font-size:12px" onclick="impSel(${i},${q(c.x.n)})">${esc(c.x.n)}</button>`).join('')}</div>`:''}
+      <div class="xs b" style="margin-top:6px;color:var(--mu)">${apx(e)}${esc(e.series||3)}×${esc(e.reps||10)}${e.kg?` · ${esc(e.kg)} kg`:''}${e.rir?` · RIR ${esc(e.rir)}`:''}${e.descanso?` · desc. ${esc(e.descanso)}`:''}${st==='libre'?' · <span style="color:var(--red)">sin animación</span>':''}</div>`}</div>`; }).join('')}</div>
+  ${R.ignoradas.length?`<details style="margin-top:10px"><summary class="xs muted" style="cursor:pointer">${R.ignoradas.length} línea${R.ignoradas.length>1?'s':''} no se usaron</summary><div class="xs muted" style="margin-top:6px">${R.ignoradas.map(esc).join('<br>')}</div></details>`:''}
+  <div class="stack" style="margin-top:14px;gap:8px"><button class="btn pri block" onclick="impCargar()">${ic('check','s')} Cargar ${d.ejercicios.filter(e=>!e.quitado).length} ejercicios${D.length>1?` de ${esc(d.titulo||`Día ${I.dia+1}`)}`:''}</button>
+  ${D.length>1&&I.rowsId==='rbb-rows'?`<button class="btn sec block" onclick="impGuardarTodos()">${ic('book','s')} Guardar los ${D.length} días como rutinas en la biblioteca</button>`:''}
+  <button class="btn ghost block" onclick="impVolver()">Volver al texto</button></div>`);
+  const s2=$('#imp .sheet'); if(s2) s2.scrollTop=y; };
+window.impVolver = () => { const t=S.imp.txt||''; sheetImportar(S.imp.rowsId, S.imp.tId); $('#imp-txt').value=t; };
+const impEj = i => S.imp.r.dias[S.imp.dia].ejercicios[i];
+window.impSel = (i, v) => { const e=impEj(i), x=libFind(v); e.sel=v; e.x=x||null; e.ok=!!x; impRender(); };
+window.impOk = i => { impEj(i).ok=true; impRender(); };
+window.impQuitar = i => { const e=impEj(i); e.quitado=!e.quitado; impRender(); };
+const impFila = e => ({ejercicio:e.sel, exId:e.x?e.x.i:'', series:e.series||3, reps:e.reps||10, kg:e.kg||'', rir:e.rir||'', descanso:e.descanso||'', aprox:e.aprox||0});
+window.impCargar = () => { const I=S.imp, d=I.r.dias[I.dia], ej=d.ejercicios.filter(e=>!e.quitado), box=$('#'+I.rowsId); if(!box) return impCerrar();
+  if(!ej.length) return toast('No quedan ejercicios para cargar','err');
+  const pend=ej.filter(e=>impEst(e)==='duda').length; if(pend && !confirm(`Hay ${pend} ejercicio${pend>1?'s':''} sin confirmar. ¿Cargar igual con la opción sugerida?`)) return;
+  box.querySelectorAll('.exrow').forEach(r=>{ if(!r.querySelector('.e-n').value.trim()) r.remove(); });
+  box.insertAdjacentHTML('beforeend', ej.map(e=>exRow(impFila(e), I.rowsId!=='mr-rows')).join(''));
+  const t=I.tId&&$('#'+I.tId); if(t && !t.value.trim() && d.titulo) t.value=d.titulo;
+  impCerrar(); toast(`Se cargaron ${ej.length} ejercicios. Revísalos y guarda la rutina.`); box.lastElementChild?.scrollIntoView({block:'nearest', behavior:'smooth'}); };
+window.impGuardarTodos = async () => { const I=S.imp, D=I.r.dias, base=val(I.tId); let ok=0;
+  for(const [i,d] of D.entries()){ const ej=plLimpia(d.ejercicios.filter(e=>!e.quitado).map(impFila)); if(!ej.length) continue;
+    const t=[base, d.titulo||`Día ${i+1}`].filter(Boolean).join(' · '); if(await guardarPlantilla({titulo:t, ejercicios:ej, _sinUso:true}, 'pro')) ok++; }
+  if(!ok) return toast('No se pudo guardar','err'); impCerrar(); closeSheet(); toast(`${ok} rutinas guardadas en la biblioteca`); keepScroll(render); };
 window.sheetMiRutina = (base) => { loadLib(); if(!S.plantillas) loadPlantillas(); const b=base&&base.ejercicios?base:null;
   sheet(`<h2 class="disp h2">Crear mi rutina</h2><p class="muted sm" style="margin-top:6px">Tu kine también podrá verla.</p>
   ${b?`<div class="note" style="margin-top:10px">${ic('check','s')}<span>Partiste desde <b>${esc(b.titulo)}</b>. Ajústala como quieras.</span></div>`:`<button class="btn sec block" style="margin-top:12px" onclick="sheetPlantillas('usar')">★ Partir desde una rutina destacada</button>`}
@@ -2071,7 +2139,7 @@ window.sheetPresRut = (k, id) => { const p=prof(k), r=id?presRut(p).find(y=>Stri
     ${!r&&src.length?`<label class="field"><span class="lbl">Copiar ejercicios desde</span><select class="inp" onchange="presRutCopiar(${q(k)},this.value)"><option value="">— Partir de cero —</option>${src.map(x=>`<option value="${esc(x.id)}">${esc(x.titulo)}</option>`).join('')}</select></label>`:''}
     <input class="inp" id="pr-t" placeholder="Nombre (ej: Rutina 1 · Tren inferior)" value="${esc(r?r.titulo:'')}">
     <div id="pr-rows" class="stack">${r?(r.ejercicios||[]).map(e=>exRow(e,true)).join(''):exRow()}</div>
-    <button class="btn sec block" onclick="addRow('pr-rows',true)">${ic('plus','s')} Ejercicio</button>
+    <div class="grid2"><button class="btn sec" onclick="addRow('pr-rows',true)">${ic('plus','s')} Ejercicio</button><button class="btn sec" onclick="sheetImportar('pr-rows','pr-t')">${ic('clip','s')} Pegar rutina</button></div>
     <button class="btn pri block" onclick="presRutGuardar(${q(k)},${q(id||'')})">Guardar rutina</button></div>`); };
 window.presRutCopiar = (k, id) => { const p=prof(k), x=((p.rutinasAsignadas||[]).concat(p.misRutinas||[])).find(y=>String(y.id)===String(id)); if(!x) return; const t=$('#pr-t'); if(t && !t.value) t.value=x.titulo; $('#pr-rows').innerHTML=(x.ejercicios||[]).map(e=>exRow(e,true)).join(''); };
 window.presRutGuardar = async (k, id) => { const p=prof(k), x=spOf(p), t=val('pr-t'), ej=collectRows('pr-rows').map(({hecho,...e})=>e); if(!t) return toast('Ponle nombre a la rutina','err'); if(!ej.length) return toast('Agrega al menos un ejercicio','err');
@@ -3053,7 +3121,7 @@ function pRutinas(p){
   const mr=(p.misRutinas||[]).slice().reverse(); const ed = S.rbEdit ? (S.rbEditMis ? mr : rs).find(r=>r.id===S.rbEdit) : null; if(S.rbEdit && !ed){ S.rbEdit=null; S.rbEditMis=false; }
   const dsel = ed ? (ed.dias||[]) : [];
   return `${presencialesHTML(p)}<section class="card stack" id="rb-card"><div class="row"><span class="ico">${ic(ed?'clip':'dumbbell','s')}</span><div class="grow"><div class="b">${ed?(S.rbEditMis?'Editando rutina guardada por la persona':'Editando rutina'):'Nueva rutina'}</div><div class="xs muted">${ed?`Los cambios le llegan a ${esc(first(p.nombre))} con un aviso`:`${esc(first(p.nombre))} recibe un aviso al instante`}</div></div><button class="btn ghost sm" onclick="pgo('biblioteca')">${ic('book','s')} Ejercicios</button></div>
-    ${ed?'':`<button class="btn sec block" onclick="sheetPlantillas('usar')">${ic('clip','s')} Usar una rutina guardada</button>`}
+    ${ed?'':`<div class="grid2"><button class="btn sec" onclick="sheetPlantillas('usar')">${ic('book','s')} Usar una guardada</button><button class="btn sec" onclick="sheetImportar('rb-rows','rb-t')">${ic('clip','s')} Pegar rutina</button></div>`}
     <div class="grid2"><input class="inp" id="rb-t" placeholder="Nombre (ej: Rutina 1 · Tren superior)" value="${esc(ed?ed.titulo:'')}"><input class="inp" id="rb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(ed?ed.tiempo||'':'')}"></div>
     <div><div class="lbl">Días de la semana <span class="xs muted">(opcional: se repite cada semana)</span></div><div class="dias" id="rb-dias" style="margin-top:6px">${[1,2,3,4,5,6,7].map(d=>`<button type="button" data-d="${d}" class="${dsel.includes(d)?'on':''}" onclick="this.classList.toggle('on')">${DIAS_C[d]}</button>`).join('')}</div></div>
     ${ed?'':recoPanel('rb-rows',true)}
@@ -3131,6 +3199,7 @@ function vRutinasPro(){ S.after.push(async()=>{ if(!S.plantillas) { await loadPl
 window.sheetRutinaBib = (id, src) => { loadLib(); const x=id?(S.plantillas||[]).find(y=>y.id===id):null, b=x||src;
   sheet(`<h2 class="disp h2">${x?'Editar rutina':src?'Duplicar rutina':'Nueva rutina'}</h2><p class="sm muted" style="margin-top:6px">${x?'Los cambios quedan en la biblioteca. Quienes ya la recibieron conservan su versión.':src?'Es una copia: cambia lo que quieras, guárdala y envíala a otras personas. La original no cambia.':'Queda guardada en la biblioteca y después la envías a quien quieras.'}</p>
   <div class="stack" style="margin-top:14px"><div class="grid2"><input class="inp" id="rbb-t" placeholder="Nombre (ej: Tren superior A)" value="${esc(x?x.titulo:src?`${src.titulo||'Rutina'} (copia)`:'')}"><input class="inp" id="rbb-m" inputmode="numeric" placeholder="Duración (min)" value="${esc(b?.tiempo||'')}"></div>
+  ${b?'':`<button class="btn sec block" onclick="sheetImportar('rbb-rows','rbb-t')">${ic('clip','s')} Pegar rutina (WhatsApp, notas, Hevy)</button>`}
   ${b?'':recoPanel('rbb-rows',true)}<div id="rbb-rows" class="stack">${b?(b.ejercicios||[]).map(e=>exRow(e,true)).join(''):exRow()}</div>
   <button class="btn sec block" onclick="addRow('rbb-rows',true)">${ic('plus','s')} Ejercicio</button>
   <label class="check"><input type="checkbox" id="rbb-d" ${x?.destacada?'checked':''}><span>★ Destacada (las personas la ven al crear su rutina)</span></label>

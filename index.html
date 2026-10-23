@@ -2874,22 +2874,22 @@ const RECO_OBJ = {
   'Resistencia':   {m:{s:3,r:'15-20',i:'3',d:'60s', pct:55}, a:{s:3,r:'15-20',i:'2',  d:'45s', pct:50}, txt:'3×15-20 con descansos cortos.'},
   'Rehabilitación':{m:{s:3,r:'10-12',i:'3',d:'90s', pct:55}, a:{s:3,r:'12-15',i:'3',  d:'60s', pct:50}, txt:'3×10-15 con tempo lento (3 s bajando), dolor máximo 3/10.'}};
 const RECO_MULTI = /press(?! frances)|sentadilla|hack|remo|peso muerto|dominada|estocada|zancada|hip thrust|empuje de cadera|jalon|fondos|prensa|subida|buenos dias|bulgara|hack|pull-over|swing|thruster|clean/;
-const RECO_NO = /estiramiento|stretch|masaje|rodillo|foam|liberacion|\(male\)|pov\)| v\. ?\d/;
+const RECO_NO = /estiramiento|stretch|dorsiflexion|inversion y eversion|jefferson|isometri|masaje|rodillo|foam|liberacion|\(male\)|pov\)| v\. ?\d/;
 const RECO_ES = /^(press|sentadilla|peso|puente|estocada|subida|buenos|remo|jalon|dominadas|dominada|elevaciones|elevacion|aperturas|curl|extension|prensa|femoral|fondos|flexiones|pullover|pull-over|plancha|abdominal|crunch|empuje|hip|deltoides|arnold|pierna|patada|abduccion|aduccion|encogimientos|face|rueda)\b/;
-const RECO_CLASIC = {
-  'Pecho':['^press de banca con barra$','^press inclinado con mancuernas$|^press inclinado con barra$','^press de pecho en maquina|^aperturas en maquina','^aperturas de pie en polea|^aperturas con mancuernas$|^low aperturas en polea','^pecho fondos$'],
-  'Espalda':['^jalon al pecho agarre ancho en polea|^jalon en polea$','^remo inclinado con barra$|^pendlay remo con barra','^remo sentado en polea','^remo con mancuerna a un brazo','^dominadas$','^remo en t con barra|^pull-over en polea alta'],
-  'Hombros':['^press militar sentado con barra$|^press de hombros sentado con mancuernas$','^elevaciones laterales con mancuernas$|^elevaciones laterales en polea$','^face pull en polea','^press de hombros en maquina$|^arnold press con mancuernas$','^rear elevaciones laterales con mancuernas$'],
-  'Bíceps':['^curl con barra$','^curl de biceps alternado con mancuernas|^curl con mancuernas','^curl martillo','^curl de biceps en polea','^curl predicador con barra$'],
-  'Tríceps':['^extension de triceps en polea con cuerda','^press de banca agarre cerrado con barra$','press frances','^overhead extension de triceps sentado con barra','^fondos de triceps|^fondos'],
-  'Cuádriceps':['^sentadilla profunda con barra$|^high bar sentadilla con barra$','^sentadilla hack en maquina','^prensa de piernas 45','^extension de cuadriceps en maquina','^sentadilla bulgara con mancuernas','^hack sentadilla con barra$|^hack sentadilla en maquina smith','^sentadilla goblet con mancuerna'],
-  'Isquiotibiales':['^peso muerto rumano con barra$|^peso muerto rumano con mancuernas$','^curl femoral acostado en maquina','^curl femoral sentado en maquina','^buenos dias con barra$','^peso muerto piernas rigidas con mancuernas'],
-  'Glúteos':['^hip thrust con barra','^peso muerto rumano con barra$','^sentadilla hack en maquina','^sentadilla bulgara con mancuernas|^estocada con mancuernas$','^patada de gluteo en polea','^hip thrust en maquina|^puente de gluteo con barra$','^abduccion de cadera en maquina'],
-  'Pantorrillas':['^elevacion de talones de pie en maquina|^elevacion de talones de pie con barra$','^elevacion de talones sentado en maquina|^elevacion de talones sentado con barra$'],
-  'Core':['^crunch de rodillas en polea','^rueda abdominal','^press pallof en polea','^plancha frontal con lastre','^elevacion de piernas colgado$'],
-  'Lumbar':['^extension de espalda 45','^buenos dias con barra$','^espalda extension en maquina'],
-  'Antebrazos':['^palms up muneca curl|^muneca curl','^farmers walk'],
-  'Aductores / abductores':['^abduccion de cadera en maquina','^aduccion de cadera en maquina']};
+const RECO_CLASIC = {   // nombres actuales de la biblioteca (en minúscula y sin tildes), en orden de prioridad
+  'Pecho':['^press de banca plano con barra$','^press inclinado con mancuernas$','^press de pecho en maquina$|^aperturas en maquina','^aperturas con mancuernas$|^aperturas en polea','^fondos en paralelas con tronco adelantado'],
+  'Espalda':['^jalon al pecho en polea$','^remo inclinado con barra$','^remo sentado en polea \\(gironda\\)|^remo sentado en polea baja','^remo inclinado a una mano con mancuerna$','^dominada$','^remo en t con apoyo de pecho'],
+  'Hombros':['^press militar de pie con barra|^press de hombros sentado con mancuernas$','^elevacion lateral con mancuernas$','^face pull en polea alta','^press militar en maquina$','^pajaros con mancuernas$|^pajaros en maquina'],
+  'Bíceps':['^curl con barra$','^curl de biceps con mancuernas$','^curl martillo con mancuernas$','^curl en polea$','^curl predicador en banco scott'],
+  'Tríceps':['^extension de triceps en polea con cuerda$','^press de banca con agarre cerrado$','^press frances con barra$','^extension de triceps sobre la cabeza con cuerda en polea','^fondos en paralelas con torso vertical'],
+  'Cuádriceps':['^sentadilla profunda con barra$','^sentadilla hack en maquina','^prensa de piernas 45','^extension de cuadriceps en maquina','^sentadilla bulgara con mancuernas$','^sentadilla frontal con barra$','^sentadilla goblet'],
+  'Isquiotibiales':['^peso muerto rumano con barra$','^curl femoral tumbado en maquina$','^curl femoral sentado en maquina$','^buenos dias con barra','^peso muerto rumano a una pierna con mancuerna'],
+  'Glúteos':['^hip thrust con barra$','^peso muerto rumano con barra$','^sentadilla bulgara con mancuernas$','^patada de gluteo en polea$','^maquina de hip thrust$','^maquina de abductores'],
+  'Pantorrillas':['^gemelos de pie en maquina$','^soleo sentado en maquina','^elevacion de talones de pie en smith$','^elevacion de talones en prensa$'],
+  'Core':['^crunch en polea alta arrodillado','^rueda abdominal','^press pallof$','^plancha frontal','^elevacion de piernas colgado$'],
+  'Lumbar':['^hiperextension en banco a 45','^buenos dias con barra','^extension lumbar en maquina$','^hiperextension inversa'],
+  'Antebrazos':['^curl de muneca con barra$','^curl invertido con barra$','^paseo del granjero'],
+  'Aductores / abductores':['^maquina de aductores','^maquina de abductores','^aduccion de cadera en polea$','^abduccion unilateral en polea baja$']};
 const esMulti = x => RECO_MULTI.test(fold(x.n)) && !/remo al menton|elevacion|curl|extension de/.test(fold(x.n));
 function recoInit(){ S.reco=S.reco||{mus:[], eq:[], obj:'Hipertrofia', n:0, picks:[]}; if(!(S.reco.obj in RECO_OBJ)) S.reco.obj='Hipertrofia'; return S.reco; }
 const recoN = () => S.reco.n || (S.reco.mus.length<=1 ? 4 : S.reco.mus.length===2 ? 3 : 2);
@@ -2931,7 +2931,7 @@ window.recoDel = (i, rowsId, full) => { S.reco.picks.splice(i,1); recoRefresh(ro
 window.recoUsar = (rowsId, full) => { const R=S.reco, box=document.getElementById(rowsId); if(!box) return;
   [...box.querySelectorAll('.exrow')].forEach(r=>{ if(!r.querySelector('.e-n').value.trim()) r.remove(); });
   R.picks.forEach(pk=>{ const x=S.lib.find(e=>e.i===pk.i); if(!x) return; const d=recoDosis(x); box.insertAdjacentHTML('beforeend', exRow({ejercicio:x.n, exId:x.i, series:d.s, reps:d.r, rir:d.i, descanso:d.d, kg:d.kg||''}, full)); });
-  const t=document.getElementById(rowsId==='rb-rows'?'rb-t':'mr-t'); if(t && !t.value) t.value=`${R.mus.join(' + ')} · ${R.obj}`;
+  const t=document.getElementById(rowsId.replace('-rows','-t')); if(t && !t.value) t.value=`${R.mus.join(' + ')} · ${R.obj}`;
   toast(`${R.picks.length} ejercicios agregados`); R.picks=[]; recoRefresh(rowsId, full); box.scrollIntoView({behavior:'smooth', block:'center'}); };
 
 /* ================= PROFESIONAL ================= */

@@ -1522,9 +1522,10 @@ function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-a
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
   const per=perfilOf(p), tr=per!=='rehabilitacion', rh=per!=='entrenamiento', nr=nextRoutine(p), w=S.workout;
-  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${weekStrip(p,true)}${presHoyCard(p)}${proximaCitaCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
+  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${listoHoyCard(p)}${weekStrip(p,true)}${presHoyCard(p)}${proximaCitaCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
   let h=`${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">`;
   h+=avisosHoy(p);
+  h+=listoHoyCard(p);
   h+=weekStrip(p);
   if(w){
     const tot=w.ex.reduce((a,e)=>a+e.sets.length,0), dn=w.ex.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0);
@@ -1643,7 +1644,7 @@ function vPlan(p){
     h+=dolorCard(p);
     if(per==='mixto') h+=`<div class="sec-t"><h2>Tareas en casa</h2></div>${tareasListHTML(tareas(p))}`;
     const ss=(p.sesionesRehab||[]).slice().reverse();
-    h+=`<div class="sec-t"><h2>Registro de sesiones</h2></div><div class="card">${ss.length?`<div class="tl">${ss.map((s,i)=>`<div class="tl-i blue"><div class="row between"><span class="b sm">Sesión ${ss.length-i}</span><span class="xs muted">${fmtDate(s.fecha)}${s.eva!==''&&s.eva!=null?` · dolor ${esc(s.eva)}/10`:''}</span></div>${s.klgo?`<div class="xs muted">${esc(s.klgo)}</div>`:''}${s.nota?`<div class="sm" style="margin-top:4px;line-height:1.5;white-space:pre-line">${esc(s.nota)}</div>`:''}</div>`).join('')}</div>`:'<div class="empty">Tus sesiones aparecerán aquí.</div>'}</div>`;
+    h+=`<div class="sec-t"><h2>Registro de sesiones</h2></div><div class="card">${ss.length?`<div class="tl">${ss.map((s,i)=>`<div class="tl-i blue"><div class="row between"><span class="b sm">Sesión ${ss.length-i}</span><span class="xs muted">${fmtDate(s.fecha)}${s.eva!==''&&s.eva!=null?` · dolor ${esc(s.eva)}/10`:''}</span></div>${s.klgo?`<div class="xs muted">${esc(s.klgo)}</div>`:''}${s.nota?`<div class="sm" style="margin-top:4px;line-height:1.5;white-space:pre-line">${esc(s.nota)}</div>`:''}${s.id!=null?`<button class="btn ghost sm" style="margin-top:6px;padding-left:0" onclick="compartir(${q('kine-'+s.id)})">${ic('upload','s')} Compartir sticker</button>`:''}</div>`).join('')}</div>`:'<div class="empty">Tus sesiones aparecerán aquí.</div>'}</div>`;
     const evs=evalsOf(keyOf(p)).filter(e=>(e.resultados||[]).length), ek=evs.filter(e=>e.evalTipo!=='funcional'), le=(ek.length?ek:evs).slice(-1)[0];
     h+=`<div class="sec-t"><h2>Ficha clínica</h2>${le?`<span class="xs muted">${fmtDate(le.fecha)}${le.klgo?` · ${esc(le.klgo)}`:''}</span>`:''}</div>`;
     h+= le ? `<section class="card">${fichaHTML(le.resultados)}</section>` : p.diagnostico ? `<section class="card"><div class="ficha"><div class="fi"><div class="fl">Diagnóstico</div><div class="fv">${esc(p.diagnostico)}</div></div></div></section>` : `<div class="card empty">Tu kine completará tu ficha en la evaluación.</div>`;
@@ -2057,11 +2058,10 @@ function presSesHTML(p, s, pro){ const pl=presPlanes(p).find(x=>x.id===s.planId)
 /* ---- Persona: tarjeta en Hoy y vista de su sesión ---- */
 /* sesión de Sala terminada hoy que se puede compartir (también recovery sin rutinas presenciales) */
 const presListaHoy = p => { const u=presSes(p).slice(-1)[0]; return u && toISO(u.fecha)===todayISO() && salaShareOk(u) ? u : null; };
-const presListaHTML = (sh, enVista) => `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada · ${esc(PRES_TIPO[sh.tipo]||'Entrenamiento')}</div><h2 class="disp h2" style="margin-top:8px">${sh.tipo==='recovery'?'¡Recovery day listo!':'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1"><button class="btn dark sm" onclick="compartir(${q('sala-'+sh.id)})">${ic('upload','s')} Compartir mi ${sh.tipo==='recovery'?'recovery':'sesión'}</button>${enVista?'':`<button class="btn ghost sm" style="color:inherit;border:1.5px solid currentColor" onclick="go('presencial')">Ver detalle</button>`}</div></section>`;
+const presListaHTML = sh => `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada · ${esc(PRES_TIPO[sh.tipo]||'Entrenamiento')}</div><h2 class="disp h2" style="margin-top:8px">${sh.tipo==='recovery'?'¡Recovery day listo!':'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1"><button class="btn dark sm" onclick="compartir(${q('sala-'+sh.id)})">${ic('upload','s')} Compartir mi ${sh.tipo==='recovery'?'recovery':'sesión'}</button></div></section>`;
 function presHoyCard(p){ if(!presTiene(p)) return ''; const w=presEnCurso(p), r=presSig(p), pl=presPlanAct(p);
   if(w){ const c=presCuenta(w); return `<section class="hero"><div class="row between" style="position:relative;z-index:1"><div class="eyebrow">Sesión presencial en curso</div><span class="badge">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span></div><h2 class="disp h2" style="margin-top:8px">${esc(w.titulo)}</h2>
     <div class="row between" style="margin-top:16px;position:relative;z-index:1"><span class="b sm">${c.d} de ${c.t} series</span><button class="btn dark sm" onclick="go('presencial')">Anotar mis series ${ic('chevr','s')}</button></div></section>`; }
-  const sh=presListaHoy(p); if(sh) return presListaHTML(sh);
   if(!r) return '';
   const ex=r.ejercicios||[];
   return `<section class="card"><div class="row between"><div class="eyebrow">Sesión presencial</div><span class="badge">Rutina ${presSigIdx(p)+1} de ${presRut(p).length}</span></div><h2 class="disp h2" style="margin-top:8px">${esc(r.titulo)}</h2>${pl?`<div class="xs muted b" style="margin-top:4px">${esc(presPlanTxt(p,pl))}</div>`:''}
@@ -2075,7 +2075,7 @@ function vPresencial(p){ S.after.push(loadLib); const w=presEnCurso(p), r=presSi
       <button class="btn pri block" style="margin-top:12px" onclick="presIniciarPat()">${ic('play','s')} Comenzar sesión presencial</button><p class="xs muted" style="margin-top:8px">Hazlo cuando estés en el centro con tu profesional.</p></section>`; }
   else h+=`<div class="card empty">Tu profesional aún no arma tus rutinas presenciales.</div>`;
   const sh=!w && presListaHoy(p);
-  if(sh) h=h.replace('<div class="stack">', `<div class="stack">${presListaHTML(sh,true)}`);
+  if(sh) h=h.replace('<div class="stack">', `<div class="stack">${presListaHTML(sh)}`);
   if(presRut(p).length>1) h+=`<div class="sec-t"><h2>Tus rutinas (rotan solas)</h2></div><div class="list">${presRut(p).map((x,i)=>`<div class="li"><span class="ico">${i+1}</span><div class="grow"><div class="b sm">${esc(x.titulo)}</div><div class="xs muted">${(x.ejercicios||[]).length} ejercicios</div></div>${i===presSigIdx(p)?'<span class="badge acc">Te toca</span>':''}</div>`).join('')}</div>`;
   if(ss.length) h+=`<div class="sec-t"><h2>Registro de sesiones (${ss.length})</h2></div><div class="list">${ss.slice(0,20).map(s=>presSesHTML(p,s,false)).join('')}</div>`;
   return h+'</div>'; }
@@ -5239,6 +5239,17 @@ function recoveryBlock(x, F, I, ACC, d, y){ const rr=(a,b,w,h,r)=>{ x.beginPath(
   const L=[]; let c=''; lin.forEach(t=>{ const tt=c?c+'  ·  '+t:t; if(c && x.measureText(tt).width>920){ L.push(c); c=t; } else c=tt; }); if(c) L.push(c);
   L.slice(0,3).forEach(l=>{ x.fillText(l,80,yy); yy+=50; }); if(L.length) yy-=30;
   return yy; }
+/* sesión de un servicio (kinesiología, odontología): SESIÓN DE / SERVICIO + cápsula "sesión completada"; devuelve dónde termina */
+function servBlock(x, F, I, ACC, d, y){
+  x.fillStyle='#fff'; x.font=F(150); x.fillText('SESIÓN DE',80,y+130);
+  const t=String(d.servicio||'').toUpperCase(); let fs=230; x.font=F(fs); while(x.measureText(t).width>920 && fs>90){ fs-=6; x.font=F(fs); }
+  x.fillStyle=ACC; const yS=y+130+fs*.95; x.fillText(t,76,yS);
+  const tx=d.num?`Sesión completada · N° ${d.num}`:'Sesión completada', h=86, yC=yS+50; x.font=I(36,800); const w=x.measureText(tx).width+h+44;
+  x.save(); x.lineWidth=5; x.strokeStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(80,yC,w,h,h/2) : x.rect(80,yC,w,h); x.stroke();
+  x.fillStyle=ACC; x.beginPath(); x.arc(80+h/2,yC+h/2,h/2-12,0,7); x.fill(); x.strokeStyle='#0b0b0c'; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round'; x.shadowColor='rgba(0,0,0,0)';
+  x.beginPath(); x.moveTo(80+h*.32,yC+h*.52); x.lineTo(80+h*.45,yC+h*.65); x.lineTo(80+h*.7,yC+h*.37); x.stroke(); x.restore();
+  x.fillStyle='#fff'; x.font=I(36,800); x.fillText(tx,80+h+14,yC+h/2+13);
+  return yC+h+20; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
@@ -5258,10 +5269,10 @@ async function storyBlob(p, d, mode='card', foto=null){
   const rutaDraw=(box)=>{ const pp=routePath(d.ruta,box[2],box[3],30).map(([a,b])=>[a+box[0],b+box[1]]); const sh=x.shadowBlur; x.lineJoin='round'; x.lineCap='round'; x.shadowColor=ACC; x.shadowBlur=30; x.strokeStyle=ACC; x.lineWidth=16; x.beginPath(); pp.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1])); x.stroke(); x.shadowBlur=sh; x.shadowColor='rgba(0,0,0,.55)';
     x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill(); };
   const quien=`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`, fpro=proFirma(p,d.fecha,d);
-  if(d.recovery){
-    if(mode==='card'){ storyLogos(x,F,I,ACC,92); recoveryBlock(x,F,I,ACC,d,700); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
-    if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); recoveryBlock(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
-    storyLogos(x,F,I,ACC,60,.9); const y=recoveryBlock(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
+  if(d.recovery || d.servicio){ const blk=d.servicio?servBlock:recoveryBlock;
+    if(mode==='card'){ storyLogos(x,F,I,ACC,92); blk(x,F,I,ACC,d,700); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
+    if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); blk(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
+    storyLogos(x,F,I,ACC,60,.9); const y=blk(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
   if(mode==='card'){
     storyLogos(x,F,I,ACC,92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); title(420);
     if(ruta){ rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
@@ -5303,7 +5314,23 @@ const salaShareOk = s => !!s && s.tipo!=='rehabilitacion' && ((s.ejercicios||[])
 function regSala(p, id){ const sid=String(id).replace(/^sala-/,''), s=presSes(p).find(x=>String(x.id)===sid); if(!salaShareOk(s)) return null; const rec=s.tipo==='recovery';
   const d=!rec && (p.diarios||[]).find(x=>x.presencial && String(x.presencial.sesionId)===sid); if(d) return d;
   return {id:'sala-'+sid, fecha:s.fecha, duracion:s.dur, rpe:s.rpe, nombreSesion:rec?'Recovery day':(s.titulo||'Entrenamiento'), ejercicios:s.ejercicios||[], terapias:s.terapias||[], recovery:rec, presencial:{origen:'sala', proId:s.proId, por:s.pro, sesionId:s.id}}; }
-window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;
+/* sesión de kinesiología ('kine-id', de sesionesRehab) u odontología ('oral-id', de sus atenciones) como registro para la imagen; sin datos clínicos */
+function regServ(p, id){ const [t, sid]=[String(id).split('-')[0], String(id).replace(/^(kine|oral)-/,'')];
+  if(t==='kine'){ const L=p.sesionesRehab||[], i=L.findIndex(x=>String(x.id)===sid), s=L[i]; if(!s) return null;
+    return {id, fecha:s.fecha, servicio:'Kinesiología', nombreSesion:'Sesión de kinesiología', num:i+1, presencial:{por:s.klgo}}; }
+  if(t==='oral'){ const a=(p.oral?.atenciones||[]).find(x=>String(x.id)===sid); if(!a) return null;
+    return {id, fecha:a.fecha, servicio:'Odontología', nombreSesion:'Sesión de odontología', presencial:{por:a.pro||oralPro(p), proId:p.oral?.proId}}; }
+  return null; }
+/* lo terminado hoy que se puede compartir: Sala (entrenamiento o recovery), kinesiología y odontología */
+function listoHoy(p){ const hoy=todayISO(), L=[], s=presSes(p).slice(-1)[0], sala=s && toISO(s.fecha)===hoy && salaShareOk(s);
+  if(sala) L.push({id:'sala-'+s.id, k:s.tipo==='recovery'?'recovery':'entrenamiento'});
+  const k=(p.sesionesRehab||[]).slice(-1)[0]; if(k && toISO(k.fecha)===hoy && !(sala && String(k.presencialId)===String(s.id))) L.push({id:'kine-'+k.id, k:'kine'});
+  const a=(p.oral?.atenciones||[]).filter(x=>toISO(x.fecha)===hoy).slice(-1)[0]; if(a) L.push({id:'oral-'+a.id, k:'oral'});
+  return L; }
+const LISTO = {recovery:['Recovery','¡Recovery day listo!','mi recovery'], entrenamiento:['Entrenamiento','¡Buen trabajo hoy!','mi entrenamiento'], kine:['Kinesiología','¡Sesión de kinesiología lista!','mi sesión de kine'], oral:['Odontología','¡Sesión de odontología lista!','mi sesión de odontología']};
+function listoHoyCard(p){ const L=listoHoy(p); if(!L.length) return ''; const u=LISTO[L[0].k];
+  return `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada${L.length===1?` · ${u[0]}`:''}</div><h2 class="disp h2" style="margin-top:8px">${L.length===1?u[1]:'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1">${L.map(x=>`<button class="btn dark sm" onclick="compartir(${q(x.id)})">${ic('upload','s')} Compartir ${LISTO[x.k][2]}</button>`).join('')}</div></section>`; }
+window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
   const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const ayuda = mode==='sticker' ? AYUDA_STK
@@ -5362,9 +5389,9 @@ function oralAtencionesList(p){ const at=(p.oral?.atenciones||[]).slice().sort((
 function vHoyOral(p){
   const ts=(p.oral?.tareas||[]).filter(t=>!t.hecha), ult=(p.oral?.atenciones||[]).slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)))[0];
   return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">
-  ${avisosHoy(p)}${proximaCitaCard(p)}${oralRing(p)}
+  ${avisosHoy(p)}${listoHoyCard(p)}${proximaCitaCard(p)}${oralRing(p)}
   ${ts.length?`<div class="sec-t"><h2>Tareas y recomendaciones</h2><button class="xs b acc-t" onclick="go('plan')">Ver todas</button></div>${oralTareasList({oral:{tareas:ts.slice(-3)}})}`:''}
-  ${ult?`<div class="sec-t"><h2>Última atención</h2></div><section class="card"><div class="row" style="align-items:flex-start"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b">${esc(ult.tratamiento||'Atención')}</div><div class="xs muted">${fmtDate(ult.fecha)} · ${esc(ult.pro||oralPro(p))}</div>${ult.indicacion?`<p class="sm" style="margin-top:6px">${esc(ult.indicacion)}</p>`:''}</div></div></section>`:''}
+  ${ult?`<div class="sec-t"><h2>Última atención</h2></div><section class="card"><div class="row" style="align-items:flex-start"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b">${esc(ult.tratamiento||'Atención')}</div><div class="xs muted">${fmtDate(ult.fecha)} · ${esc(ult.pro||oralPro(p))}</div>${ult.indicacion?`<p class="sm" style="margin-top:6px">${esc(ult.indicacion)}</p>`:''}<button class="btn ghost sm" style="margin-top:6px;padding-left:0" onclick="compartir(${q('oral-'+ult.id)})">${ic('upload','s')} Compartir sticker</button></div></div></section>`:''}
   <button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes</div><div class="xs muted">Escríbele a ${esc(oralPro(p))}</div></div>${ic('chevr','s chev')}</div></button></div>`;
 }
 function vTratamiento(p){

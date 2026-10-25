@@ -2055,9 +2055,13 @@ function presSesHTML(p, s, pro){ const pl=presPlanes(p).find(x=>x.id===s.planId)
     ${!pro&&salaShareOk(s)?`<button class="btn sec sm" style="align-self:flex-start" onclick="compartir(${q('sala-'+s.id)})">${ic('upload','s')} Compartir o guardar sticker</button>`:''}${pro?`<div class="row" style="gap:8px"><button class="btn danger sm" onclick="presBorrarSes(${q(keyOf(p))},${q(s.id)})">${ic('trash','s')} Eliminar del registro</button></div>`:''}</div></details>`; }
 
 /* ---- Persona: tarjeta en Hoy y vista de su sesión ---- */
+/* sesión de Sala terminada hoy que se puede compartir (también recovery sin rutinas presenciales) */
+const presListaHoy = p => { const u=presSes(p).slice(-1)[0]; return u && toISO(u.fecha)===todayISO() && salaShareOk(u) ? u : null; };
+const presListaHTML = (sh, enVista) => `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada · ${esc(PRES_TIPO[sh.tipo]||'Entrenamiento')}</div><h2 class="disp h2" style="margin-top:8px">${sh.tipo==='recovery'?'¡Recovery day listo!':'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1"><button class="btn dark sm" onclick="compartir(${q('sala-'+sh.id)})">${ic('upload','s')} Compartir mi ${sh.tipo==='recovery'?'recovery':'sesión'}</button>${enVista?'':`<button class="btn ghost sm" style="color:inherit;border:1.5px solid currentColor" onclick="go('presencial')">Ver detalle</button>`}</div></section>`;
 function presHoyCard(p){ if(!presTiene(p)) return ''; const w=presEnCurso(p), r=presSig(p), pl=presPlanAct(p);
   if(w){ const c=presCuenta(w); return `<section class="hero"><div class="row between" style="position:relative;z-index:1"><div class="eyebrow">Sesión presencial en curso</div><span class="badge">${esc(PRES_TIPO[w.tipo]||'Entrenamiento')}</span></div><h2 class="disp h2" style="margin-top:8px">${esc(w.titulo)}</h2>
     <div class="row between" style="margin-top:16px;position:relative;z-index:1"><span class="b sm">${c.d} de ${c.t} series</span><button class="btn dark sm" onclick="go('presencial')">Anotar mis series ${ic('chevr','s')}</button></div></section>`; }
+  const sh=presListaHoy(p); if(sh) return presListaHTML(sh);
   if(!r) return '';
   const ex=r.ejercicios||[];
   return `<section class="card"><div class="row between"><div class="eyebrow">Sesión presencial</div><span class="badge">Rutina ${presSigIdx(p)+1} de ${presRut(p).length}</span></div><h2 class="disp h2" style="margin-top:8px">${esc(r.titulo)}</h2>${pl?`<div class="xs muted b" style="margin-top:4px">${esc(presPlanTxt(p,pl))}</div>`:''}
@@ -2070,8 +2074,8 @@ function vPresencial(p){ S.after.push(loadLib); const w=presEnCurso(p), r=presSi
       <div class="exl">${(r.ejercicios||[]).map(e=>`<div class="ex">${exThumb(e)}<div class="grow"><div class="b sm">${esc(e.ejercicio)}</div><div class="xs muted">${esc(presObj(e))}${e.descanso?` · desc. ${esc(e.descanso)}`:''}</div></div></div>`).join('')}</div>
       <button class="btn pri block" style="margin-top:12px" onclick="presIniciarPat()">${ic('play','s')} Comenzar sesión presencial</button><p class="xs muted" style="margin-top:8px">Hazlo cuando estés en el centro con tu profesional.</p></section>`; }
   else h+=`<div class="card empty">Tu profesional aún no arma tus rutinas presenciales.</div>`;
-  const sh=!w && ss[0] && toISO(ss[0].fecha)===todayISO() && salaShareOk(ss[0]) ? ss[0] : null;
-  if(sh) h=h.replace('<div class="stack">', `<div class="stack"><section class="hero"><div class="eyebrow">Sesión terminada · ${esc(PRES_TIPO[sh.tipo]||'Entrenamiento')}</div><h2 class="disp h2" style="margin-top:8px">${sh.tipo==='recovery'?'¡Recovery day listo!':'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker y súbelo a tu historia.</p><button class="btn dark sm" style="margin-top:12px;position:relative;z-index:1" onclick="compartir(${q('sala-'+sh.id)})">${ic('upload','s')} Mi sticker de hoy</button></section>`);
+  const sh=!w && presListaHoy(p);
+  if(sh) h=h.replace('<div class="stack">', `<div class="stack">${presListaHTML(sh,true)}`);
   if(presRut(p).length>1) h+=`<div class="sec-t"><h2>Tus rutinas (rotan solas)</h2></div><div class="list">${presRut(p).map((x,i)=>`<div class="li"><span class="ico">${i+1}</span><div class="grow"><div class="b sm">${esc(x.titulo)}</div><div class="xs muted">${(x.ejercicios||[]).length} ejercicios</div></div>${i===presSigIdx(p)?'<span class="badge acc">Te toca</span>':''}</div>`).join('')}</div>`;
   if(ss.length) h+=`<div class="sec-t"><h2>Registro de sesiones (${ss.length})</h2></div><div class="list">${ss.slice(0,20).map(s=>presSesHTML(p,s,false)).join('')}</div>`;
   return h+'</div>'; }

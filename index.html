@@ -1436,7 +1436,8 @@ function watchMe(){
   if(S.meUnsub){ try{S.meUnsub()}catch(e){} S.meUnsub=null; }
   const p=me(); if(!p || !S.fb) return;
   if(S.oralUnsub){ try{S.oralUnsub()}catch(e){} S.oralUnsub=null; }
-  if(tieneOral(p)) try{ const r=normRut(p.rut); S.oralUnsub=S.fb.onSnapshot(S.fb.doc(S.dbs.sm,'odontologia',r), sn=>{ if(!sn.exists || !sn.exists()) return; const b=JSON.stringify(S.oralDocs[r]||null), x=sn.data(); if(JSON.stringify(x)===b) return; S.oralDocs[r]=Object.assign(S.oralDocs[r]||{}, x); if(b!=='null') softRender(); }); }catch(e){ console.warn(e); }
+  // siempre: así una persona de kine o de la Sala que se atiende por primera vez con odontología ve su atención (y su SMILE DAY) al instante
+  try{ const r=normRut(p.rut); S.oralUnsub=S.fb.onSnapshot(S.fb.doc(S.dbs.sm,'odontologia',r), sn=>{ if(!sn.exists || !sn.exists()) return; const b=JSON.stringify(S.oralDocs[r]||null), x=sn.data(); if(JSON.stringify(x)===b) return; S.oralDocs[r]=Object.assign(S.oralDocs[r]||{}, x); softRender(); }, e=>console.warn('odontologia', e)); }catch(e){ console.warn(e); }
   try{ S.meUnsub = S.fb.onSnapshot(S.fb.doc(S.dbs[p.org||'sm'],'evaluaciones',String(p.id)), snap=>{
     if(!snap.exists()) return; const x=snap.data(); x.org=x.org||p.org;
     const i=S.all.findIndex(y=>y.id===x.id && y.org===x.org); const before=i>-1?JSON.stringify(S.all[i]):''; if(i>-1) presMerge(S.all[i], x); if(i>-1) S.all[i]=x; else S.all.push(x);

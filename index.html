@@ -5239,17 +5239,26 @@ function recoveryBlock(x, F, I, ACC, d, y){ const rr=(a,b,w,h,r)=>{ x.beginPath(
   const L=[]; let c=''; lin.forEach(t=>{ const tt=c?c+'  ·  '+t:t; if(c && x.measureText(tt).width>920){ L.push(c); c=t; } else c=tt; }); if(c) L.push(c);
   L.slice(0,3).forEach(l=>{ x.fillText(l,80,yy); yy+=50; }); if(L.length) yy-=30;
   return yy; }
-/* sesión de un servicio (kinesiología, odontología): SESIÓN DE / SERVICIO + cápsula "sesión completada"; devuelve dónde termina */
-function servBlock(x, F, I, ACC, d, y){
-  x.fillStyle='#fff'; x.font=F(150); x.fillText('SESIÓN DE',80,y+130);
-  const t=String(d.servicio||'').toUpperCase(); let fs=230; x.font=F(fs); while(x.measureText(t).width>920 && fs>90){ fs-=6; x.font=F(fs); }
-  x.fillStyle=ACC; const yS=y+130+fs*.95; x.fillText(t,76,yS);
-  const tx=d.num?`Sesión completada · N° ${d.num}`:'Sesión completada', h=86, yC=yS+50; x.font=I(36,800); const w=x.measureText(tx).width+h+44;
-  x.save(); x.lineWidth=5; x.strokeStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(80,yC,w,h,h/2) : x.rect(80,yC,w,h); x.stroke();
-  x.fillStyle=ACC; x.beginPath(); x.arc(80+h/2,yC+h/2,h/2-12,0,7); x.fill(); x.strokeStyle='#0b0b0c'; x.lineWidth=7; x.lineCap='round'; x.lineJoin='round'; x.shadowColor='rgba(0,0,0,0)';
-  x.beginPath(); x.moveTo(80+h*.32,yC+h*.52); x.lineTo(80+h*.45,yC+h*.65); x.lineTo(80+h*.7,yC+h*.37); x.stroke(); x.restore();
-  x.fillStyle='#fff'; x.font=I(36,800); x.fillText(tx,80+h+14,yC+h/2+13);
-  return yC+h+20; }
+/* sesión de un servicio, mismo estilo que RECOVERY DAY: REHAB DAY + pulso (kinesiología), SMILE DAY + diente con brillos (odontología); devuelve dónde termina */
+function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología';
+  x.fillStyle=ACC; x.font=F(190); x.fillText(od?'SMILE':'REHAB',80,y+165);
+  x.fillStyle='#fff'; x.font=F(300); const yD=y+165+290; x.fillText('DAY',72,yD); const wD=x.measureText('DAY').width;
+  const bh=210, by=yD-bh+4, bx=72+wD+44, bw=Math.min(1000-bx-26, 400);
+  if(bw>200){ x.save(); x.lineCap='round'; x.lineJoin='round';
+    if(od){ // diente con contorno grueso y brillos
+      const h=bh*1.12, w=h*.86, ox=bx+(bw-w)/2-20, oy=by+bh/2-h/2, P=(a,b)=>[ox+a*w, oy+b*h];
+      x.beginPath(); x.moveTo(...P(.5,.14)); x.bezierCurveTo(...P(.36,0),...P(.06,0),...P(.05,.3)); x.bezierCurveTo(...P(.04,.52),...P(.17,.6),...P(.2,.8)); x.bezierCurveTo(...P(.23,.97),...P(.31,1),...P(.35,.98)); x.bezierCurveTo(...P(.41,.95),...P(.42,.7),...P(.5,.68));
+      x.bezierCurveTo(...P(.58,.7),...P(.59,.95),...P(.65,.98)); x.bezierCurveTo(...P(.69,1),...P(.77,.97),...P(.8,.8)); x.bezierCurveTo(...P(.83,.6),...P(.96,.52),...P(.95,.3)); x.bezierCurveTo(...P(.94,0),...P(.64,0),...P(.5,.14)); x.closePath();
+      x.lineWidth=16; x.strokeStyle=ACC; x.stroke(); x.beginPath(); x.moveTo(...P(.2,.3)); x.quadraticCurveTo(...P(.22,.16),...P(.34,.14)); x.lineWidth=12; x.strokeStyle='#fff'; x.stroke();
+      const star=(cx,cy,r)=>{ x.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4, rr=i%2?r*.28:r; x.lineTo(cx+Math.sin(a)*rr, cy-Math.cos(a)*rr); } x.closePath(); x.fill(); };
+      x.fillStyle='#fff'; star(ox+w+34, oy+30, 40); x.fillStyle=ACC; star(ox+w+70, oy+h*.55, 24); x.fillStyle='#fff'; star(ox-18, oy+h*.86, 20);
+    } else { // pulso tipo electro que sube: plano, latido y flecha hacia arriba
+      const m=by+bh*.62, X=a=>bx+a*bw, Y=b=>by+b*bh, pts=[[0,m],[X(.2),m],[X(.28),Y(.4)],[X(.36),Y(.92)],[X(.48),Y(.04)],[X(.58),Y(.8)],[X(.66),m],[X(.8),m]];
+      x.lineWidth=16; x.strokeStyle=ACC; x.beginPath(); pts.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(bx,b)); x.stroke();
+      x.fillStyle='#fff'; x.beginPath(); x.arc(X(.92),m,22,0,7); x.fill(); x.globalAlpha=.35; x.fillStyle=ACC; x.beginPath(); x.arc(X(.92),m,42,0,7); x.fill(); x.globalAlpha=1; }
+    x.restore(); }
+  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':'Paso a paso, volviendo más fuerte',80,yD+80);
+  return yD+80; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
@@ -5317,9 +5326,9 @@ function regSala(p, id){ const sid=String(id).replace(/^sala-/,''), s=presSes(p)
 /* sesión de kinesiología ('kine-id', de sesionesRehab) u odontología ('oral-id', de sus atenciones) como registro para la imagen; sin datos clínicos */
 function regServ(p, id){ const [t, sid]=[String(id).split('-')[0], String(id).replace(/^(kine|oral)-/,'')];
   if(t==='kine'){ const L=p.sesionesRehab||[], i=L.findIndex(x=>String(x.id)===sid), s=L[i]; if(!s) return null;
-    return {id, fecha:s.fecha, servicio:'Kinesiología', nombreSesion:'Sesión de kinesiología', num:i+1, presencial:{por:s.klgo}}; }
+    return {id, fecha:s.fecha, servicio:'Kinesiología', nombreSesion:'Rehab day', num:i+1, presencial:{por:s.klgo}}; }
   if(t==='oral'){ const a=(p.oral?.atenciones||[]).find(x=>String(x.id)===sid); if(!a) return null;
-    return {id, fecha:a.fecha, servicio:'Odontología', nombreSesion:'Sesión de odontología', presencial:{por:a.pro||oralPro(p), proId:p.oral?.proId}}; }
+    return {id, fecha:a.fecha, servicio:'Odontología', nombreSesion:'Smile day', presencial:{por:a.pro||oralPro(p), proId:p.oral?.proId}}; }
   return null; }
 /* lo terminado hoy que se puede compartir: Sala (entrenamiento o recovery), kinesiología y odontología */
 function listoHoy(p){ const hoy=todayISO(), L=[], s=presSes(p).slice(-1)[0], sala=s && toISO(s.fecha)===hoy && salaShareOk(s);
@@ -5327,7 +5336,7 @@ function listoHoy(p){ const hoy=todayISO(), L=[], s=presSes(p).slice(-1)[0], sal
   const k=(p.sesionesRehab||[]).slice(-1)[0]; if(k && toISO(k.fecha)===hoy && !(sala && String(k.presencialId)===String(s.id))) L.push({id:'kine-'+k.id, k:'kine'});
   const a=(p.oral?.atenciones||[]).filter(x=>toISO(x.fecha)===hoy).slice(-1)[0]; if(a) L.push({id:'oral-'+a.id, k:'oral'});
   return L; }
-const LISTO = {recovery:['Recovery','¡Recovery day listo!','mi recovery'], entrenamiento:['Entrenamiento','¡Buen trabajo hoy!','mi entrenamiento'], kine:['Kinesiología','¡Sesión de kinesiología lista!','mi sesión de kine'], oral:['Odontología','¡Sesión de odontología lista!','mi sesión de odontología']};
+const LISTO = {recovery:['Recovery','¡Recovery day listo!','mi recovery'], entrenamiento:['Entrenamiento','¡Buen trabajo hoy!','mi entrenamiento'], kine:['Kinesiología','¡Rehab day listo!','mi rehab day'], oral:['Odontología','¡Smile day listo!','mi smile day']};
 function listoHoyCard(p){ const L=listoHoy(p); if(!L.length) return ''; const u=LISTO[L[0].k];
   return `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada${L.length===1?` · ${u[0]}`:''}</div><h2 class="disp h2" style="margin-top:8px">${L.length===1?u[1]:'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1">${L.map(x=>`<button class="btn dark sm" onclick="compartir(${q(x.id)})">${ic('upload','s')} Compartir ${LISTO[x.k][2]}</button>`).join('')}</div></section>`; }
 window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;

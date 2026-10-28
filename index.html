@@ -740,6 +740,7 @@ button.li:active{background-color:transparent}
 .lg2-t{font-size:clamp(52px,16vw,84px);margin-top:16px;color:#fff;white-space:nowrap}
 .lg2-sub{margin-top:8px;font-size:12px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:#ccff33}
 .lg2-bar{width:120px;height:4px;border-radius:4px;margin-top:14px;background:linear-gradient(90deg,#ccff33,rgba(255,255,255,.6))}
+.lg2-tag{display:none}
 .lg2-in{width:100%;max-width:440px;margin:-68px auto 0;padding:0 16px calc(28px + env(safe-area-inset-bottom));position:relative;z-index:2;display:flex;flex-direction:column;gap:14px}
 .lg2-card{background:var(--card);border-radius:28px;padding:16px;box-shadow:0 12px 36px rgba(0,0,0,.28)}
 :root[data-theme="light"] .lg2-card{box-shadow:0 10px 30px rgba(0,0,0,.1)}
@@ -749,7 +750,31 @@ button.li:active{background-color:transparent}
 .lg2-book b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;line-height:1.05;margin-top:2px}
 .lg2-book .grow>span{display:block;font-size:12.5px;color:var(--mu)}
 .lg2-book:active{transform:scale(.985)}
-@media(min-width:900px){.lg2-top{padding-top:56px;padding-bottom:110px}.lg2-in{margin-top:-80px}}
+/* tablet vertical: franja más alta y tarjeta un poco más ancha */
+@media(min-width:600px) and (max-width:899px){
+  .lg2-top{padding-top:calc(64px + env(safe-area-inset-top));padding-bottom:130px}
+  .lg2-t{font-size:96px}
+  .lg2-in{max-width:520px;margin-top:-96px}
+  .lg2-card{padding:22px}
+  .lg2{justify-content:flex-start}.lg2-top{min-height:38vh;display:flex;align-items:center;justify-content:center}
+  .lg2-brand>.row{transform:scale(1.3);margin-bottom:8px}
+}
+/* tablet horizontal y computador: dos columnas, marca a la izquierda y acceso a la derecha */
+@media(min-width:900px){
+  .lg2{flex-direction:row;height:100dvh;min-height:560px}
+  .lg2-top{flex:1 1 52%;display:flex;align-items:center;justify-content:center;padding:48px}
+  .lg2-top:after{right:-40px;bottom:-40px;width:360px;height:316px}
+  .lg2-t{font-size:clamp(84px,8vw,128px)}
+  .lg2-sub{font-size:13px}
+  .lg2-in{flex:1 1 48%;max-width:none;margin:0;padding:32px 48px;overflow-y:auto;justify-content:safe center;align-items:center;gap:16px;background:var(--bg)}
+  .lg2-in>*{width:100%;max-width:420px}
+  .lg2-card{padding:22px;box-shadow:none;border:1px solid var(--line)}
+  .lg2-in>p.xs{margin-top:0!important}
+  .lg2-tagm{display:none}
+  .lg2-tag{display:block;max-width:380px;margin-top:22px;font-size:16px;line-height:1.5;color:rgba(255,255,255,.72)}.lg2-tag b{color:#fff}
+  .lg2-brand>.row{transform:scale(1.5);transform-origin:center;margin-bottom:12px}
+  .lg2-top:after{opacity:.045}
+}
 .pcred:after,.cred:after{content:"";position:absolute;right:-30px;bottom:-34px;width:170px;height:150px;background:var(--pa);opacity:.1;-webkit-mask:var(--mark) center/contain no-repeat;mask:var(--mark) center/contain no-repeat;transform:rotate(-12deg);pointer-events:none}
 .pc-av{flex:none;border-radius:50%;padding:3px;background:linear-gradient(135deg,var(--pa),#fff)}.pc-av .av{border:3px solid var(--g1);color:var(--pa);background-color:var(--g1)}
 .pc-ey{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--pa)}
@@ -1497,7 +1522,7 @@ function vLogin(){
   return `<div class="lg2"><header class="lg2-top"><div class="lg2-brand fade">
       <div class="row" style="gap:8px;justify-content:center">${logoSM()}<span class="x b" style="color:rgba(255,255,255,.55)">×</span>${logoKAH()}</div>
       <h1 class="disp lg2-t">Strong<span style="color:#ccff33">Med</span></h1>
-      <div class="lg2-sub">Kinesiología · Entrenamiento</div><div class="lg2-bar"></div></div></header>
+      <div class="lg2-sub">Kinesiología · Entrenamiento</div><div class="lg2-bar"></div><p class="lg2-tag">Tu rehabilitación y tu entrenamiento en un solo lugar. En colaboración con <b>Kin At Home</b>.</p></div></header>
     <div class="lg2-in fade">
     <section class="lg2-card">
     <div class="seg"><button class="${pat?'on':''}" onclick="S.loginMode='pat';render()">Soy atleta / paciente</button><button class="${!pat?'on':''}" onclick="S.loginMode='pro';render()">Soy profesional</button></div>
@@ -1512,7 +1537,7 @@ function vLogin(){
         <button class="btn pri block" id="l-btn">Entrar al panel ${ic('chevr')}</button></form>`}
     </section>
     <button class="lg2-book" onclick="S.bk=null;S.loginMode='reservar';render()"><span class="ico">${ic('cal')}</span><span class="grow"><small>Sin crear cuenta</small><b>Agendar hora</b><span>Solicita tu evaluación o sesión</span></span>${ic('chevr','s chev')}</button>
-    <p class="sm muted center" style="max-width:360px;margin:0 auto">Tu rehabilitación y tu entrenamiento en un solo lugar. En colaboración con <b style="color:var(--tx)">Kin At Home</b>.</p>
+    <p class="sm muted center lg2-tagm" style="max-width:360px;margin:0 auto">Tu rehabilitación y tu entrenamiento en un solo lugar. En colaboración con <b style="color:var(--tx)">Kin At Home</b>.</p>
     ${installBtn()}
     <p class="xs muted center" style="margin-top:6px">StrongMed × Kin At Home · Concepción, Chile</p>
     <p class="xs muted center" style="opacity:.7">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>

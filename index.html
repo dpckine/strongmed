@@ -759,7 +759,7 @@ button.li:active{background-color:transparent}
 .pc-grid>div{background:rgba(255,255,255,.1);backdrop-filter:blur(6px);border-radius:16px;padding:10px 12px}
 .pc-grid small,.cr-l{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pa)}
 .pc-grid b{display:block;font-size:15px;margin-top:2px}
-.btn.pc-b{background:var(--pa);color:#0a0a0a}.btn.pc-b2{background:rgba(255,255,255,.12);color:#fff}
+.btn.pc-b{background:var(--pa);color:var(--acc-ink)}.btn.pc-b2{background:rgba(255,255,255,.12);color:#fff}
 .cred{padding:20px;border:2px solid color-mix(in srgb,var(--pa) 70%,transparent)}
 .cred .brandtxt small{color:var(--mu)}
 .cr-yr{text-align:right;line-height:1.05}.cr-yr small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--pa)}.cr-yr b{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800}
@@ -5517,7 +5517,11 @@ const PLAN_C = {
 /* plan de la persona: odontología, solo app, rehabilitación, mixto o entrenamiento (recovery si la mayoría de sus últimas sesiones en la Sala fueron recovery) */
 function planDe(p){ if(soloOral(p)) return 'oral'; if(p.modalidad==='app') return 'app'; const per=perfilOf(p); if(per!=='entrenamiento') return per;
   const s=presSes(p).slice(-6); return s.length && s.filter(x=>x.tipo==='recovery').length*2>s.length ? 'recovery' : 'entrenamiento'; }
-const planVars = k => { const c=PLAN_C[k]; return `--pa:${c.a};--g1:${c.g[0]};--g2:${c.g[1]};--g3:${c.g[2]}`; };
+/* colores de la credencial: salen del color elegido en Apariencia (degradado oscuro → color de la app); el plan solo cambia el texto y el ícono */
+const accHex = () => (getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33');
+const mixHex = (a, b, t) => { const h=s=>{ s=s.replace('#',''); if(s.length===3) s=[...s].map(c=>c+c).join(''); return [0,2,4].map(i=>parseInt(s.slice(i,i+2),16)||0); }, A=h(a), B=h(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const credCols = () => { const a=accHex(); return {a, g:[mixHex(a,'#07070a',.1), mixHex(a,'#0c0c10',.4), a]}; };
+const planVars = () => { const c=credCols(); return `--pa:${c.a};--g1:${c.g[0]};--g2:${c.g[1]};--g3:${c.g[2]}`; };
 const edadTxt = p => { const e=edadDe(p); return e!=='' && e!=null ? `${e} años` : '—'; };
 function perfilCard(p){ if(isPending(p)) return ''; const k=planDe(p), c=PLAN_C[k];
   return `<section class="pcred" style="${planVars(k)}"><div class="row" style="gap:14px;align-items:center;position:relative;z-index:1">
@@ -5589,7 +5593,7 @@ window.verCredencial = () => { const d=credInfo(); if(!d) return; const c=PLAN_C
   clearInterval(credTimer); credTimer=setInterval(()=>{ const t=$('#cr-t'); if(!t){ clearInterval(credTimer); return; } t.textContent=credHora(); }, 1000); };
 
 /* imagen para historias (1080×1920): sin RUT ni usuario; el logo va siempre con sus colores */
-async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d'), c=PLAN_C[d.k], A=c.a;
+async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d'), c=credCols(), A=c.a;
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
   let g=x.createLinearGradient(0,0,W*.9,H); g.addColorStop(0,c.g[0]); g.addColorStop(.55,c.g[1]); g.addColorStop(1,c.g[2]); x.fillStyle=g; x.fillRect(0,0,W,H);

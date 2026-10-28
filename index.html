@@ -733,7 +733,7 @@ button.li:active{background-color:transparent}
 /* ---- mi perfil y credencial: cada plan con su color (--pa acento, --g1/--g2 fondo) ---- */
 .pcred,.cred{--tx:#fff;--mu:rgba(255,255,255,.7);--line2:rgba(255,255,255,.22);--lg-bar:#fff;--lg-cross:#ccff33;position:relative;overflow:hidden;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.18);background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.28)),radial-gradient(90% 70% at 0% 100%,color-mix(in srgb,var(--g2) 70%,transparent),transparent 70%),linear-gradient(125deg,var(--g1) 0%,var(--g2) 52%,var(--g3) 110%);border-radius:28px;padding:18px}
 .pcred .btn,.cred .btn{text-shadow:none}
-.pcred:before,.cred:before{content:"";position:absolute;inset:-60%;background:#fff;opacity:.035;-webkit-mask:var(--markp) 0 0/96px 83px repeat;mask:var(--markp) 0 0/96px 83px repeat;transform:rotate(-14deg);pointer-events:none}
+.pcred:before,.cred:before{content:"";position:absolute;inset:-60%;background:#fff;opacity:.022;-webkit-mask:var(--markp) 0 0/96px 83px repeat;mask:var(--markp) 0 0/96px 83px repeat;transform:rotate(-14deg);pointer-events:none}
 .pcred:after,.cred:after{opacity:.11!important;width:220px!important;height:194px!important;right:-46px!important;bottom:-40px!important}
 .cred:after{width:280px!important;height:246px!important;bottom:150px!important;right:-70px!important}
 .pcred>*,.cred>*{position:relative;z-index:1}
@@ -807,6 +807,31 @@ button.li:active{background-color:transparent}
 .cr-qr svg{width:170px;height:170px;display:block}
 .cr-qr small{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#55555c;margin-top:6px}
 .cr-qr b{font-size:16px;font-variant-numeric:tabular-nums}
+/* credencial v2: tarjeta de socio con brillo, foto verificada, datos en franja y pie blanco con QR */
+.cr2{padding:20px 20px 0;border:1px solid rgba(255,255,255,.2);box-shadow:0 22px 44px -18px color-mix(in srgb,var(--pa) 55%,transparent)}
+.cr2:after{bottom:120px!important}
+.cr-sheen{position:absolute!important;inset:0;z-index:0!important;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.13) 47%,transparent 58%);background-size:260% 100%;animation:crsh 7s ease-in-out infinite}
+@keyframes crsh{0%{background-position:130% 0}55%,100%{background-position:-70% 0}}
+@media (prefers-reduced-motion:reduce){.cr-sheen{animation:none}}
+.cr-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cr-tag{text-align:right;line-height:1.05}.cr-tag small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--pa)}.cr-tag b{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800}
+.cr-id{display:flex;gap:16px;align-items:center;margin-top:22px}
+.cr-ph{position:relative;flex:none;padding:3px;border-radius:50%;background:conic-gradient(from 200deg,var(--pa),#fff,var(--pa),color-mix(in srgb,var(--pa) 40%,#fff),var(--pa))}
+.cr-ph .av{width:84px!important;height:84px!important;border:3px solid var(--g1);background-color:var(--g1);color:var(--pa);font-size:28px}
+.cr-ok{position:absolute;right:-1px;bottom:3px;width:26px;height:26px;border-radius:50%;background:var(--pa);color:var(--acc-ink);display:grid;place-items:center;border:3px solid var(--g1)}.cr-ok .icon{width:13px;height:13px;stroke-width:3.2}
+.cr-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.13);color:var(--pa);font-size:12px;font-weight:700;max-width:100%}
+.cr-nm{font-family:'Barlow Condensed',sans-serif;font-weight:800;text-transform:uppercase;font-size:34px;line-height:.95;margin-top:8px;overflow-wrap:anywhere;letter-spacing:.01em}
+.cr-ey{font-size:12px;font-weight:600;color:var(--mu);margin-top:5px}
+.cr-data{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin-top:18px;padding:12px 0;border-radius:18px;background:rgba(0,0,0,.2);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.cr-data>div{padding:0 14px;min-width:0}.cr-data>div+div{border-left:1px solid rgba(255,255,255,.16)}
+.cr-data small{display:block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--pa)}.cr-data b{display:block;font-size:15px;margin-top:3px;overflow-wrap:anywhere}
+.cr-foot{display:flex;gap:14px;align-items:center;margin:18px -20px 0;padding:14px 20px 16px;background:#fff;color:#0b0b0d;text-shadow:none}
+.cr-q{flex:none;padding:4px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)}.cr-q svg{width:108px;height:108px;display:block}
+.cr-foot small{display:block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6b6b72}.cr-foot b{display:block;font-size:17px;margin-top:2px}
+.cr-live{display:flex;align-items:center;gap:7px;margin-top:10px;padding:6px 10px;border-radius:10px;background:#f2f2ef;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.01em;width:max-content;max-width:100%}
+.cr-live i{width:8px;height:8px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 0 rgba(229,72,77,.6);animation:crlive 1.6s infinite;flex:none}
+@keyframes crlive{70%{box-shadow:0 0 0 7px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+.cr-strip{height:6px;margin:0 -20px;background:linear-gradient(90deg,var(--g2),var(--pa),#fff)}
 </style>
 </head>
 <body>
@@ -5615,12 +5640,13 @@ function credInfo(){ if(S.role==='pro' && S.pro){ const x=S.pro, prof=conProfesi
   return {k, nombre:p.nombre, av:avatar(p,96), marca:p.marca, eti:'Plan', plan:PLAN_C[k].t, foto:p.avatar||null, propio:true, filas:[['RUT', esc(fmtRut(p.rut))]], abajo:[['Edad',edadTxt(p)]]}; }
 window.verCredencial = () => { const d=credInfo(); if(!d) return; const c=PLAN_C[d.k];
   sheet(`<h2 class="disp h2">Credencial digital</h2>
-  <div class="cred" style="${planVars(d.k)};margin-top:14px"><div class="row between" style="align-items:flex-start;position:relative;z-index:1">${d.marca==='sm+kah'?`<div class="row" style="gap:6px">${logoSM()}<span class="x b" style="color:rgba(255,255,255,.55)">×</span>${logoKAH()}</div>`:brands(d.marca)}<div class="cr-yr"><small>${d.propio?'Miembro':'Equipo'}</small><b>${new Date().getFullYear()}</b></div></div>
-    <div class="cr-line"></div>
-    <div class="row" style="align-items:flex-start;gap:14px;position:relative;z-index:1"><div class="grow"><small class="cr-l">${d.eti}</small><div class="cr-plan">${ic(c.i,'s')} ${esc(d.plan)}</div><div class="cr-name">${esc(d.nombre)}</div>
-      ${d.filas.map(([l,v])=>`<small class="cr-l">${l}</small><div class="cr-v" style="margin-bottom:8px">${v}</div>`).join('')}</div><div class="cr-foto">${d.av}</div></div>
-    <div class="cr-grid">${d.abajo.map(([l,v])=>`<div><small class="cr-l">${l}</small><div class="cr-v">${v}</div></div>`).join('')}</div>
-    <div class="cr-qr">${qrSvg(QR_IG)}<small>Síguenos · @strongmed_cl</small><b id="cr-t">${credHora()}</b></div></div>
+  <div class="cred cr2" style="${planVars(d.k)};margin-top:14px"><div class="cr-sheen"></div>
+    <div class="cr-top">${d.marca==='sm+kah'?`<div class="row" style="gap:6px">${logoSM()}<span class="x b" style="color:rgba(255,255,255,.55)">×</span>${logoKAH()}</div>`:brands(d.marca)}<div class="cr-tag"><small>Credencial oficial</small><b>${new Date().getFullYear()}</b></div></div>
+    <div class="cr-id"><div class="cr-ph">${d.av}<span class="cr-ok" title="Verificada">${ic('check','s')}</span></div>
+      <div class="grow" style="min-width:0"><span class="cr-chip">${ic(c.i,'s')} ${esc(d.plan)}</span><div class="cr-nm">${esc(d.nombre)}</div><div class="cr-ey">${d.propio?'Miembro StrongMed':'Equipo StrongMed'}</div></div></div>
+    <div class="cr-data">${[...d.filas, ...d.abajo].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('')}</div>
+    <div class="cr-foot"><div class="cr-q">${qrSvg(QR_IG)}</div><div class="grow"><small>Síguenos en Instagram</small><b>@strongmed_cl</b><div class="cr-live"><i></i><span id="cr-t">${credHora()}</span></div></div></div>
+    <div class="cr-strip"></div></div>
   <p class="sm muted center" style="margin-top:12px">Muéstrala cuando te la pidan. La fecha y la hora corren en vivo: así se nota que no es una captura de pantalla.</p>
   <div class="stack" style="margin-top:12px"><button class="btn pri block" onclick="credCompartir()">${ic('upload','s')} Compartir en historias</button>
   ${d.propio?`<label class="btn sec block" style="cursor:pointer">${ic('user','s')} Cambiar foto<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event);setTimeout(verCredencial,900)"></label>`:''}</div>`);
@@ -5635,24 +5661,34 @@ async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('can
   g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgba(0,0,0,.18)'); g.addColorStop(.5,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.3)'); x.fillStyle=g; x.fillRect(0,0,W,H);
   // fondo con el logo repetido en diagonal y uno grande del color de la app
   const mark=(mx,my,size,rot,col,al)=>{ const sc=size/336; x.save(); x.globalAlpha=al; x.translate(mx,my); x.rotate(rot); x.scale(sc,sc); x.translate(-256,-256); x.fillStyle=col; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore(); };
-  for(let r=0, yy=-60; yy<H+120; r++, yy+=230) for(let xx=(r%2?-60:80); xx<W+160; xx+=280) mark(xx,yy,100,-.24,'#ffffff',.035);
+  for(let r=0, yy=-60; yy<H+120; r++, yy+=230) for(let xx=(r%2?-60:80); xx<W+160; xx+=280) mark(xx,yy,100,-.24,'#ffffff',.022);
   mark(W-150,H-420,620,-.21,A,.11);
   storyLogos(x,F,I,'#ccff33',110);
-  x.fillStyle='#fff'; x.font=I(30,800); x.fillText('CREDENCIAL OFICIAL',80,330); x.textAlign='right'; x.fillText((d.propio?'MIEMBRO ':'EQUIPO ')+new Date().getFullYear(),1000,330); x.textAlign='left';
-  g=x.createLinearGradient(80,0,1000,0); g.addColorStop(0,A); g.addColorStop(1,'rgba(255,255,255,.35)'); x.fillStyle=g; x.fillRect(80,356,920,6);
-  // foto en círculo con anillo degradado
-  const cx=W/2, cy=640, R=200; x.save(); g=x.createLinearGradient(cx-R,cy-R,cx+R,cy+R); g.addColorStop(0,A); g.addColorStop(1,'#fff'); x.beginPath(); x.arc(cx,cy,R+16,0,7); x.fillStyle=g; x.fill(); x.beginPath(); x.arc(cx,cy,R,0,7); x.fillStyle=c.g[0]; x.fill(); x.clip();
+  // tarjeta de socio: panel translúcido con brillo, foto verificada, nombre, plan y pie blanco con el QR
+  const kx=70, ky=280, kw=940, kh=1470, kr=56; x.save(); rr(kx,ky,kw,kh,kr); x.fillStyle='rgba(0,0,0,.22)'; x.fill(); x.lineWidth=3; x.strokeStyle='rgba(255,255,255,.22)'; x.stroke(); x.clip();
+  g=x.createLinearGradient(kx,ky,kx+kw,ky+kh*.6); g.addColorStop(.3,'rgba(255,255,255,0)'); g.addColorStop(.45,'rgba(255,255,255,.1)'); g.addColorStop(.6,'rgba(255,255,255,0)'); x.fillStyle=g; x.fillRect(kx,ky,kw,kh);
+  x.fillStyle=A; x.font=I(28,800); x.fillText('CREDENCIAL OFICIAL',130,372); x.fillStyle='rgba(255,255,255,.7)'; x.font=I(26,700); x.fillText(d.propio?'Miembro StrongMed':'Equipo StrongMed',130,410);
+  x.textAlign='right'; x.fillStyle='#fff'; x.font=F(84); x.fillText(String(new Date().getFullYear()),950,410); x.textAlign='left';
+  g=x.createLinearGradient(130,0,950,0); g.addColorStop(0,A); g.addColorStop(1,'rgba(255,255,255,.3)'); x.fillStyle=g; x.fillRect(130,440,820,5);
+  // foto en círculo con anillo degradado y sello de verificada
+  const cx=W/2, cy=670, R=180; x.save(); g=x.createLinearGradient(cx-R,cy-R,cx+R,cy+R); g.addColorStop(0,A); g.addColorStop(.5,'#fff'); g.addColorStop(1,A); x.beginPath(); x.arc(cx,cy,R+14,0,7); x.fillStyle=g; x.fill(); x.beginPath(); x.arc(cx,cy,R,0,7); x.fillStyle=c.g[0]; x.fill(); x.clip();
   const im=d.foto ? await new Promise(r=>{ const m=new Image(); m.onload=()=>r(m); m.onerror=()=>r(null); m.src=d.foto; }) : null;
   if(im){ const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); }
-  else { x.fillStyle=A; x.font=F(170); x.textAlign='center'; x.fillText(String(d.nombre||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase(),cx,cy+60); x.textAlign='left'; }
+  else { x.fillStyle=A; x.font=F(150); x.textAlign='center'; x.fillText(String(d.nombre||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase(),cx,cy+54); x.textAlign='left'; }
   x.restore();
-  x.textAlign='center'; x.fillStyle='#fff'; let fs=110; const nm=String(d.nombre||'').toUpperCase(); x.font=F(fs); while(x.measureText(nm).width>940 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(nm,cx,980);
-  x.fillStyle=A; x.font=F(64,800); x.fillText(String(d.plan).toUpperCase(),cx,1066);
-  // QR en tarjeta blanca
-  const M=qrMatrix(QR_IG), N=M.length, qs=380, mod=qs/N, qx=cx-qs/2, qy=1170; x.fillStyle='#fff'; rr(qx-40,qy-40,qs+80,qs+150,36); x.fill();
-  x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
-  x.fillStyle='#0b0b0d'; x.font=I(36,800); x.fillText('@strongmed_cl',cx,qy+qs+68);
-  x.fillStyle='rgba(255,255,255,.85)'; x.font=I(30,700); x.fillText('SÍGUENOS EN INSTAGRAM',cx,qy+qs+190); x.textAlign='left';
+  const bx=cx+R*.72, by=cy+R*.72; x.beginPath(); x.arc(bx,by,44,0,7); x.fillStyle=A; x.fill(); x.lineWidth=10; x.strokeStyle=c.g[0]; x.stroke();
+  x.beginPath(); x.moveTo(bx-18,by+1); x.lineTo(bx-5,by+14); x.lineTo(bx+19,by-12); x.lineWidth=9; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#0b0b0d'; x.stroke();
+  // nombre y plan en cápsula
+  x.textAlign='center'; x.fillStyle='#fff'; let fs=124; const nm=String(d.nombre||'').toUpperCase(); x.font=F(fs); while(x.measureText(nm).width>840 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(nm,cx,1000);
+  x.font=I(38,700); const pl=String(d.plan), pw=x.measureText(pl).width+80; rr(cx-pw/2,1040,pw,72,36); x.fillStyle='rgba(255,255,255,.14)'; x.fill(); x.fillStyle=A; x.fillText(pl,cx,1089); x.textAlign='left';
+  // pie blanco con el QR
+  x.fillStyle='#fff'; x.fillRect(kx,1190,kw,kh-(1190-ky));
+  const M=qrMatrix(QR_IG), N=M.length, qs=380, mod=qs/N, qx=120, qy=1270; x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
+  x.fillStyle='#6b6b72'; x.font=I(26,800); x.fillText('SÍGUENOS EN',550,1380); x.fillText('INSTAGRAM',550,1414); x.fillStyle='#0b0b0d'; x.font=I(50,800); x.fillText('@strongmed_cl',550,1490);
+  x.fillStyle='#6b6b72'; x.font=I(28,600); x.fillText('Escanea el código',550,1550); x.fillText('con tu cámara',550,1588);
+  g=x.createLinearGradient(kx,0,kx+kw,0); g.addColorStop(0,c.g[1]); g.addColorStop(.6,A); g.addColorStop(1,'#fff'); x.fillStyle=g; x.fillRect(kx,ky+kh-12,kw,12);
+  x.restore();
+  x.textAlign='center'; x.fillStyle='rgba(255,255,255,.75)'; x.font=I(28,600); x.fillText('StrongMed × Kin At Home · Concepción, Chile',cx,1835); x.textAlign='left';
   return new Promise(r=>cv.toBlob(r,'image/png')); }
 window.credCompartir = async () => { const d=credInfo(); if(!d) return; toast('Preparando la imagen…'); const blob=await credBlob(d); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); S.shareBlob=blob; S.shareUrl=URL.createObjectURL(blob);
   sheet(`<h2 class="disp h2">Compartir credencial</h2><div style="margin:14px auto;max-width:280px;border-radius:18px;overflow:hidden"><img src="${S.shareUrl}" alt="Vista previa" style="width:100%;display:block"></div>

@@ -2853,6 +2853,10 @@ function vPerfil(p){
   <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`;
 }
+/* foto del profesional para su credencial: se guarda en su agenda (256 px, liviana) */
+window.subirFotoPro = e => { const f=e.target.files[0]; if(!f || !S.pro) return; const img=new Image(), rd=new FileReader();
+  rd.onload=ev=>{ img.onload=async()=>{ const c=document.createElement('canvas'), s=256, r=Math.max(s/img.width,s/img.height); c.width=c.height=s; c.getContext('2d').drawImage(img,(s-img.width*r)/2,(s-img.height*r)/2,img.width*r,img.height*r);
+    const a={...myAgenda(), foto:c.toDataURL('image/jpeg',.82)}; if((await saveAgenda(a))===false) return; toast('Foto actualizada'); render(); verCredencial(); }; img.src=ev.target.result; }; rd.readAsDataURL(f); };
 window.subirAvatar = e => { const f=e.target.files[0]; if(!f) return; const img=new Image(), rd=new FileReader();
   rd.onload=ev=>{ img.onload=async()=>{ const c=document.createElement('canvas'), s=256, r=Math.max(s/img.width,s/img.height); c.width=c.height=s; const x=c.getContext('2d'); x.drawImage(img,(s-img.width*r)/2,(s-img.height*r)/2,img.width*r,img.height*r);
     const p=me(); p.avatar=c.toDataURL('image/jpeg',.82); await save(p); toast('Foto actualizada'); render(); }; img.src=ev.target.result; }; rd.readAsDataURL(f); };
@@ -3714,7 +3718,7 @@ window.stopChat = stopChat;
 /* ---- Más / Profesionales / Ajustes ---- */
 /* tarjeta del profesional en Más: su credencial de equipo */
 function proPerfilCard(){ const d=credInfo(); if(!d) return ''; const c=PLAN_C.equipo;
-  return `<section class="pcred" style="${planVars('equipo')}"><div class="row" style="gap:14px;align-items:center;position:relative;z-index:1"><span class="pc-av">${avatar({nombre:d.nombre},64)}</span>
+  return `<section class="pcred" style="${planVars('equipo')}"><div class="row" style="gap:14px;align-items:center;position:relative;z-index:1"><span class="pc-av">${avatar({nombre:d.nombre, avatar:d.foto},64)}</span>
     <div class="grow"><div class="pc-ey">Mi credencial</div><h2 class="pc-n">${esc(d.nombre)}</h2><span class="pc-plan">${ic(c.i,'s')} ${esc(d.plan)} · ${esc(d.filas[0][1])}</span></div></div>
     <div class="row" style="gap:8px;margin-top:14px;position:relative;z-index:1"><button class="btn sm pc-b" onclick="verCredencial()">${ic('idcard','s')} Credencial</button><button class="btn sm pc-b2" onclick="credCompartir()">${ic('upload','s')} Compartir</button></div></section>`; }
 function vMas(){ return `<header class="top"><h1 class="disp h1">Más</h1></header><div class="stack">${proPerfilCard()}<div class="list">
@@ -5635,7 +5639,8 @@ const credHora = () => { const n=new Date(); return `${pad(n.getDate())}-${pad(n
 /* datos de la credencial: persona (plan, RUT, edad) o profesional (profesión, empresa, rol); solo datos básicos */
 const ORG_TXT = {sm:'StrongMed', kah:'Kin At Home', all:'StrongMed × Kin At Home'};
 function credInfo(){ if(S.role==='pro' && S.pro){ const x=S.pro, prof=conProfesion(x.nombre, x.id) || x.nombre, t=prof.split(' ')[0], nom=String(x.nombre||'').replace(/^(Klg[oa]\.|Dra?\.)\s*/i,'');
-    return {k:'equipo', nombre:nom, av:avatar({nombre:nom},96), marca:x.org==='kah'||x.org==='all'?'sm+kah':'sm', eti:'Profesional', plan:t, foto:null, propio:false,
+    const ft=myAgenda()?.foto||null;
+    return {k:'equipo', nombre:nom, av:avatar({nombre:nom, avatar:ft},96), marca:x.org==='kah'||x.org==='all'?'sm+kah':'sm', eti:'Profesional', plan:t, foto:ft, propio:false,
       filas:[['Empresa', ORG_TXT[x.org]||'StrongMed']], abajo:[] }; }
   const p=me(); if(!p) return null; const k=planDe(p);
   return {k, nombre:p.nombre, av:avatar(p,96), marca:p.marca, eti:'Plan', plan:PLAN_C[k].t, foto:p.avatar||null, propio:true, filas:[['RUT', esc(fmtRut(p.rut))]], abajo:[['Edad',edadTxt(p)]]}; }
@@ -5650,7 +5655,7 @@ window.verCredencial = () => { const d=credInfo(); if(!d) return; const c=PLAN_C
     <div class="cr-strip"></div></div>
   <p class="sm muted center" style="margin-top:12px">Muéstrala cuando te la pidan. La fecha y la hora corren en vivo: así se nota que no es una captura de pantalla.</p>
   <div class="stack" style="margin-top:12px"><button class="btn pri block" onclick="credCompartir()">${ic('upload','s')} Compartir en historias</button>
-  ${d.propio?`<label class="btn sec block" style="cursor:pointer">${ic('user','s')} Cambiar foto<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event);setTimeout(verCredencial,900)"></label>`:''}</div>`);
+  <label class="btn sec block" style="cursor:pointer">${ic('user','s')} ${d.foto?'Cambiar foto':'Subir foto'}<input type="file" accept="image/*" class="hidden" onchange="${d.propio?'subirAvatar(event);setTimeout(verCredencial,900)':'subirFotoPro(event)'}"></label></div>`);
   clearInterval(credTimer); credTimer=setInterval(()=>{ const t=$('#cr-t'); if(!t){ clearInterval(credTimer); return; } t.textContent=credHora(); }, 1000); };
 
 /* imagen para historias (1080×1920): sin RUT ni usuario; el logo va siempre con sus colores */

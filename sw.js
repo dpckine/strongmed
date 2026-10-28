@@ -1,6 +1,6 @@
-/* StrongMed — service worker: la app abre sin internet.
-   Los datos (Firestore) los guarda Firebase en el teléfono y los sincroniza solo. */
-const V = 'sm-v120';
+﻿/* StrongMed â€” service worker: la app abre sin internet.
+   Los datos (Firestore) los guarda Firebase en el telÃ©fono y los sincroniza solo. */
+const V = 'sm-v121';
 const SHELL = ['./', './index.html', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js', 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './data/ejercicios.json?v=37', './js/sm-anim.js?v=46', './js/sm-3d.js?v=45', './js/sm-import.js?v=1', 'https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'sm-media' && k !== 'sm-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -13,17 +13,17 @@ const cacheFirst = async (req, cacheName) => { const c = await caches.open(cache
 self.addEventListener('fetch', e => {
   const req = e.request, u = req.url;
   if (req.method !== 'GET' || isData(u) || !/^https?:/.test(u)) return;
-  if (req.mode === 'navigate') {   // la app: si la red tarda más de 2,5 s se abre la copia guardada (y se actualiza por detrás)
+  if (req.mode === 'navigate') {   // la app: si la red tarda mÃ¡s de 2,5 s se abre la copia guardada (y se actualiza por detrÃ¡s)
     const red = fetch(req).then(r => { if (r && r.ok) { const cp = r.clone(); caches.open(V).then(c => c.put('./index.html', cp)); } return r; });
     e.respondWith(new Promise(res => { let listo = false;
       const t = setTimeout(async () => { const c = await caches.match('./index.html'); if (c && !listo) { listo = true; res(c); } }, 2500);
       red.then(r => { if (!listo) { listo = true; clearTimeout(t); res(r); } }).catch(async () => { clearTimeout(t); if (!listo) { listo = true; res((await caches.match('./index.html')) || Response.error()); } });
     }));
     return; }
-  if (/gstatic\.com\/firebasejs\/|cdn\.jsdelivr\.net|unpkg\.com|fonts\.gstatic\.com/.test(u)) { e.respondWith(cacheFirst(req, V)); return; }  // librerías con versión fija: siempre desde el teléfono
+  if (/gstatic\.com\/firebasejs\/|cdn\.jsdelivr\.net|unpkg\.com|fonts\.gstatic\.com/.test(u)) { e.respondWith(cacheFirst(req, V)); return; }  // librerÃ­as con versiÃ³n fija: siempre desde el telÃ©fono
   if (/tile\.openstreetmap\.(org|de|fr)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-tiles')); return; }
   if (/\/(images|videos)\//.test(u) || /\.(gif|jpe?g|png|webp)(\?|$)/.test(u)) { e.respondWith(cacheFirst(req, 'sm-media')); return; }
-  e.respondWith(swr(req, V));   // librerías (Firebase, Chart.js, mapas, fuentes) y datos
+  e.respondWith(swr(req, V));   // librerÃ­as (Firebase, Chart.js, mapas, fuentes) y datos
 });
 
 /* aviso que llega desde el servidor con la app cerrada (Web Push) */
@@ -32,7 +32,7 @@ self.addEventListener('push', e => { let d={}; try{ d=e.data ? e.data.json() : {
     tag:d.tag||undefined, renotify:!!d.tag, data:{tab:d.tab||'hoy', url:d.url||self.registration.scope}})); });
 self.addEventListener('pushsubscriptionchange', e => { e.waitUntil(self.clients.matchAll({type:'window'}).then(cs => cs.forEach(c => c.postMessage({tipo:'resuscribir'})))); });
 
-/* tocar una notificación: abre (o enfoca) la app y le avisa qué hacer */
+/* tocar una notificaciÃ³n: abre (o enfoca) la app y le avisa quÃ© hacer */
 self.addEventListener('notificationclick', e => { const n=e.notification, d=n.data||{}, accion=e.action||''; n.close();
   e.waitUntil((async () => { const cs=await self.clients.matchAll({type:'window', includeUncontrolled:true});
     let c=cs.find(x=>x.url.startsWith(self.registration.scope)); if(c){ await c.focus(); } else { c=await self.clients.openWindow(d.url||'./'); }

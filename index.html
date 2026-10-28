@@ -653,6 +653,82 @@ button,.li,.pcard,.gpsb,.stat,.tab,label.btn,a.btn{touch-action:manipulation;-we
 .ejsteps .n{width:26px;height:26px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font-weight:800;font-size:12.5px;display:grid;place-items:center;flex:none}
 .ejsteps p{font-size:14.5px;line-height:1.5;margin:0;color:var(--tx)}
 .libc .im img{object-fit:contain;padding:6%}
+
+/* ===== Material 3 × StrongMed (sm-v121): superficies por tono, formas redondeadas, indicador en píldora, capas de estado ===== */
+:root{
+  --bg:#0b0b0d;
+  --card:color-mix(in srgb,var(--acc) 3%,#161619); --card2:color-mix(in srgb,var(--acc) 5%,#1f1f23); --card3:color-mix(in srgb,var(--acc) 6%,#2a2a2f);
+  --line:rgba(255,255,255,.06); --line2:rgba(255,255,255,.12);
+  --r:24px; --st:color-mix(in srgb,currentColor 10%,transparent); --st-h:color-mix(in srgb,currentColor 7%,transparent);
+}
+:root[data-theme="light"]{
+  --bg:color-mix(in srgb,var(--acc) 5%,#f5f6f1); --card:#ffffff; --card2:color-mix(in srgb,var(--acc) 6%,#eef0ea); --card3:color-mix(in srgb,var(--acc) 8%,#e4e6df);
+  --line:rgba(0,0,0,.06); --line2:rgba(0,0,0,.12);
+}
+/* tarjetas: sin borde, se separan del fondo por el tono */
+.card,.list,.stat,.libc,.gpsstats>div,.tbox,.jtile,.kex{border-color:transparent}
+.jtile,.jcard,.jfila{border-left-color:var(--c,transparent)}
+.jtile{border-top-color:transparent;border-right-color:transparent;border-bottom-color:transparent}
+.hero{border-radius:28px}
+.stat{border-radius:20px}
+.li+.li{border-top-color:var(--line)}
+/* botones en píldora */
+.btn{border-radius:999px;height:48px;padding:0 22px;letter-spacing:.005em}
+.btn.sm{height:38px;border-radius:999px;padding:0 15px}
+.btn.sec{background:var(--card2);border-color:transparent}
+.btn.ghost{border-radius:999px}
+.grid2>.btn,.grid2>label.btn,.grid3>.btn{border-radius:20px}
+.otras3 .btn{border-radius:20px}
+.ibtn,.hbtn{border-radius:50%;border-color:transparent}
+.hbtn{background:var(--card2)}
+/* capas de estado (respuesta al toque) */
+.btn,.ibtn,.hbtn,.li,.pill,.tab,.seg button,.pcard,button.stat,button.card,.gpsb,.kex,.side .nav button,.dchip{background-image:none}
+.btn:active,.ibtn:active,.hbtn:active,button.li:active,.pill:active,.seg button:active,.pcard:active,button.stat:active,button.card:active,.gpsb:active,.kex:active,.side .nav button:active,.dchip:active{background-image:linear-gradient(var(--st),var(--st))}
+@media(hover:hover){.btn:hover,.ibtn:hover,.hbtn:hover,button.li:hover,.pill:hover,.seg button:hover,.pcard:hover,button.stat:hover,button.card:hover,.gpsb:hover,.kex:hover,.side .nav button:hover,.dchip:hover{background-image:linear-gradient(var(--st-h),var(--st-h))}}
+button.li:active{background-color:transparent}
+/* chips (filtros) */
+.pill{height:34px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--tx);font-weight:600}
+.pill.on,.pchk:has(input:checked){background:var(--acc-soft);color:var(--acc-tx);border-color:transparent}
+.badge{border-radius:8px;padding:3px 8px}
+/* botones segmentados */
+.seg{border-radius:999px;padding:3px;background:var(--card2)}
+.seg button{border-radius:999px}
+.seg button.on,:root[data-theme="light"] .seg button.on{background:var(--acc-soft);color:var(--acc-tx);box-shadow:none}
+/* campos de texto */
+.inp{border-radius:14px;border:1px solid var(--line2);background:var(--card2)}
+.inp:focus{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.chat-f .inp,.kbar .inp{border-radius:999px}
+.kbar .btn{border-radius:50%}
+/* hojas inferiores */
+.sheet{border-radius:28px 28px 0 0;border-color:transparent;background:var(--card)}
+@media(min-width:700px){.sheet{border-radius:28px}}
+.grab{width:32px;height:4px;background:var(--mu);opacity:.4;margin-bottom:16px}
+.toast{border-radius:12px}
+/* barra de navegación con indicador en píldora */
+.tabbar{background:color-mix(in srgb,var(--card) 92%,transparent);border-top-color:transparent}
+.tab{gap:5px;font-weight:600;letter-spacing:.01em}
+.tab:not(.fab):before{content:"";position:absolute;top:-4.5px;left:50%;width:58px;height:32px;margin-left:-29px;border-radius:16px;background:var(--acc-soft);z-index:-1;transform:scaleX(.4);opacity:0;transition:transform .25s cubic-bezier(.2,.9,.3,1),opacity .2s}
+.tab.on:not(.fab):before{transform:none;opacity:1}
+.tab.on{font-weight:700}
+.fabc{border-radius:20px;border-color:color-mix(in srgb,var(--card) 92%,var(--bg))}
+.side .nav button{border-radius:999px}
+.side .nav button.on{background:var(--acc-soft);color:var(--tx)}
+@media(min-width:900px){
+  .pat .tabbar{background:var(--bg);border-right-color:var(--line)}
+  .pat .tab{border-radius:999px}
+  .pat .tab:before{display:none}
+  .pat .tab.on{background:var(--acc-soft)}
+  .pat .tab.on .icon{color:var(--acc-tx)}
+}
+/* títulos de sección más limpios */
+.sec-t h2{font-size:14px;letter-spacing:.02em;text-transform:none;color:var(--tx);font-weight:700}
+.sec-t h2:before{background:var(--acc-tx)}
+/* detalles */
+.ico{border-radius:14px}
+.note,.aviso{border-radius:20px}
+.exrow,.trow,.ex,.ejchip,.ejsteps li,.pcard,.nd{border-radius:18px}
+.opt{border-radius:14px}
+.logo-m{border-radius:14px}
 </style>
 </head>
 <body>

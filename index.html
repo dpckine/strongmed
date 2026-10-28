@@ -5646,7 +5646,7 @@ window.verCredencial = () => { const d=credInfo(); if(!d) return; const c=PLAN_C
     <div class="cr-id"><div class="cr-ph">${d.av}<span class="cr-ok" title="Verificada">${ic('check','s')}</span></div>
       <div class="grow" style="min-width:0"><span class="cr-chip">${ic(c.i,'s')} ${esc(d.plan)}</span><div class="cr-nm">${esc(d.nombre)}</div><div class="cr-ey">${d.propio?'Miembro StrongMed':'Equipo StrongMed'}</div></div></div>
     <div class="cr-data">${[...d.filas, ...d.abajo].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('')}</div>
-    <div class="cr-foot"><div class="cr-q">${qrSvg(QR_IG)}</div><div class="grow"><small>Síguenos en Instagram</small><b>@strongmed_cl</b><div class="cr-live"><i></i><span id="cr-t">${credHora()}</span></div></div></div>
+    <div class="cr-qr" style="margin:18px 0 18px">${qrSvg(QR_IG)}<small>Síguenos · @strongmed_cl</small><div class="cr-live" style="background:none;padding:0;margin-top:2px;font-size:16px"><i></i><span id="cr-t">${credHora()}</span></div></div>
     <div class="cr-strip"></div></div>
   <p class="sm muted center" style="margin-top:12px">Muéstrala cuando te la pidan. La fecha y la hora corren en vivo: así se nota que no es una captura de pantalla.</p>
   <div class="stack" style="margin-top:12px"><button class="btn pri block" onclick="credCompartir()">${ic('upload','s')} Compartir en historias</button>
@@ -5684,9 +5684,9 @@ async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('can
   x.font=I(38,700); const pl=String(d.plan), pw=x.measureText(pl).width+80; rr(cx-pw/2,1040,pw,72,36); x.fillStyle='rgba(255,255,255,.14)'; x.fill(); x.fillStyle=A; x.fillText(pl,cx,1089); x.textAlign='left';
   // pie blanco con el QR
   x.fillStyle='#fff'; x.fillRect(kx,1190,kw,kh-(1190-ky));
-  const M=qrMatrix(QR_IG), N=M.length, qs=380, mod=qs/N, qx=120, qy=1270; x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
-  x.fillStyle='#6b6b72'; x.font=I(26,800); x.fillText('SÍGUENOS EN',550,1380); x.fillText('INSTAGRAM',550,1414); x.fillStyle='#0b0b0d'; x.font=I(50,800); x.fillText('@strongmed_cl',550,1490);
-  x.fillStyle='#6b6b72'; x.font=I(28,600); x.fillText('Escanea el código',550,1550); x.fillText('con tu cámara',550,1588);
+  const M=qrMatrix(QR_IG), N=M.length, qs=340, mod=qs/N, qx=cx-qs/2, qy=1240; x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
+  x.textAlign='center'; x.fillStyle='#0b0b0d'; x.font=I(46,800); x.fillText('@strongmed_cl',cx,1648); x.fillStyle='#6b6b72'; x.font=I(26,800); x.fillText('SÍGUENOS EN INSTAGRAM',cx,1698); x.textAlign='left';
+
   g=x.createLinearGradient(kx,0,kx+kw,0); g.addColorStop(0,c.g[1]); g.addColorStop(.6,A); g.addColorStop(1,'#fff'); x.fillStyle=g; x.fillRect(kx,ky+kh-12,kw,12);
   x.restore();
   x.textAlign='center'; x.fillStyle='rgba(255,255,255,.75)'; x.font=I(28,600); x.fillText('StrongMed × Kin At Home · Concepción, Chile',cx,1835); x.textAlign='left';

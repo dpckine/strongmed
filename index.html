@@ -729,6 +729,31 @@ button.li:active{background-color:transparent}
 .exrow,.trow,.ex,.ejchip,.ejsteps li,.pcard,.nd{border-radius:18px}
 .opt{border-radius:14px}
 .logo-m{border-radius:14px}
+/* ---- mi perfil y credencial: cada plan con su color (--pa acento, --g1/--g2 fondo) ---- */
+.pcred,.cred{--tx:#fff;--mu:rgba(255,255,255,.66);--line2:rgba(255,255,255,.22);--lg-bar:#fff;--lg-cross:var(--pa);position:relative;overflow:hidden;color:#fff;background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--pa) 26%,transparent),transparent 60%),linear-gradient(135deg,var(--g1),var(--g2));border-radius:28px;padding:18px}
+.pcred:after,.cred:after{content:"";position:absolute;right:-30px;bottom:-34px;width:170px;height:150px;background:var(--pa);opacity:.1;-webkit-mask:var(--mark) center/contain no-repeat;mask:var(--mark) center/contain no-repeat;transform:rotate(-12deg);pointer-events:none}
+.pc-av{flex:none;border-radius:50%;padding:3px;background:var(--pa)}.pc-av .av{border:3px solid var(--g1);color:var(--pa);background-color:var(--g2)}
+.pc-ey{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--pa)}
+.pc-n{font-size:20px;font-weight:800;line-height:1.15;margin-top:2px;overflow-wrap:anywhere}
+.pc-plan{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:color-mix(in srgb,var(--pa) 20%,transparent);color:var(--pa)}
+.pc-grid,.cr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;position:relative;z-index:1}
+.pc-grid>div{background:rgba(255,255,255,.08);border-radius:16px;padding:10px 12px}
+.pc-grid small,.cr-l{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pa)}
+.pc-grid b{display:block;font-size:15px;margin-top:2px}
+.btn.pc-b{background:var(--pa);color:#0a0a0a}.btn.pc-b2{background:rgba(255,255,255,.12);color:#fff}
+.cred{padding:20px;border:2px solid color-mix(in srgb,var(--pa) 70%,transparent)}
+.cred .brandtxt small{color:var(--mu)}
+.cr-yr{text-align:right;line-height:1.05}.cr-yr small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--pa)}.cr-yr b{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800}
+.cr-line{height:4px;border-radius:4px;margin:14px 0 16px;background:linear-gradient(90deg,var(--pa),color-mix(in srgb,var(--pa) 25%,transparent));position:relative;z-index:1}
+.cr-plan{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--pa);margin-top:2px}
+.cr-name{font-size:24px;font-weight:800;line-height:1.15;margin:6px 0 12px;overflow-wrap:anywhere}
+.cr-v{font-size:16px;font-weight:700;margin-top:2px;display:flex;align-items:center;gap:6px}
+.cr-foto{flex:none;border-radius:22px;padding:3px;background:var(--pa)}.cr-foto .av{border-radius:19px;border:0;color:var(--pa);background-color:var(--g2)}
+.cr-dot{width:10px;height:10px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 3px rgba(61,220,132,.25)}
+.cr-qr{position:relative;z-index:1;margin-top:16px;background:#fff;color:#0b0b0d;border-radius:20px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.cr-qr svg{width:170px;height:170px;display:block}
+.cr-qr small{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#55555c;margin-top:6px}
+.cr-qr b{font-size:16px;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -866,7 +891,8 @@ const ICONS = {
   book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
-  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>'
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  idcard:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16a3 3 0 0 1 6 0M14.5 10h4M14.5 13.5h3"/>'
 };
 const ic = (n,c='') => `<svg class="icon ${c}" viewBox="0 0 24 24">${ICONS[n]||''}</svg>`;
 
@@ -1612,8 +1638,9 @@ function kineCard(p){ if(soloOral(p)) return `<button class="card" style="text-a
 function vHoy(p){
   if(isPending(p)) return vHoyPend(p);
   const per=perfilOf(p), tr=per!=='rehabilitacion', rh=per!=='entrenamiento', nr=nextRoutine(p), w=S.workout;
-  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${avisosHoy(p)}${listoHoyCard(p)}${weekStrip(p,true)}${presHoyCard(p)}${proximaCitaCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
+  if(per==='rehabilitacion') return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">${perfilCard(p)}${avisosHoy(p)}${listoHoyCard(p)}${weekStrip(p,true)}${presHoyCard(p)}${proximaCitaCard(p)}${registrarCard()}${kineCard(p)}${kiaPreview()}</div>`;
   let h=`${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">`;
+  h+=perfilCard(p);
   h+=avisosHoy(p);
   h+=listoHoyCard(p);
   h+=weekStrip(p);
@@ -2721,9 +2748,9 @@ function vChatPat(p){ S.after.push(()=>chatListen(p));
 function vPerfil(p){
   const per=perfilOf(p);
   return `<header class="top"><button class="back" onclick="go('hoy')">${ic('chevl','s')} Hoy</button></header><div class="stack">
-  <section class="card center stack" style="align-items:center;padding:24px 16px"><label style="cursor:pointer;position:relative">${avatar(p,88)}<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event)"><span class="ico" style="position:absolute;right:-4px;bottom:-4px;width:30px;height:30px;border-radius:50%;background:var(--acc);color:var(--acc-ink)">${ic('edit','s')}</span></label>
-    <div><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="justify-content:center;gap:6px;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.rut)}</span></div></div>
-    <div class="xs muted">${[p.edad?`${esc(p.edad)} años`:'', p.deporte?esc(p.deporte):'', p.klgo?`Kine: ${esc(p.klgo)}`:''].filter(Boolean).join(' · ')}</div>${brands(p.marca)}</section>
+  ${isPending(p)?`<section class="card center stack" style="align-items:center;padding:24px 16px"><label style="cursor:pointer;position:relative">${avatar(p,88)}<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event)"><span class="ico" style="position:absolute;right:-4px;bottom:-4px;width:30px;height:30px;border-radius:50%;background:var(--acc);color:var(--acc-ink)">${ic('edit','s')}</span></label>
+    <div><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="justify-content:center;gap:6px;margin-top:8px">${perfilBadge(p)}<span class="badge">${esc(p.rut)}</span></div></div>${brands(p.marca)}</section>`
+    : perfilCard(p)+`<label class="btn sec block" style="cursor:pointer">${ic('user','s')} Cambiar foto<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event)"></label>`}
   ${soloOral(p)?'':medidasCard(p)}
   <div class="sec-t"><h2>Mi ficha</h2></div>
   <div class="list"><button class="li" onclick="go('chat')"><span class="ico">${ic('chat','s')}</span><span class="grow">Mensajes con tus profesionales</span>${ic('chevr','s chev')}</button>
@@ -5446,6 +5473,110 @@ window.shareNow = async () => { const jpg=S.shareBlob&&S.shareBlob.type==='image
   if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title:'StrongMed', text:'Mi entrenamiento con StrongMed 💪'}); }catch(e){} }
   else toast('Tu navegador no permite compartir directo: descarga la imagen y súbela a tu historia','err'); };
 
+/* ================= MI PERFIL Y CREDENCIAL ================= */
+/* solo datos básicos (nombre, edad, RUT, plan): nada de diagnóstico ni de la ficha clínica. Cada plan tiene su color. */
+const PLAN_C = {
+  entrenamiento:{t:'Entrenamiento', i:'dumbbell', a:'#ccff33', g:['#0d1404','#22320a']},
+  recovery:{t:'Recovery', i:'spark', a:'#45e6d2', g:['#03191b','#0c4447']},
+  rehabilitacion:{t:'Rehabilitación', i:'heart', a:'#86bcff', g:['#071329','#173f78']},
+  mixto:{t:'Rehabilitación + Entrenamiento', i:'pulse', a:'#ffb24d', g:['#1c0e03','#55300c']},
+  app:{t:'Plan solo app', i:'phone', a:'#c4a6ff', g:['#110a24','#38206b']},
+  oral:{t:'Odontología', i:'tooth', a:'#ff92c9', g:['#1e0615','#561741']}
+};
+/* plan de la persona: odontología, solo app, rehabilitación, mixto o entrenamiento (recovery si la mayoría de sus últimas sesiones en la Sala fueron recovery) */
+function planDe(p){ if(soloOral(p)) return 'oral'; if(p.modalidad==='app') return 'app'; const per=perfilOf(p); if(per!=='entrenamiento') return per;
+  const s=presSes(p).slice(-6); return s.length && s.filter(x=>x.tipo==='recovery').length*2>s.length ? 'recovery' : 'entrenamiento'; }
+const planVars = k => { const c=PLAN_C[k]; return `--pa:${c.a};--g1:${c.g[0]};--g2:${c.g[1]}`; };
+const edadTxt = p => { const e=edadDe(p); return e!=='' && e!=null ? `${e} años` : '—'; };
+function perfilCard(p){ if(isPending(p)) return ''; const k=planDe(p), c=PLAN_C[k];
+  return `<section class="pcred" style="${planVars(k)}"><div class="row" style="gap:14px;align-items:center;position:relative;z-index:1">
+    <button class="pc-av" onclick="go('perfil')" aria-label="Mi perfil">${avatar(p,68)}</button>
+    <div class="grow"><div class="pc-ey">Mi perfil</div><h2 class="pc-n">${esc(p.nombre)}</h2><span class="pc-plan">${ic(c.i,'s')} ${c.t}</span></div></div>
+    <div class="pc-grid"><div><small>Edad</small><b>${edadTxt(p)}</b></div><div><small>RUT</small><b>${esc(fmtRut(p.rut))}</b></div></div>
+    <div class="row" style="gap:8px;margin-top:12px;position:relative;z-index:1"><button class="btn sm pc-b" onclick="verCredencial()">${ic('idcard','s')} Credencial</button><button class="btn sm pc-b2" onclick="credCompartir()">${ic('upload','s')} Compartir</button></div></section>`; }
+
+/* QR propio (sin librerías): modo byte, corrección M, versiones 1 a 6 */
+const QR_V = [null,[10,1,16],[16,1,28],[26,1,44],[18,2,32],[24,2,43],[16,4,27]];   // [ec por bloque, bloques, datos por bloque]
+const QR_AL = [null,[],[6,18],[6,22],[6,26],[6,30],[6,34]];
+function qrMatrix(txt){ const bytes=[...new TextEncoder().encode(txt)]; let v=1; while(v<6 && QR_V[v][1]*QR_V[v][2] < bytes.length+2) v++;
+  const [ecn, nb, nd]=QR_V[v], cap=nb*nd, N=17+4*v, M=[...Array(N)].map(()=>Array(N).fill(false)), F=[...Array(N)].map(()=>Array(N).fill(false));
+  const set=(x,y,d)=>{ M[y][x]=d; F[y][x]=true; };
+  // datos: modo byte, largo, bytes, terminador y relleno
+  const bits=[], put=(val,n)=>{ for(let i=n-1;i>=0;i--) bits.push((val>>>i)&1); }; put(4,4); put(bytes.length,8); bytes.forEach(b=>put(b,8));
+  put(0, Math.min(4, cap*8-bits.length)); while(bits.length%8) bits.push(0); const data=[]; for(let i=0;i<bits.length;i+=8) data.push(parseInt(bits.slice(i,i+8).join(''),2));
+  for(let pad=0xEC; data.length<cap; pad^=0xEC^0x11) data.push(pad);
+  // Reed-Solomon en GF(256)
+  const mul=(a,b)=>{ let z=0; for(let i=7;i>=0;i--){ z=(z<<1)^((z>>>7)*0x11D); z^=((b>>>i)&1)*a; } return z; };
+  const div=Array(ecn).fill(0); div[ecn-1]=1; let root=1; for(let i=0;i<ecn;i++){ for(let j=0;j<ecn;j++){ div[j]=mul(div[j],root); if(j+1<ecn) div[j]^=div[j+1]; } root=mul(root,2); }
+  const rs=blk=>{ const r=Array(ecn).fill(0); blk.forEach(b=>{ const f=b^r.shift(); r.push(0); div.forEach((d,i)=>r[i]^=mul(d,f)); }); return r; };
+  const B=[...Array(nb)].map((_,i)=>data.slice(i*nd,(i+1)*nd)), E=B.map(rs), cw=[];
+  for(let i=0;i<nd;i++) B.forEach(b=>cw.push(b[i])); for(let i=0;i<ecn;i++) E.forEach(e=>cw.push(e[i]));
+  // patrones fijos
+  for(let i=0;i<N;i++){ set(6,i,i%2===0); set(i,6,i%2===0); }
+  [[3,3],[N-4,3],[3,N-4]].forEach(([cx,cy])=>{ for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){ const d=Math.max(Math.abs(dx),Math.abs(dy)), xx=cx+dx, yy=cy+dy; if(xx>=0&&xx<N&&yy>=0&&yy<N) set(xx,yy,d!==2&&d!==4); } });
+  const al=QR_AL[v], la=al.length-1; al.forEach((ax,i)=>al.forEach((ay,j)=>{ if((i===0&&j===0)||(i===0&&j===la)||(i===la&&j===0)) return; for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) set(ax+dx,ay+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1); }));
+  const fmt=mask=>{ const d=(0<<3)|mask; let r=d; for(let i=0;i<10;i++) r=(r<<1)^((r>>>9)*0x537); const b=((d<<10)|r)^0x5412, g=i=>((b>>>i)&1)===1;
+    for(let i=0;i<=5;i++) set(8,i,g(i)); set(8,7,g(6)); set(8,8,g(7)); set(7,8,g(8)); for(let i=9;i<15;i++) set(14-i,8,g(i));
+    for(let i=0;i<8;i++) set(N-1-i,8,g(i)); for(let i=8;i<15;i++) set(8,N-15+i,g(i)); set(8,N-8,true); };
+  fmt(0);
+  // códigos en zigzag
+  let k=0; for(let right=N-1; right>=1; right-=2){ if(right===6) right=5; for(let vert=0; vert<N; vert++) for(let j=0;j<2;j++){ const x=right-j, up=((right+1)&2)===0, y=up?N-1-vert:vert;
+    if(!F[y][x] && k<cw.length*8){ M[y][x]=((cw[k>>>3]>>>(7-(k&7)))&1)===1; k++; } } }
+  // máscara con menor penalización
+  const MK=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+  const apply=m=>{ for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(!F[y][x] && MK[m](x,y)) M[y][x]=!M[y][x]; };
+  const pen=()=>{ let s=0, dark=0; for(let y=0;y<N;y++){ let rx=1, ry=1; for(let x=0;x<N;x++){ if(M[y][x]) dark++;
+      if(x){ if(M[y][x]===M[y][x-1]){ rx++; if(rx===5) s+=3; else if(rx>5) s++; } else rx=1; if(M[x][y]===M[x-1][y]){ ry++; if(ry===5) s+=3; else if(ry>5) s++; } else ry=1; }
+      if(x&&y && M[y][x]===M[y][x-1] && M[y][x]===M[y-1][x] && M[y][x]===M[y-1][x-1]) s+=3; } }
+    return s + Math.floor(Math.abs(dark*20-N*N*10)/(N*N))*10; };
+  let best=0, bp=Infinity; for(let m=0;m<8;m++){ apply(m); fmt(m); const s=pen(); if(s<bp){ bp=s; best=m; } apply(m); } apply(best); fmt(best);
+  return M; }
+const QR_IG = 'https://www.instagram.com/strongmed_cl/';
+function qrSvg(txt, color='#0b0b0d'){ const M=qrMatrix(txt), N=M.length, q=2; let d=''; M.forEach((r,y)=>r.forEach((on,x)=>{ if(on) d+=`M${x+q} ${y+q}h1v1h-1z`; }));
+  return `<svg viewBox="0 0 ${N+q*2} ${N+q*2}" shape-rendering="crispEdges" aria-label="QR de Instagram @strongmed_cl"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="${color}"/></svg>`; }
+
+let credTimer=null;
+const credHora = () => { const n=new Date(); return `${pad(n.getDate())}-${pad(n.getMonth()+1)}-${n.getFullYear()}, ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`; };
+window.verCredencial = () => { const p=me(); if(!p) return; const k=planDe(p), c=PLAN_C[k];
+  sheet(`<h2 class="disp h2">Credencial digital</h2>
+  <div class="cred" style="${planVars(k)};margin-top:14px"><div class="row between" style="align-items:flex-start;position:relative;z-index:1">${brands(p.marca)}<div class="cr-yr"><small>Miembro</small><b>${new Date().getFullYear()}</b></div></div>
+    <div class="cr-line"></div>
+    <div class="row" style="align-items:flex-start;gap:14px;position:relative;z-index:1"><div class="grow"><small class="cr-l">Plan</small><div class="cr-plan">${ic(c.i,'s')} ${c.t}</div><div class="cr-name">${esc(p.nombre)}</div>
+      <small class="cr-l">RUT</small><div class="cr-v">${esc(fmtRut(p.rut))}</div></div><div class="cr-foto">${avatar(p,96)}</div></div>
+    <div class="cr-grid"><div><small class="cr-l">Edad</small><div class="cr-v">${edadTxt(p)}</div></div><div><small class="cr-l">Estado</small><div class="cr-v"><i class="cr-dot"></i>Activo</div></div></div>
+    <div class="cr-qr">${qrSvg(QR_IG)}<small>Síguenos · @strongmed_cl</small><b id="cr-t">${credHora()}</b></div></div>
+  <p class="sm muted center" style="margin-top:12px">Muéstrala cuando te la pidan. La fecha y la hora corren en vivo: así se nota que no es una captura de pantalla.</p>
+  <div class="stack" style="margin-top:12px"><button class="btn pri block" onclick="credCompartir()">${ic('upload','s')} Compartir en historias</button>
+  <label class="btn sec block" style="cursor:pointer">${ic('user','s')} Cambiar foto<input type="file" accept="image/*" class="hidden" onchange="subirAvatar(event);setTimeout(verCredencial,900)"></label></div>`);
+  clearInterval(credTimer); credTimer=setInterval(()=>{ const t=$('#cr-t'); if(!t){ clearInterval(credTimer); return; } t.textContent=credHora(); }, 1000); };
+
+/* imagen para historias (1080×1920): sin RUT */
+async function credBlob(p){ const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d'), k=planDe(p), c=PLAN_C[k], A=c.a;
+  try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
+  const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
+  let g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,c.g[0]); g.addColorStop(1,c.g[1]); x.fillStyle=g; x.fillRect(0,0,W,H);
+  g=x.createRadialGradient(W*.85,H*.12,40,W*.85,H*.12,900); g.addColorStop(0,A+'55'); g.addColorStop(1,A+'00'); x.fillStyle=g; x.fillRect(0,0,W,H);
+  storyLogos(x,F,I,A,110);
+  x.fillStyle=A; x.font=I(30,800); x.fillText('CREDENCIAL OFICIAL',80,330); x.textAlign='right'; x.fillText('MIEMBRO '+new Date().getFullYear(),1000,330); x.textAlign='left';
+  x.fillStyle=A; x.fillRect(80,356,920,6);
+  // foto en círculo con anillo del color del plan
+  const cx=W/2, cy=640, R=200; x.save(); x.beginPath(); x.arc(cx,cy,R+16,0,7); x.fillStyle=A; x.fill(); x.beginPath(); x.arc(cx,cy,R,0,7); x.fillStyle='#1b1b20'; x.fill(); x.clip();
+  if(p.avatar){ const im=await new Promise(r=>{ const m=new Image(); m.onload=()=>r(m); m.onerror=()=>r(null); m.src=p.avatar; }); if(im){ const s=Math.max(2*R/im.width,2*R/im.height); x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s); } }
+  else { x.fillStyle=A; x.font=F(170); x.textAlign='center'; x.fillText(String(p.nombre||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase(),cx,cy+60); x.textAlign='left'; }
+  x.restore();
+  x.textAlign='center'; x.fillStyle='#fff'; let fs=110; const nm=String(p.nombre||'').toUpperCase(); x.font=F(fs); while(x.measureText(nm).width>940 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(nm,cx,980);
+  x.fillStyle=A; x.font=F(64,800); x.fillText(c.t.toUpperCase(),cx,1066);
+  // QR en tarjeta blanca
+  const M=qrMatrix(QR_IG), N=M.length, qs=380, mod=qs/N, qx=cx-qs/2, qy=1170; x.fillStyle='#fff'; rr(qx-40,qy-40,qs+80,qs+150,36); x.fill();
+  x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
+  x.fillStyle='#0b0b0d'; x.font=I(36,800); x.fillText('@strongmed_cl',cx,qy+qs+68);
+  x.fillStyle='rgba(255,255,255,.75)'; x.font=I(30,700); x.fillText('SÍGUENOS EN INSTAGRAM',cx,qy+qs+190); x.textAlign='left';
+  return new Promise(r=>cv.toBlob(r,'image/png')); }
+window.credCompartir = async () => { const p=me(); if(!p) return; toast('Preparando la imagen…'); const blob=await credBlob(p); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); S.shareBlob=blob; S.shareUrl=URL.createObjectURL(blob);
+  sheet(`<h2 class="disp h2">Compartir credencial</h2><div style="margin:14px auto;max-width:280px;border-radius:18px;overflow:hidden"><img src="${S.shareUrl}" alt="Vista previa" style="width:100%;display:block"></div>
+  <p class="sm muted center">Lista para tus historias de Instagram o WhatsApp. No incluye tu RUT.</p><div style="margin-top:12px">${shareBtns('card','StrongMed_credencial.png')}</div>
+  <button class="btn ghost block" style="margin-top:6px" onclick="verCredencial()">Volver a la credencial</button>`); };
+
 /* ================= APP INSTALABLE Y SIN CONEXIÓN ================= */
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); S.installEvt=e; });
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
@@ -5488,7 +5619,7 @@ function oralAtencionesList(p){ const at=(p.oral?.atenciones||[]).slice().sort((
 function vHoyOral(p){
   const ts=(p.oral?.tareas||[]).filter(t=>!t.hecha), ult=(p.oral?.atenciones||[]).slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)))[0];
   return `${topBar(p)}<header class="top"><div class="eyebrow">${fmtLong(new Date())}</div><h1 class="disp h1" style="margin-top:6px">Hola, <span class="acc-t">${esc(first(p.nombre))}</span></h1></header><div class="stack">
-  ${avisosHoy(p)}${listoHoyCard(p)}${proximaCitaCard(p)}${oralRing(p)}
+  ${perfilCard(p)}${avisosHoy(p)}${listoHoyCard(p)}${proximaCitaCard(p)}${oralRing(p)}
   ${ts.length?`<div class="sec-t"><h2>Tareas y recomendaciones</h2><button class="xs b acc-t" onclick="go('plan')">Ver todas</button></div>${oralTareasList({oral:{tareas:ts.slice(-3)}})}`:''}
   ${ult?`<div class="sec-t"><h2>Última atención</h2></div><section class="card"><div class="row" style="align-items:flex-start"><span class="ico blue">${ic('tooth','s')}</span><div class="grow"><div class="b">${esc(ult.tratamiento||'Atención')}</div><div class="xs muted">${fmtDate(ult.fecha)} · ${esc(ult.pro||oralPro(p))}</div>${ult.indicacion?`<p class="sm" style="margin-top:6px">${esc(ult.indicacion)}</p>`:''}<button class="btn ghost sm" style="margin-top:6px;padding-left:0" onclick="compartir(${q('oral-'+ult.id)})">${ic('upload','s')} Compartir sticker</button></div></div></section>`:''}
   <button class="card" style="text-align:left;width:100%" onclick="go('chat')"><div class="row"><span class="ico">${ic('chat')}</span><div class="grow"><div class="b">Mensajes</div><div class="xs muted">Escríbele a ${esc(oralPro(p))}</div></div>${ic('chevr','s chev')}</div></button></div>`;

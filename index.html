@@ -5683,9 +5683,8 @@ async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('can
   x.textAlign='center'; x.fillStyle='#fff'; let fs=124; const nm=String(d.nombre||'').toUpperCase(); x.font=F(fs); while(x.measureText(nm).width>840 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(nm,cx,1000);
   x.font=I(38,700); const pl=String(d.plan), pw=x.measureText(pl).width+80; rr(cx-pw/2,1040,pw,72,36); x.fillStyle='rgba(255,255,255,.14)'; x.fill(); x.fillStyle=A; x.fillText(pl,cx,1089); x.textAlign='left';
   // pie blanco con el QR
-  x.fillStyle='#fff'; x.fillRect(kx,1190,kw,kh-(1190-ky));
-  const M=qrMatrix(QR_IG), N=M.length, qs=340, mod=qs/N, qx=cx-qs/2, qy=1240; x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
-  x.textAlign='center'; x.fillStyle='#0b0b0d'; x.font=I(46,800); x.fillText('@strongmed_cl',cx,1648); x.fillStyle='#6b6b72'; x.font=I(26,800); x.fillText('SÍGUENOS EN INSTAGRAM',cx,1698); x.textAlign='left';
+  const M=qrMatrix(QR_IG), N=M.length, qs=340, mod=qs/N, qx=cx-qs/2, qy=1240; x.fillStyle='#fff'; rr(qx-36,qy-36,qs+72,qs+132,40); x.fill(); x.fillStyle='#0b0b0d'; M.forEach((r,y)=>r.forEach((on,xx)=>{ if(on) x.fillRect(Math.floor(qx+xx*mod),Math.floor(qy+y*mod),Math.ceil(mod),Math.ceil(mod)); }));
+  x.textAlign='center'; x.fillStyle='#0b0b0d'; x.font=I(40,800); x.fillText('@strongmed_cl',cx,1642); x.fillStyle='rgba(255,255,255,.8)'; x.font=I(26,800); x.fillText('SÍGUENOS EN INSTAGRAM',cx,1708); x.textAlign='left';
 
   g=x.createLinearGradient(kx,0,kx+kw,0); g.addColorStop(0,c.g[1]); g.addColorStop(.6,A); g.addColorStop(1,'#fff'); x.fillStyle=g; x.fillRect(kx,ky+kh-12,kw,12);
   x.restore();

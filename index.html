@@ -542,7 +542,7 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 details.trat summary{list-style:none;cursor:pointer}details.trat summary::-webkit-details-marker{display:none}
 /* ---- identidad StrongMed: marca como motivo gráfico, micro-animaciones ---- */
 :root{--mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='88 108 336 296'%3E%3Cpath d='M206%2C228V136a24%2C24 0 0 1 24%2C-24h52a24%2C24 0 0 1 24%2C24V228Z'/%3E%3Cpath d='M206%2C284V376a24%2C24 0 0 0 24%2C24h52a24%2C24 0 0 0 24%2C-24V284Z'/%3E%3Crect x='104' y='238' width='304' height='36' rx='10'/%3E%3Crect x='92' y='182' width='34' height='148' rx='11'/%3E%3Crect x='132' y='204' width='24' height='104' rx='9'/%3E%3Crect x='386' y='182' width='34' height='148' rx='11'/%3E%3Crect x='356' y='204' width='24' height='104' rx='9'/%3E%3C/svg%3E")}
-:root{--markp:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='16 44 480 424'%3E%3Cpath d='M206%2C228V136a24%2C24 0 0 1 24%2C-24h52a24%2C24 0 0 1 24%2C24V228Z'/%3E%3Cpath d='M206%2C284V376a24%2C24 0 0 0 24%2C24h52a24%2C24 0 0 0 24%2C-24V284Z'/%3E%3Crect x='104' y='238' width='304' height='36' rx='10'/%3E%3Crect x='92' y='182' width='34' height='148' rx='11'/%3E%3Crect x='132' y='204' width='24' height='104' rx='9'/%3E%3Crect x='386' y='182' width='34' height='148' rx='11'/%3E%3Crect x='356' y='204' width='24' height='104' rx='9'/%3E%3C/svg%3E")}
+:root{--markp:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-64 -22 640 556'%3E%3Cpath d='M206%2C228V136a24%2C24 0 0 1 24%2C-24h52a24%2C24 0 0 1 24%2C24V228Z'/%3E%3Cpath d='M206%2C284V376a24%2C24 0 0 0 24%2C24h52a24%2C24 0 0 0 24%2C-24V284Z'/%3E%3Crect x='104' y='238' width='304' height='36' rx='10'/%3E%3Crect x='92' y='182' width='34' height='148' rx='11'/%3E%3Crect x='132' y='204' width='24' height='104' rx='9'/%3E%3Crect x='386' y='182' width='34' height='148' rx='11'/%3E%3Crect x='356' y='204' width='24' height='104' rx='9'/%3E%3C/svg%3E")}
 .hero:after{right:-26px;top:auto;bottom:-30px;width:150px;height:132px;border-radius:0;background:currentColor;opacity:.09;-webkit-mask:var(--mark) center/contain no-repeat;mask:var(--mark) center/contain no-repeat;transform:rotate(-12deg)}
 .stepscard,.kiacard{position:relative;overflow:hidden}
 .stepscard:after,.kiacard:after{content:"";position:absolute;right:-18px;top:-16px;width:96px;height:85px;background:var(--acc);opacity:.07;-webkit-mask:var(--mark) center/contain no-repeat;mask:var(--mark) center/contain no-repeat;transform:rotate(-12deg);pointer-events:none}
@@ -733,8 +733,8 @@ button.li:active{background-color:transparent}
 /* ---- mi perfil y credencial: cada plan con su color (--pa acento, --g1/--g2 fondo) ---- */
 .pcred,.cred{--tx:#fff;--mu:rgba(255,255,255,.7);--line2:rgba(255,255,255,.22);--lg-bar:#fff;--lg-cross:#ccff33;position:relative;overflow:hidden;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.18);background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.28)),radial-gradient(90% 70% at 0% 100%,color-mix(in srgb,var(--g2) 70%,transparent),transparent 70%),linear-gradient(125deg,var(--g1) 0%,var(--g2) 52%,var(--g3) 110%);border-radius:28px;padding:18px}
 .pcred .btn,.cred .btn{text-shadow:none}
-.pcred:before,.cred:before{content:"";position:absolute;inset:-60%;background:#fff;opacity:.055;-webkit-mask:var(--markp) 0 0/58px 51px repeat;mask:var(--markp) 0 0/58px 51px repeat;transform:rotate(-14deg);pointer-events:none}
-.pcred:after,.cred:after{opacity:.16!important;width:220px!important;height:194px!important;right:-46px!important;bottom:-40px!important}
+.pcred:before,.cred:before{content:"";position:absolute;inset:-60%;background:#fff;opacity:.035;-webkit-mask:var(--markp) 0 0/96px 83px repeat;mask:var(--markp) 0 0/96px 83px repeat;transform:rotate(-14deg);pointer-events:none}
+.pcred:after,.cred:after{opacity:.11!important;width:220px!important;height:194px!important;right:-46px!important;bottom:-40px!important}
 .cred:after{width:280px!important;height:246px!important;bottom:150px!important;right:-70px!important}
 .pcred>*,.cred>*{position:relative;z-index:1}
 .cr-grid:empty{display:none}
@@ -5635,8 +5635,8 @@ async function credBlob(d){ const W=1080, H=1920, cv=document.createElement('can
   g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgba(0,0,0,.18)'); g.addColorStop(.5,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.3)'); x.fillStyle=g; x.fillRect(0,0,W,H);
   // fondo con el logo repetido en diagonal y uno grande del color de la app
   const mark=(mx,my,size,rot,col,al)=>{ const sc=size/336; x.save(); x.globalAlpha=al; x.translate(mx,my); x.rotate(rot); x.scale(sc,sc); x.translate(-256,-256); x.fillStyle=col; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore(); };
-  for(let r=0, yy=-60; yy<H+120; r++, yy+=150) for(let xx=(r%2?-40:50); xx<W+120; xx+=180) mark(xx,yy,96,-.24,'#ffffff',.05);
-  mark(W-150,H-420,620,-.21,A,.16);
+  for(let r=0, yy=-60; yy<H+120; r++, yy+=230) for(let xx=(r%2?-60:80); xx<W+160; xx+=280) mark(xx,yy,100,-.24,'#ffffff',.035);
+  mark(W-150,H-420,620,-.21,A,.11);
   storyLogos(x,F,I,'#ccff33',110);
   x.fillStyle='#fff'; x.font=I(30,800); x.fillText('CREDENCIAL OFICIAL',80,330); x.textAlign='right'; x.fillText((d.propio?'MIEMBRO ':'EQUIPO ')+new Date().getFullYear(),1000,330); x.textAlign='left';
   g=x.createLinearGradient(80,0,1000,0); g.addColorStop(0,A); g.addColorStop(1,'rgba(255,255,255,.35)'); x.fillStyle=g; x.fillRect(80,356,920,6);

@@ -309,7 +309,9 @@ button.stat{text-align:left}
   .pat .restbar{left:220px;bottom:20px}
   .pat .kbar{bottom:10px}
 }
-.side .nav{display:flex;flex-direction:column;gap:2px;margin-top:26px}
+.side .nav{display:flex;flex-direction:column;gap:2px;margin-top:26px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;margin-left:-4px;margin-right:-4px;padding:0 4px}
+.side .nav.side-ft{flex:none;overflow:visible;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+@media(min-width:900px) and (max-height:820px){ .pro .side{padding-top:18px;padding-bottom:14px} .side .nav{margin-top:16px} .side .nav button{padding:8px 12px} .side .nav.side-ft{margin-top:8px;padding-top:8px} }
 .side .nav button{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;font-weight:600;color:var(--mu)}
 .side .nav button.on{background:var(--card2);color:var(--tx)}.side .nav button.on .icon{color:var(--acc-tx)}
 
@@ -3290,14 +3292,14 @@ function shellPro(){
   const body=(views[S.proTab]||vProInicio)();
   const nav= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['nueva','plus','Nueva'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']]
     : [['inicio','home','Inicio'],['personas','users','Personas'],['nueva','plus','Nueva'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']];
-  const side= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['ajustes','sliders','Ajustes']]
-    : [['inicio','home','Inicio'],['personas','users','Personas'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[]), ['ajustes','sliders','Ajustes']];
+  const side= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']]
+    : [['inicio','home','Inicio'],['personas','users','Personas'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[])];
   const org=S.pro.org;
   return `<div class="shell pro"><aside class="side">${brands(org==='kah'?'sm+kah':'sm')}
     <div class="row" style="margin-top:16px;gap:10px"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b sm trunc">${esc(S.pro.nombre)}</div><div class="xs muted">${od?'Odontología general':org==='all'?'StrongMed + Kin At Home':ORGS[org].label}${isAdmin()?' · Admin':''}</div></div></div>
     <button class="btn pri block" style="margin-top:16px" onclick="pgo('nueva')">${ic('plus','s')} ${od?'Nuevo paciente':'Nueva persona'}</button>
     <div class="nav">${side.map(([k,i,l])=>`<button class="${act===k?'on':''}" onclick="pgo('${k}')">${ic(i)}${l}${k==='mensajes'?`<i class="nbadge ${noLeidos().length?'':'hidden'}" data-nb>${noLeidos().length||''}</i>`:''}</button>`).join('')}</div>
-    <button class="btn ghost" style="margin-top:auto;justify-content:flex-start;color:var(--mu)" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></aside>
+    <div class="nav side-ft"><button class="${act==='ajustes'?'on':''}" onclick="pgo('ajustes')">${ic('sliders')}Ajustes</button><button onclick="logout()">${ic('logout')}Cerrar sesión</button></div></aside>
   <main class="wrap wide ${t==='mensajes'?'chatmode':''} fade">${body}</main>
   <nav class="tabbar">${nav.map(([k,i,l])=> k==='nueva' ? `<button class="tab fab" onclick="pgo('nueva')"><span class="fabc">${ic('plus')}</span><span>${l}</span></button>` : `<button class="tab ${k==='mensajes'?'tabmsg':''} ${act===k||(k==='inicio'&&['mas','faq','biblioteca','profesionales','ajustes','herramientas','rutinas','uso'].includes(act))?'on':''}" onclick="pgo('${k}')">${ic(i)}<span>${l}</span>${k==='mensajes'?`<i class="nbadge ${noLeidos().length?'':'hidden'}" data-nb>${noLeidos().length||''}</i>`:''}</button>`).join('')}</nav></div>`;
 }
@@ -6018,7 +6020,7 @@ function vKinIA(){
     ${S.kia.msgs.length?'':`<div class="pills" style="flex-wrap:wrap;padding-left:42px">${KIA_SUG.map(s=>`<button class="pill" onclick="kiaSend(${q(s)})">${esc(s)}</button>`).join('')}</div>`}
     ${S.kia.msgs.map(kiaMsg).join('')}</div>
     <p class="xs muted center" style="margin-top:6px">KIN IA responde solo con información cargada por profesionales. No reemplaza la evaluación de tu kinesiólogo.</p></div>
-    <form class="kin kbar" onsubmit="event.preventDefault();kiaSend(document.getElementById('kia-in').value)"><input class="inp" id="kia-in" placeholder="Escribe tu pregunta…" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form></div>`;
+    <form class="kin kbar" onsubmit="event.preventDefault();kiaSend(document.getElementById('kia-in').value)"><input class="inp" id="kia-in" placeholder="Escribe tu pregunta…" autocomplete="off" enterkeyhint="send"><button class="btn pri" aria-label="Enviar">${ic('send','s')}</button></form>`;
 }
 window.kiaSend = async txt => { const t=String(txt ?? document.getElementById('kia-in')?.value ?? '').trim(); if(!t) return; S.kia=S.kia||{msgs:[]}; S.kia.msgs.push({me:true, text:t}, {wait:true}); if(S.role==='pat') S.patTab='faq'; else S.proTab='faq'; render();
   const [a]=await Promise.all([kiaAnswer(t), new Promise(r=>setTimeout(r,450))]); S.kia.msgs.pop(); S.kia.msgs.push(a);

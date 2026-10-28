@@ -5578,9 +5578,9 @@ const PLAN_C = {
   oral:{t:'Odontología', i:'tooth', a:'#ffb0d8', g:['#24061f','#7d1a5a','#ff7aa8']},
   equipo:{t:'Equipo profesional', i:'steth', a:'#f2cf63', g:['#0a0d1c','#2a2f5a','#c9a23a']}
 };
-/* plan de la persona: odontología, solo app, rehabilitación, mixto o entrenamiento (recovery si la mayoría de sus últimas sesiones en la Sala fueron recovery) */
-function planDe(p){ if(soloOral(p)) return 'oral'; if(p.modalidad==='app') return 'app'; const per=perfilOf(p); if(per!=='entrenamiento') return per;
-  const s=presSes(p).slice(-6); return s.length && s.filter(x=>x.tipo==='recovery').length*2>s.length ? 'recovery' : 'entrenamiento'; }
+/* plan de la credencial: solo tres. Odontología; Entrenamiento (online, solo app, recovery o entrenamiento); el resto Rehabilitación */
+function planDe(p){ if(soloOral(p) || p.perfil==='oral') return 'oral'; if(p.modalidad==='app' || p.modalidad==='online') return 'entrenamiento';
+  return perfilOf(p)==='entrenamiento' ? 'entrenamiento' : 'rehabilitacion'; }
 /* colores de la credencial: salen del color elegido en Apariencia (degradado oscuro → color de la app); el plan solo cambia el texto y el ícono */
 const accHex = () => (getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33');
 const mixHex = (a, b, t) => { const h=s=>{ s=s.replace('#',''); if(s.length===3) s=[...s].map(c=>c+c).join(''); return [0,2,4].map(i=>parseInt(s.slice(i,i+2),16)||0); }, A=h(a), B=h(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };

@@ -5491,9 +5491,10 @@ async function storyBlob(p, d, mode='card', foto=null){
   const ej=d.recovery&&(d.terapias||[]).length ? d.terapias.map(t=>({ejercicio:t.n, txt:t.min?`${t.min} min`:''})) : (d.ejercicios||[]), vol=ej.reduce((s,e)=>s+(e.sets||[]).reduce((a,t)=>a+(t.ap?0:(+t.kg||0)*(+t.reps||0)),0),0), series=ej.reduce((s,e)=>s+(+e.series||0),0);
   const ruta=d.ruta && d.ruta.length>1;
   const stat=(lbl,v,u,cx,cy,big=120)=>{ x.fillStyle=MUTED; x.font=I(30,700); x.fillText(lbl.toUpperCase(),cx,cy); x.fillStyle='#fff'; x.font=F(big); x.fillText(v,cx,cy+big*.98); if(u){ const vw=x.measureText(v).width; x.fillStyle=MUTED; x.font=F(big*.44,700); x.fillText(u,cx+vw+12,cy+big*.98); } };
-  /* título fijo por tipo (no el nombre de la rutina): Sesión de entrenamiento o de rehabilitación; las rutas GPS conservan su actividad */
-  const tipoSes = perfilOf(p)==='rehabilitacion' ? 'Sesión de rehabilitación' : 'Sesión de entrenamiento';
-  const title=(y,max=150)=>{ x.fillStyle=ACC; const ttl=String(ruta ? (d.tipoActividad||d.nombreSesion||'Actividad') : tipoSes).toUpperCase().slice(0,28); let fs=max; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl,80,y); };
+  /* título fijo "Sesión de entrenamiento" (no el nombre de la rutina); las rutas GPS conservan su actividad.
+     Si la persona es de rehabilitación, sale el diseño REHAB DAY */
+  if(!ruta && !d.recovery && !d.servicio && perfilOf(p)==='rehabilitacion') d={...d, servicio:'Kinesiología'};
+  const title=(y,max=150)=>{ x.fillStyle=ACC; const ttl=String(ruta ? (d.tipoActividad||d.nombreSesion||'Actividad') : 'Sesión de entrenamiento').toUpperCase().slice(0,28); let fs=max; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl,80,y); };
   const fitT=(s,max)=>{ s=String(s||''); if(x.measureText(s).width<=max) return s; while(s.length>1 && x.measureText(s+'…').width>max) s=s.slice(0,-1); return s.trimEnd()+'…'; };
   const det=e=>{ if(e.txt!=null) return e.txt; const kg=num(e.kilos??e.kg), sr=e.series||e.reps ? `${e.series||'–'} × ${e.reps||'–'}` : ''; return [sr, kg?`${kg} kg`:''].filter(Boolean).join(' · '); };
   /* lista que se adapta al espacio: dos líneas por ejercicio si caben; si no, una línea (nombre y dosis a la derecha) y "+N más" al final.

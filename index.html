@@ -2206,7 +2206,7 @@ function rangoFill(s, row){ let ch=0;
   if(s.pk && !String(s.km||'').trim()){ s.km=String(s.pk); ch=1; }
   if(ch && row){ const ins=row.querySelectorAll('input'); if(s.min!=null){ if(ins[0]) ins[0].value=s.min; if(ins[1]) ins[1].value=s.km; } else { if(ins[1]) ins[1].value=s.reps; if(ins[2]) ins[2].value=s.rir; } } }
 function presNueva(p, rid, tipo, planId, abre){ const x=spOf(p), r=x.rutinas.find(y=>String(y.id)===String(rid));
-  x.enCurso={id:String(uid()), inicio:Date.now(), rid:r?r.id:'', titulo:r?r.titulo:'Sesión presencial', tipo:tipo||'entrenamiento', planId:planId||'', abre, pro:S.role==='pro'?S.pro.nombre:(p.klgo||''), proId:S.role==='pro'?S.pro.id:'',
+  x.enCurso={id:String(uid()), inicio:Date.now(), rid:r?r.id:'', titulo:r?r.titulo:'Sesión presencial', tipo:tipo||'entrenamiento', planId:planId||'', centro:x.centro||'', abre, pro:S.role==='pro'?S.pro.nombre:(p.klgo||''), proId:S.role==='pro'?S.pro.id:'',
     ex:(r?r.ejercicios:[]).map(e=>({n:e.ejercicio, exId:e.exId||'', rest:parseRest(e.descanso), obj:presObj(e), sets:apxSets(e,()=>({reps:'', done:false, t:0})).concat(Array.from({length:Math.max(1,Math.min(10,+e.series||3))},()=>presSetIni(e)))}))};
   p.presActiva=true; return x.enCurso; }
 /* Si llega una versión remota de la misma sesión, conserva la serie editada más reciente de cada lado */
@@ -2375,10 +2375,11 @@ const _presIniciarYa = async k => { const p=prof(k); if(!p) return; const t=sala
   const w=presNueva(p, r?r.id:'', t, t==='rehabilitacion'?'':(pa?pa.id:''), 'pro'); if(!r) w.titulo='Sesión de rehabilitación'; if(S.jCol) S.jCol[k]=false; if(await save(p)){ toast(`${first(p.nombre)}: ${w.titulo}`); keepScroll(render); } };
 window.sheetPresIniciar = k => { if(!k) return sheetPresAgregar(); const p0=prof(k); if(!p0) return; if(presEnCurso(p0)) return _sheetPresIniciar(k); wellnessPro(k, ()=>_sheetPresIniciar(k)); };
 const _sheetPresIniciar = k => {
-  const p=prof(k); if(!p) return; const rs=presRut(p), si=presSigIdx(p), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'), pa=presPlanAct(p), w=presEnCurso(p); S.piTipo=w?w.tipo:salaTipo(p); S.piTer=(w&&w.ter||[]).map(x=>({n:x.n, min:x.min||''}));
+  const p=prof(k); if(!p) return; const rs=presRut(p), si=presSigIdx(p), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'), pa=presPlanAct(p), w=presEnCurso(p); S.piTipo=w?w.tipo:salaTipo(p); S.piCentro=w?.centro || spOf(p).centro || marcaDe(p,{fecha:todayISO()}); S.piTer=(w&&w.ter||[]).map(x=>({n:x.n, min:x.min||''}));
   sheet(`<h2 class="disp h2">${w?'Cambiar rutina':'Iniciar sesión'}</h2><p class="muted sm" style="margin-top:6px">${esc(p.nombre)}${w?' · se reemplazan los ejercicios de la sesión en curso':''}</p><div class="stack" style="margin-top:14px">
     <label class="field"><span class="lbl">Rutina</span><select class="inp" id="pi-r">${rs.map((r,i)=>`<option value="${esc(r.id)}" ${i===si?'selected':''}>Rutina ${i+1} · ${esc(r.titulo)}${i===si?' (le toca)':''}</option>`).join('')}<option value="" ${rs.length?'':'selected'}>Sin rutina (la armo en la sesión)</option></select></label>
     <div><div class="lbl">Tipo de sesión</div><div class="pills" id="pi-t" style="margin-top:6px">${Object.entries(PRES_TIPO).filter(([t])=>t!=='mixto').map(([t,l])=>`<button class="pill ${S.piTipo===t?'on':''}" onclick="S.piTipo='${t}';document.querySelectorAll('#pi-t .pill').forEach(b=>b.classList.toggle('on',b===this));piTerBox()">${l}</button>`).join('')}</div></div>
+    <div><div class="lbl">Dónde lo atiendes</div><div class="pills" id="pi-c" style="margin-top:6px;flex-wrap:wrap">${CENTROS.map(([c,l])=>`<button class="pill ${S.piCentro===c?'on':''}" onclick="S.piCentro='${c}';document.querySelectorAll('#pi-c .pill').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div><div class="xs muted" style="margin-top:4px">Su logo sale en el sticker de la sesión.</div></div>
     <div id="pi-ter"></div>
     <label class="field"><span class="lbl">Plan de entrenamiento</span><select class="inp" id="pi-p"><option value="">Sin plan (sesión suelta)</option>${pls.map(x=>`<option value="${esc(x.id)}" ${(w?w.planId===x.id:pa&&pa.id===x.id)?'selected':''}>${esc(presPlanTxt(p,x))}</option>`).join('')}</select></label>
     ${rs.length?'':`<div class="note">${ic('info','s')}<span>${esc(first(p.nombre))} aún no tiene rutinas presenciales. Puedes armarlas en su ficha › Sala.</span></div>`}
@@ -2389,10 +2390,10 @@ window.piTerBox = () => { const b=$('#pi-ter'); if(!b) return; if(S.piTipo!=='re
 window.piTerT = n => { S.piTer=S.piTer||[]; if(!n){ n=(prompt('Nombre de la terapia')||'').trim(); if(!n) return; } const i=S.piTer.findIndex(y=>y.n===n); if(i>-1) S.piTer.splice(i,1); else S.piTer.push({n, min:''}); piTerBox(); };
 window.piTerM = (n,v) => { const x=(S.piTer||[]).find(y=>y.n===n); if(x) x.min=v; };
 const piTerSet = w => { if(S.piTipo!=='recovery' || !w) return; w.ter=(S.piTer||[]).map(x=>({n:x.n, min:x.min||''})); w.terT=Date.now(); };
-window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p); if(w && presNoPuede(w)) return;
-  if(w && String(val('pi-r'))===String(w.rid||'')){ w.tipo=S.piTipo||w.tipo; w.planId=val('pi-p'); piTerSet(w); if(await save(p)){ closeSheet(); toast('Sesión actualizada'); keepScroll(render); } return; }
+window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p); if(w && presNoPuede(w)) return; if(S.piCentro) spOf(p).centro=S.piCentro;
+  if(w && String(val('pi-r'))===String(w.rid||'')){ w.tipo=S.piTipo||w.tipo; w.centro=S.piCentro||w.centro||''; w.planId=val('pi-p'); piTerSet(w); if(await save(p)){ closeSheet(); toast('Sesión actualizada'); keepScroll(render); } return; }
   if(w && presCuenta(w).d && !confirm('Ya hay series marcadas en esta sesión. ¿Cambiar la rutina igual? Se pierden.')) return;
-  const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; nw.pro=w.pro; nw.proId=w.proId||''; nw.permisos=w.permisos||[]; if(w.ter) nw.ter=w.ter; } piTerSet(nw);
+  const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; nw.pro=w.pro; nw.proId=w.proId||''; nw.permisos=w.permisos||[]; if(w.ter) nw.ter=w.ter; } nw.centro=S.piCentro||nw.centro; piTerSet(nw);
   if(await save(p)){ closeSheet(); S.jSel=k; toast(w?'Rutina cambiada':`Sesión de ${first(p.nombre)} iniciada`); pgo('jornada'); } };
 window.presCancelar = async k => { const p=prof(k); if(!p || presNoPuede(presEnCurso(p)) || !confirm(`¿Descartar la sesión en curso de ${first(p.nombre)}? No se guardará.`)) return; spOf(p).enCurso=null; p.presActiva=false; if(await save(p)){ toast('Sesión descartada'); keepScroll(render); } };
 window.sheetPresFin = k => { const p=prof(k), w=presEnCurso(p); if(!w || presNoPuede(w)) return; const c=presCuenta(w), pls=presPlanes(p).filter(x=>x.estado!=='cerrado'); S.piTipo=w.tipo||'entrenamiento'; S.rpe=null; S.pf={}; const rh=S.piTipo==='rehabilitacion', n=rehabDone(p)+1, m=rehabPlan(p), pre=(p.animo||[]).find(a=>a.fecha===todayISO());
@@ -2425,11 +2426,12 @@ window.presFinalizar = async k => { const p=prof(k), x=spOf(p), w=x.enCurso; if(
   const senTxt=[sen.antes||sen.despues?`Se sintió: ${sen.antes?`al llegar ${ANIMO[sen.antes-1][1].toLowerCase()}`:''}${sen.antes&&sen.despues?' → ':''}${sen.despues?`al terminar ${ANIMO[sen.despues-1][1].toLowerCase()}`:''}`:'', pfCmp('Dolor muscular',sen.dolorIni,sen.dolorFin), pfCmp('Estrés',sen.estresIni,sen.estresFin), S.rpe?`RPE ${S.rpe}`:''].filter(Boolean).join(' · ');
   if(!rh && !ej.length && !ter.length && !confirm('No hay series marcadas con ✓. ¿Guardar la sesión igual?')) return;
   const ev=val('pf-e'), eva=rh&&ev!==''&&!isNaN(+ev)?Math.max(0,Math.min(10,+ev)):'', tol=rh?val('pf-tol'):'', planId=rh?'':val('pf-p'), com=rh?evo:val('pf-c'), ver=rh?true:!!$('#pf-v')?.checked, dur=Math.max(1,Math.round((Date.now()-w.inicio)/60000)), fecha=todayISO();
-  x.sesiones.push({id:w.id, fecha, inicio:w.inicio, fin:Date.now(), dur, rid:w.rid, titulo:w.titulo, tipo, planId, pro:S.pro.nombre, proId:S.pro.id, ejercicios:ej, ...(ter.length?{terapias:ter}:{}), comentario:com, verPersona:ver, ...(S.rpe?{rpe:S.rpe}:{}), ...(eva!==''?{eva}:{}), ...(tol?{tolerancia:tol}:{}), ...sen});
-  let nR=0; if(rh){ p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), fecha, eva, klgo:S.pro.nombre, tolerancia:tol, nota:evo+(senTxt?`\n${senTxt}`:'')+(ter.length?`\nTerapias: ${presTerTxt(ter)}`:'')+(ej.length?`\nEjercicios: ${ej.map(e=>`${e.ejercicio} ${e.series}×${e.reps}${+e.kilos?` ${e.kilos} kg`:''}`).join(', ')}`:''), presencialId:w.id}); nR=p.sesionesRehab.length; try{ marcarSeguimiento(p, true, 'Registró una sesión', S.pro.nombre); }catch(e){}
+  const cen=w.centro?{centro:w.centro}:{};
+  x.sesiones.push({id:w.id, fecha, inicio:w.inicio, fin:Date.now(), dur, rid:w.rid, titulo:w.titulo, tipo, planId, pro:S.pro.nombre, proId:S.pro.id, ...cen, ejercicios:ej, ...(ter.length?{terapias:ter}:{}), comentario:com, verPersona:ver, ...(S.rpe?{rpe:S.rpe}:{}), ...(eva!==''?{eva}:{}), ...(tol?{tolerancia:tol}:{}), ...sen});
+  let nR=0; if(rh){ p.sesionesRehab=p.sesionesRehab||[]; p.sesionesRehab.push({id:uid(), fecha, eva, klgo:S.pro.nombre, ...cen, tolerancia:tol, nota:evo+(senTxt?`\n${senTxt}`:'')+(ter.length?`\nTerapias: ${presTerTxt(ter)}`:'')+(ej.length?`\nEjercicios: ${ej.map(e=>`${e.ejercicio} ${e.series}×${e.reps}${+e.kilos?` ${e.kilos} kg`:''}`).join(', ')}`:''), presencialId:w.id}); nR=p.sesionesRehab.length; try{ marcarSeguimiento(p, true, 'Registró una sesión', S.pro.nombre); }catch(e){}
     const ta=val('pf-ta'); if(ta){ p.tareasClinicas=tareas(p); p.tareasClinicas.push({id:'t'+uid(), texto:ta, fecha, hecha:false}); addAviso(p,'tarea',`Nueva tarea para la casa: ${ta}`); } }
   const ri=x.rutinas.findIndex(r=>String(r.id)===String(w.rid)); if(ri>-1) x.sig=(ri+1)%x.rutinas.length;
-  if(ej.length && !rh){ p.diarios=p.diarios||[]; p.diarios.push({id:uid(), fecha, duracion:dur, ...(S.rpe?{rpe:S.rpe}:{}), ejercicios:ej, nombreSesion:w.titulo, ...(ter.length?{terapias:ter}:{}), comentarios:ver?com:'', ...sen, presencial:{estado:'aprobada', origen:'sala', proId:S.pro.id, por:S.pro.nombre, sesionId:w.id}}); }
+  if(ej.length && !rh){ p.diarios=p.diarios||[]; p.diarios.push({id:uid(), fecha, duracion:dur, ...(S.rpe?{rpe:S.rpe}:{}), ejercicios:ej, nombreSesion:w.titulo, ...(ter.length?{terapias:ter}:{}), comentarios:ver?com:'', ...sen, ...cen, presencial:{estado:'aprobada', origen:'sala', proId:S.pro.id, por:S.pro.nombre, sesionId:w.id}}); }
   x.enCurso=null; p.presActiva=false; if(planId) x.plan=planId;
   const pl=x.planes.find(y=>y.id===planId), sig=presSig(p), m=rehabPlan(p);
   addAviso(p, rh?'evaluacion':'rutina', rh ? `Sesión ${nR}${m?` de ${m}`:''} de tu rehabilitación registrada.` : `Tu sesión presencial quedó registrada${pl?` · ${presPlanTxt(p,pl)}`:''}.${sig?` La próxima vez te toca: ${sig.titulo}.`:''}`);
@@ -5429,9 +5431,10 @@ function storyLogos(x, F, I, ACC, y0, sc0=1, alt=null){
 /* sesión hecha en FISIOMET: la cita de ese día fue en ese centro */
 const enFisiomet = (p, d) => { const f=toISO(d?.fecha); return !!f && (p?.citas||[]).some(c=>toISO(c.fecha)===f && c.estado!=='cancelada' && c.servicio!=='oral' && /fisiomet/i.test(String(c.lugar||'')+' '+(c.lugarNombre||''))); };
 const logoP={}; const logoImg = f => logoP[f] || (logoP[f]=new Promise(ok=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>{ delete logoP[f]; ok(null); }; im.src='icons/'+f+'.png'; }));
-/* logo que acompaña a StrongMed en stickers, fotos y tarjetas: por defecto FISIOMET si la sesión fue allí, si no Kin At Home; en Compartir se puede cambiar */
-const MARCAS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','Solo StrongMed']];
-const marcaDe = (p, d) => enFisiomet(p,d) ? 'fisiomet' : 'kah';
+/* logo que acompaña a StrongMed en stickers, fotos y tarjetas: el centro que marcó el profesional al iniciar la sesión en la Sala;
+   sin eso, FISIOMET si la cita de ese día fue allí, si no Kin At Home. La persona no lo elige */
+const CENTROS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','StrongMed']];
+const marcaDe = (p, d) => d?.centro || (enFisiomet(p,d) ? 'fisiomet' : 'kah');
 async function marcaAlt(mk){ if(mk==='sm') return 'solo';
   if(mk==='fisiomet'){ const im=await logoImg('fisiomet'); return im ? {im, t:'FISIOMET', s:'Kinesiología · Concepción'} : null; }
   if(mk==='md'){ const im=await logoImg('mdkine'); return im ? {im} : null; }
@@ -5485,12 +5488,12 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología';
     x.restore(); }
   x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':'Paso a paso, volviendo más fuerte',80,yD+80);
   return yD+80; }
-async function storyBlob(p, d, mode='card', foto=null, marca=null){
+async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
   const MUTED = mode==='card' ? '#9a9aa3' : '#e4e4ea';
-  const alt = await marcaAlt(marca||marcaDe(p,d)), LG=(y,s=1)=>storyLogos(x,F,I,ACC,y,s,alt);
+  const alt = await marcaAlt(marcaDe(p,d)), LG=(y,s=1)=>storyLogos(x,F,I,ACC,y,s,alt);
   if(mode==='card'){ x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); }
   if(mode==='foto' && foto){ const r=Math.max(W/foto.width, H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
     let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
@@ -5563,11 +5566,11 @@ window.guardarImg = async nombre => { const b=S.shareBlob; if(!b) return; const 
 const salaShareOk = s => !!s && s.tipo!=='rehabilitacion' && ((s.ejercicios||[]).length>0 || (s.terapias||[]).length>0 || s.tipo==='recovery');
 function regSala(p, id){ const sid=String(id).replace(/^sala-/,''), s=presSes(p).find(x=>String(x.id)===sid); if(!salaShareOk(s)) return null; const rec=s.tipo==='recovery';
   const d=!rec && (p.diarios||[]).find(x=>x.presencial && String(x.presencial.sesionId)===sid); if(d) return d;
-  return {id:'sala-'+sid, fecha:s.fecha, duracion:s.dur, rpe:s.rpe, nombreSesion:rec?'Recovery day':(s.titulo||'Entrenamiento'), ejercicios:s.ejercicios||[], terapias:s.terapias||[], recovery:rec, presencial:{origen:'sala', proId:s.proId, por:s.pro, sesionId:s.id}}; }
+  return {id:'sala-'+sid, fecha:s.fecha, duracion:s.dur, rpe:s.rpe, nombreSesion:rec?'Recovery day':(s.titulo||'Entrenamiento'), ejercicios:s.ejercicios||[], terapias:s.terapias||[], recovery:rec, ...(s.centro?{centro:s.centro}:{}), presencial:{origen:'sala', proId:s.proId, por:s.pro, sesionId:s.id}}; }
 /* sesión de kinesiología ('kine-id', de sesionesRehab) u odontología ('oral-id', de sus atenciones) como registro para la imagen; sin datos clínicos */
 function regServ(p, id){ const [t, sid]=[String(id).split('-')[0], String(id).replace(/^(kine|oral)-/,'')];
   if(t==='kine'){ const L=p.sesionesRehab||[], i=L.findIndex(x=>String(x.id)===sid), s=L[i]; if(!s) return null;
-    return {id, fecha:s.fecha, servicio:'Kinesiología', nombreSesion:'Rehab day', num:i+1, presencial:{por:s.klgo}}; }
+    return {id, fecha:s.fecha, servicio:'Kinesiología', nombreSesion:'Rehab day', num:i+1, ...(s.centro?{centro:s.centro}:{}), presencial:{por:s.klgo}}; }
   if(t==='oral'){ const a=(p.oral?.atenciones||[]).find(x=>String(x.id)===sid); if(!a) return null;
     return {id, fecha:a.fecha, servicio:'Odontología', nombreSesion:'Smile day', presencial:{por:a.pro||oralPro(p), proId:p.oral?.proId}}; }
   return null; }
@@ -5584,18 +5587,15 @@ function ultimaShare(p){ const L=[], s=presSes(p).filter(salaShareOk).slice(-1)[
   return L.sort((x,y)=>String(y.f).localeCompare(String(x.f)))[0] || null; }
 function listoHoyCard(p){ const L=listoHoy(p); if(!L.length) return ''; const u=LISTO[L[0].k];
   return `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada${L.length===1?` · ${u[0]}`:''}</div><h2 class="disp h2" style="margin-top:8px">${L.length===1?u[1]:'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1">${L.map(x=>`<button class="btn dark sm" onclick="compartir(${q(x.id)})">${ic('upload','s')} Compartir ${LISTO[x.k][2]}</button>`).join('')}</div></section>`; }
-window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; if(String(S.shareId)!==String(id)) S.shareMarca=null; S.shareMode=mode; S.shareId=id; const mk=S.shareMarca||marcaDe(p,d);
+window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
-  const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null,mk); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
+  const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const ayuda = mode==='sticker' ? AYUDA_STK
     : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
   sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.filter(([k])=>!(d.recovery&&k==='foto')).map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
-  <p class="muted sm" style="margin-top:8px">${ayuda}</p>
-  <div class="muted sm" style="margin-top:10px">Logo junto a StrongMed</div><div class="pills" style="margin-top:6px">${MARCAS.map(([k,l])=>`<button class="pill ${mk===k?'on':''}" onclick="shareMarca('${k}')">${l}</button>`).join('')}</div>
-  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
+  <p class="muted sm" style="margin-top:8px">${ayuda}</p>  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${!pk&&!d.recovery&&!String(d.id).startsWith('sala-')&&(d.ejercicios||[]).length&&!d.guardadaComoRutina&&!(p.rutinasAsignadas||[]).some(r=>r.id===d.rutinaId)?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
-window.shareMarca = mk => { S.shareMarca=mk; compartir(S.shareId, S.shareMode); };
 window.elegirFotoHistoria = () => { const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; (S.shareAgain||(()=>compartir(S.shareId,'foto')))(); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
   inp.click(); };

@@ -5418,15 +5418,24 @@ window.verRuta = async id => { const d=(me().diarios||[]).find(x=>String(x.id)==
 function storyLogos(x, F, I, ACC, y0, sc0=1, alt=null){
   const s1=84*sc0, sc=s1/368; x.save(); x.translate(80-72*sc, y0-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore();
   const by=y0+58*sc0, lx=80+s1+18; x.fillStyle='#fff'; x.font=F(64*sc0); x.fillText('STRONG',lx,by); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,by); const smw=sw+x.measureText('MED').width+(lx-80);
+  if(alt==='solo') return; // solo StrongMed, sin centro asociado
   x.fillStyle='#b4b4bc'; x.font=F(48*sc0,700); x.fillText('×',80+smw+24*sc0,by-4*sc0); const kx=80+smw+76*sc0, ky=y0-4*sc0, ks=72*sc0;
-  // sesión en FISIOMET: su logo (colores originales) en lugar de Kin At Home
-  if(alt){ const ls=104*sc0; x.drawImage(alt,kx,y0-20*sc0,ls,ls); x.fillStyle='#fff'; x.font=F(46*sc0,800); x.fillText('FISIOMET',kx+ls+12*sc0,ky+38*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología · Concepción',kx+ls+12*sc0,ky+68*sc0); return; }
+  // otro centro (FISIOMET, MD Kine): su logo con colores originales en lugar de Kin At Home
+  if(alt?.im && alt.t){ const ls=104*sc0; x.drawImage(alt.im,kx,y0-20*sc0,ls,ls); x.fillStyle='#fff'; x.font=F(46*sc0,800); x.fillText(alt.t,kx+ls+12*sc0,ky+38*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText(alt.s,kx+ls+12*sc0,ky+68*sc0); return; }
+  if(alt?.im){ const lh=118*sc0, lw=lh*alt.im.width/alt.im.height; x.drawImage(alt.im,kx,y0-34*sc0,lw,lh); return; }
   x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16*sc0) : x.rect(kx,ky,ks,ks); x.fill();
   x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
   x.fillStyle='#fff'; x.font=F(40*sc0,800); x.fillText('KIN AT HOME',kx+ks+18*sc0,ky+34*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología a domicilio',kx+ks+18*sc0,ky+64*sc0); }
 /* sesión hecha en FISIOMET: la cita de ese día fue en ese centro */
 const enFisiomet = (p, d) => { const f=toISO(d?.fecha); return !!f && (p?.citas||[]).some(c=>toISO(c.fecha)===f && c.estado!=='cancelada' && c.servicio!=='oral' && /fisiomet/i.test(String(c.lugar||'')+' '+(c.lugarNombre||''))); };
-let fisioP=null; const fisioImg = () => fisioP || (fisioP=new Promise(ok=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>{ fisioP=null; ok(null); }; im.src='icons/fisiomet.png'; }));
+const logoP={}; const logoImg = f => logoP[f] || (logoP[f]=new Promise(ok=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>{ delete logoP[f]; ok(null); }; im.src='icons/'+f+'.png'; }));
+/* logo que acompaña a StrongMed en stickers, fotos y tarjetas: por defecto FISIOMET si la sesión fue allí, si no Kin At Home; en Compartir se puede cambiar */
+const MARCAS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','Solo StrongMed']];
+const marcaDe = (p, d) => enFisiomet(p,d) ? 'fisiomet' : 'kah';
+async function marcaAlt(mk){ if(mk==='sm') return 'solo';
+  if(mk==='fisiomet'){ const im=await logoImg('fisiomet'); return im ? {im, t:'FISIOMET', s:'Kinesiología · Concepción'} : null; }
+  if(mk==='md'){ const im=await logoImg('mdkine'); return im ? {im} : null; }
+  return null; }
 /* profesional que atendió: el de la sesión presencial, el que dio la rutina, el de la última cita o el de la ficha */
 function proFirma(p, fecha, d=null){ const f=toISO(fecha)||todayISO(), ok=n=>n && !/^equipo/i.test(String(n).trim()) ? String(n).trim() : '';
   const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return conProfesion(n, pres.proId); }
@@ -5476,12 +5485,12 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología';
     x.restore(); }
   x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':'Paso a paso, volviendo más fuerte',80,yD+80);
   return yD+80; }
-async function storyBlob(p, d, mode='card', foto=null){
+async function storyBlob(p, d, mode='card', foto=null, marca=null){
   const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
   const MUTED = mode==='card' ? '#9a9aa3' : '#e4e4ea';
-  const alt = enFisiomet(p,d) ? await fisioImg() : null, LG=(y,s=1)=>storyLogos(x,F,I,ACC,y,s,alt);
+  const alt = await marcaAlt(marca||marcaDe(p,d)), LG=(y,s=1)=>storyLogos(x,F,I,ACC,y,s,alt);
   if(mode==='card'){ x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); }
   if(mode==='foto' && foto){ const r=Math.max(W/foto.width, H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
     let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
@@ -5575,16 +5584,18 @@ function ultimaShare(p){ const L=[], s=presSes(p).filter(salaShareOk).slice(-1)[
   return L.sort((x,y)=>String(y.f).localeCompare(String(x.f)))[0] || null; }
 function listoHoyCard(p){ const L=listoHoy(p); if(!L.length) return ''; const u=LISTO[L[0].k];
   return `<section class="hero"><div class="eyebrow" style="position:relative;z-index:1">Sesión terminada${L.length===1?` · ${u[0]}`:''}</div><h2 class="disp h2" style="margin-top:8px">${L.length===1?u[1]:'¡Buen trabajo hoy!'}</h2><p class="sm" style="margin-top:6px;opacity:.75;position:relative;z-index:1">Guarda tu sticker o imagen y súbela a tu historia.</p><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1">${L.map(x=>`<button class="btn dark sm" onclick="compartir(${q(x.id)})">${ic('upload','s')} Compartir ${LISTO[x.k][2]}</button>`).join('')}</div></section>`; }
-window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; S.shareMode=mode; S.shareId=id;
+window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined) S.shareK=k||null; else if(mode===undefined) S.shareK=null; const pk=S.shareK, p=pk?prof(pk):me(), d=(p.diarios||[]).find(x=>String(x.id)===String(id)) || regSala(p,id) || regServ(p,id); if(!d) return; mode=mode||'sticker'; if(d.recovery && mode==='foto') mode='sticker'; if(String(S.shareId)!==String(id)) S.shareMarca=null; S.shareMode=mode; S.shareId=id; const mk=S.shareMarca||marcaDe(p,d);
   if(mode==='foto' && !S.shareFoto){ return elegirFotoHistoria(); }
-  const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
+  const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null,mk); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const ayuda = mode==='sticker' ? AYUDA_STK
     : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
   sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.filter(([k])=>!(d.recovery&&k==='foto')).map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
   <p class="muted sm" style="margin-top:8px">${ayuda}</p>
+  <div class="muted sm" style="margin-top:10px">Logo junto a StrongMed</div><div class="pills" style="margin-top:6px">${MARCAS.map(([k,l])=>`<button class="pill ${mk===k?'on':''}" onclick="shareMarca('${k}')">${l}</button>`).join('')}</div>
   <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${!pk&&!d.recovery&&!String(d.id).startsWith('sala-')&&(d.ejercicios||[]).length&&!d.guardadaComoRutina&&!(p.rutinasAsignadas||[]).some(r=>r.id===d.rutinaId)?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
+window.shareMarca = mk => { S.shareMarca=mk; compartir(S.shareId, S.shareMode); };
 window.elegirFotoHistoria = () => { const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return; const im=new Image(); im.onload=()=>{ S.shareFoto=im; (S.shareAgain||(()=>compartir(S.shareId,'foto')))(); }; im.onerror=()=>toast('No se pudo abrir la foto','err'); im.src=URL.createObjectURL(f); };
   inp.click(); };

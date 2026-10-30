@@ -5415,13 +5415,18 @@ window.verRuta = async id => { const d=(me().diarios||[]).find(x=>String(x.id)==
 
 /* ================= COMPARTIR EN HISTORIAS (imagen 1080×1920) ================= */
 /* modos: 'card' (fondo oscuro), 'sticker' (PNG sin fondo para pegar sobre una foto en la historia) y 'foto' (sobre una foto de la persona) */
-function storyLogos(x, F, I, ACC, y0, sc0=1){
+function storyLogos(x, F, I, ACC, y0, sc0=1, alt=null){
   const s1=84*sc0, sc=s1/368; x.save(); x.translate(80-72*sc, y0-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore();
   const by=y0+58*sc0, lx=80+s1+18; x.fillStyle='#fff'; x.font=F(64*sc0); x.fillText('STRONG',lx,by); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,by); const smw=sw+x.measureText('MED').width+(lx-80);
   x.fillStyle='#b4b4bc'; x.font=F(48*sc0,700); x.fillText('×',80+smw+24*sc0,by-4*sc0); const kx=80+smw+76*sc0, ky=y0-4*sc0, ks=72*sc0;
+  // sesión en FISIOMET: su logo (colores originales) en lugar de Kin At Home
+  if(alt){ const ls=104*sc0; x.drawImage(alt,kx,y0-20*sc0,ls,ls); x.fillStyle='#fff'; x.font=F(46*sc0,800); x.fillText('FISIOMET',kx+ls+12*sc0,ky+38*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología · Concepción',kx+ls+12*sc0,ky+68*sc0); return; }
   x.fillStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(kx,ky,ks,ks,16*sc0) : x.rect(kx,ky,ks,ks); x.fill();
   x.save(); x.translate(kx,ky); x.scale(ks/400,ks/400); x.fillStyle='#1a1a1a'; x.fillRect(81,170,246,34); x.fillRect(187,70,34,233); x.translate(187,187); x.rotate(-Math.PI/4); x.fillRect(0,-117,34,120); x.restore();
   x.fillStyle='#fff'; x.font=F(40*sc0,800); x.fillText('KIN AT HOME',kx+ks+18*sc0,ky+34*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText('Kinesiología a domicilio',kx+ks+18*sc0,ky+64*sc0); }
+/* sesión hecha en FISIOMET: la cita de ese día fue en ese centro */
+const enFisiomet = (p, d) => { const f=toISO(d?.fecha); return !!f && (p?.citas||[]).some(c=>toISO(c.fecha)===f && c.estado!=='cancelada' && c.servicio!=='oral' && /fisiomet/i.test(String(c.lugar||'')+' '+(c.lugarNombre||''))); };
+let fisioP=null; const fisioImg = () => fisioP || (fisioP=new Promise(ok=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>{ fisioP=null; ok(null); }; im.src='icons/fisiomet.png'; }));
 /* profesional que atendió: el de la sesión presencial, el que dio la rutina, el de la última cita o el de la ficha */
 function proFirma(p, fecha, d=null){ const f=toISO(fecha)||todayISO(), ok=n=>n && !/^equipo/i.test(String(n).trim()) ? String(n).trim() : '';
   const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return conProfesion(n, pres.proId); }
@@ -5476,6 +5481,7 @@ async function storyBlob(p, d, mode='card', foto=null){
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
   const MUTED = mode==='card' ? '#9a9aa3' : '#e4e4ea';
+  const alt = enFisiomet(p,d) ? await fisioImg() : null, LG=(y,s=1)=>storyLogos(x,F,I,ACC,y,s,alt);
   if(mode==='card'){ x.fillStyle='#08080a'; x.fillRect(0,0,W,H); const gr=x.createRadialGradient(W*.8,H*.15,50,W*.8,H*.15,900); gr.addColorStop(0,'rgba(204,255,51,.28)'); gr.addColorStop(1,'rgba(204,255,51,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); }
   if(mode==='foto' && foto){ const r=Math.max(W/foto.width, H/foto.height), fw=foto.width*r, fh=foto.height*r; x.drawImage(foto,(W-fw)/2,(H-fh)/2,fw,fh);
     let g=x.createLinearGradient(0,0,0,420); g.addColorStop(0,'rgba(0,0,0,.65)'); g.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=g; x.fillRect(0,0,W,420);
@@ -5486,32 +5492,42 @@ async function storyBlob(p, d, mode='card', foto=null){
   const ruta=d.ruta && d.ruta.length>1;
   const stat=(lbl,v,u,cx,cy,big=120)=>{ x.fillStyle=MUTED; x.font=I(30,700); x.fillText(lbl.toUpperCase(),cx,cy); x.fillStyle='#fff'; x.font=F(big); x.fillText(v,cx,cy+big*.98); if(u){ const vw=x.measureText(v).width; x.fillStyle=MUTED; x.font=F(big*.44,700); x.fillText(u,cx+vw+12,cy+big*.98); } };
   const title=(y,max=150)=>{ x.fillStyle=ACC; const ttl=String(d.nombreSesion||d.tipoActividad||'Entrenamiento').toUpperCase().slice(0,28); let fs=max; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl,80,y); };
-  const lista=(y, n, gap=150, f1=44, f2=54)=>{ ej.slice(0,n).forEach(e=>{ const kg=num(e.kilos??e.kg); x.fillStyle='#fff'; x.font=I(f1,700); x.fillText(String(e.ejercicio).slice(0,30),80,y); x.fillStyle=ACC; x.font=F(f2); x.fillText(e.txt!=null ? e.txt : `${e.series||''} × ${e.reps||''}${kg?` · ${kg} kg`:''}`,80,y+f2*1.15); y+=gap; }); if(ej.length>n){ x.fillStyle=MUTED; x.font=I(34,600); x.fillText(`+ ${ej.length-n} ejercicio${ej.length-n>1?'s':''} más`,80,y-gap*.35); } return y; };
+  const fitT=(s,max)=>{ s=String(s||''); if(x.measureText(s).width<=max) return s; while(s.length>1 && x.measureText(s+'…').width>max) s=s.slice(0,-1); return s.trimEnd()+'…'; };
+  const det=e=>{ if(e.txt!=null) return e.txt; const kg=num(e.kilos??e.kg), sr=e.series||e.reps ? `${e.series||'–'} × ${e.reps||'–'}` : ''; return [sr, kg?`${kg} kg`:''].filter(Boolean).join(' · '); };
+  /* lista que se adapta al espacio: dos líneas por ejercicio si caben; si no, una línea (nombre y dosis a la derecha) y "+N más" al final.
+     Devuelve dónde termina; con dry=true solo mide */
+  const lista=(y, space, gap=150, f1=44, f2=54, dry=false)=>{ const n=ej.length, y0=y; if(!n) return y;
+    if(n*gap<=space){ if(!dry) ej.forEach((e,i)=>{ const yy=y0+i*gap; x.fillStyle='#fff'; x.font=I(f1,700); x.fillText(fitT(e.ejercicio,W-160),80,yy); x.fillStyle=ACC; x.font=F(f2); x.fillText(fitT(det(e),W-160),80,yy+f2*1.15); }); return y0+n*gap; }
+    const ch=Math.round(f1*1.55), fn=Math.round(f1*.88), fd=Math.round(f1*1.1), mas=Math.round(f1*1.3); let k=Math.floor(space/ch); if(k<n) k=Math.max(1,Math.floor((space-mas)/ch));
+    if(!dry){ ej.slice(0,k).forEach((e,i)=>{ const yy=y0+i*ch, dt=det(e); x.font=F(fd); const dw=dt?x.measureText(dt).width:0; x.fillStyle=ACC; x.textAlign='right'; if(dt) x.fillText(dt,W-80,yy); x.textAlign='left';
+        x.fillStyle='#fff'; x.font=I(fn,700); x.fillText(fitT(e.ejercicio,W-160-dw-(dt?28:0)),80,yy); });
+      if(n>k){ x.fillStyle=MUTED; x.font=I(Math.round(f1*.8),600); x.fillText(`+ ${n-k} ejercicio${n-k>1?'s':''} más`,80,y0+k*ch); } }
+    return y0+k*ch+(n>k?mas:0)+Math.round(f1*.4); };
   const rutaDraw=(box)=>{ const pp=routePath(d.ruta,box[2],box[3],30).map(([a,b])=>[a+box[0],b+box[1]]); const sh=x.shadowBlur; x.lineJoin='round'; x.lineCap='round'; x.shadowColor=ACC; x.shadowBlur=30; x.strokeStyle=ACC; x.lineWidth=16; x.beginPath(); pp.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1])); x.stroke(); x.shadowBlur=sh; x.shadowColor='rgba(0,0,0,.55)';
     x.fillStyle='#3ddc84'; x.beginPath(); x.arc(pp[0][0],pp[0][1],18,0,7); x.fill(); x.fillStyle='#ff5a4f'; x.beginPath(); x.arc(pp[pp.length-1][0],pp[pp.length-1][1],18,0,7); x.fill(); };
   const quien=`${first(p.nombre)} · ${fmtLong(parseISO(toISO(d.fecha)))}`, fpro=proFirma(p,d.fecha,d);
   if(d.recovery || d.servicio){ const blk=d.servicio?servBlock:recoveryBlock;
-    if(mode==='card'){ storyLogos(x,F,I,ACC,92); blk(x,F,I,ACC,d,700); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
-    if(mode==='foto'){ storyLogos(x,F,I,ACC,90,.9); blk(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
-    storyLogos(x,F,I,ACC,60,.9); const y=blk(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
+    if(mode==='card'){ LG(92); blk(x,F,I,ACC,d,700); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); return new Promise(r=>cv.toBlob(r,'image/png')); }
+    if(mode==='foto'){ LG(90,.9); blk(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
+    LG(60,.9); const y=blk(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
   if(mode==='card'){
-    storyLogos(x,F,I,ACC,92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); title(420);
+    LG(92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); title(420);
     if(ruta){ rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
-    else { lista(560,6); stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600); }
+    else { lista(560,770); stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600); }
     return new Promise(r=>cv.toBlob(r,'image/png'));
   }
   if(mode==='foto'){
-    storyLogos(x,F,I,ACC,90,.9);
+    LG(90,.9);
     if(ruta){ rutaDraw([80,980,W-160,380]); title(1450,120); stat('Distancia', String(d.distancia), 'km', 80, 1520, 100); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, 1520, 100); }
-    else { const n=Math.min(4, ej.length); title(1840-(n*112)-300,120); lista(1840-(n*112)-220, n, 112, 38, 46); x.fillStyle='rgba(0,0,0,0)';
+    else { const ly=1620-Math.min(lista(0,448,112,38,46,true),448); title(ly-80,120); lista(ly,448,112,38,46);
       stat('Duración', String(d.duracion||'—'), 'min', 80, 1640, 96); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, 1640, 96); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, 1640, 96); }
     x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro);
     return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
   }
   // sticker sin fondo: bloque compacto que luego se recorta a su contenido
-  storyLogos(x,F,I,ACC,60,.9); title(300,130); let y;
+  LG(60,.9); title(300,130); let y;
   if(ruta){ rutaDraw([80,340,W-160,520]); y=900; stat('Distancia', String(d.distancia), 'km', 80, y, 104); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, y, 104); y+=150; }
-  else { y=lista(390, Math.min(5, ej.length), 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
+  else { y=lista(390, 720, 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
   x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10); firma(x,I,ACC,y+58,fpro);
   return stickerBlob(cv);
 }

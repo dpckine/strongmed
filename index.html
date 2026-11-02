@@ -5536,7 +5536,7 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología';
   x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':'Paso a paso, volviendo más fuerte',80,yD+80);
   return yD+80; }
 async function storyBlob(p, d, mode='card', foto=null){
-  const W=1080, H=1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
+  const W=1080, H=mode==='sticker'?2700:1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
   try{ await document.fonts.load('800 80px "Barlow Condensed"'); }catch(e){}
   const F=(s,wt=800)=>`${wt} ${s}px "Barlow Condensed", Impact, "Arial Narrow", sans-serif`, I=(s,wt=600)=>`${wt} ${s}px Inter, Arial, sans-serif`, ACC=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#ccff33';
   const MUTED = mode==='card' ? '#9a9aa3' : '#e4e4ea';
@@ -5559,8 +5559,10 @@ async function storyBlob(p, d, mode='card', foto=null){
   /* lista que se adapta al espacio: dos líneas por ejercicio si caben; si no, una línea (nombre y dosis a la derecha) y "+N más" al final.
      Devuelve dónde termina; con dry=true solo mide */
   const lista=(y, space, gap=150, f1=44, f2=54, dry=false)=>{ const n=ej.length, y0=y; if(!n) return y;
-    if(n*gap<=space){ if(!dry) ej.forEach((e,i)=>{ const yy=y0+i*gap; x.fillStyle='#fff'; x.font=I(f1,700); x.fillText(fitT(e.ejercicio,W-160),80,yy); x.fillStyle=ACC; x.font=F(f2); x.fillText(fitT(det(e),W-160),80,yy+f2*1.15); }); return y0+n*gap; }
-    const ch=Math.round(f1*1.55), fn=Math.round(f1*.88), fd=Math.round(f1*1.1), mas=Math.round(f1*1.3); let k=Math.floor(space/ch); if(k<n) k=Math.max(1,Math.floor((space-mas)/ch));
+    if(n<=4 && n*gap<=space){ if(!dry) ej.forEach((e,i)=>{ const yy=y0+i*gap; x.fillStyle='#fff'; x.font=I(f1,700); x.fillText(fitT(e.ejercicio,W-160),80,yy); x.fillStyle=ACC; x.font=F(f2); x.fillText(fitT(det(e),W-160),80,yy+f2*1.15); }); return y0+n*gap; }
+    // con muchos ejercicios se achica un poco la fila (hasta 80 %) para que quepan todos antes de recurrir a "+N más"
+    f1=Math.round(f1*Math.max(.8, Math.min(1, space/(n*f1*1.55))));
+    const ch=Math.round(f1*1.55), fn=Math.round(f1*.88), fd=Math.round(f1*1.1), mas=Math.round(f1*1.3); let k=Math.min(n, Math.floor(space/ch)); if(k<n) k=Math.max(1,Math.floor((space-mas)/ch));
     if(!dry){ ej.slice(0,k).forEach((e,i)=>{ const yy=y0+i*ch, dt=det(e); x.font=F(fd); const dw=dt?x.measureText(dt).width:0; x.fillStyle=ACC; x.textAlign='right'; if(dt) x.fillText(dt,W-80,yy); x.textAlign='left';
         x.fillStyle='#fff'; x.font=I(fn,700); x.fillText(fitT(e.ejercicio,W-160-dw-(dt?28:0)),80,yy); });
       if(n>k){ x.fillStyle=MUTED; x.font=I(Math.round(f1*.8),600); x.fillText(`+ ${n-k} ejercicio${n-k>1?'s':''} más`,80,y0+k*ch); } }
@@ -5574,15 +5576,20 @@ async function storyBlob(p, d, mode='card', foto=null){
     if(mode==='foto'){ LG(90,.9); blk(x,F,I,ACC,d,1060); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro); return new Promise(r=>cv.toBlob(r,'image/jpeg',.92)); }
     LG(60,.9); const y=blk(x,F,I,ACC,d,170); x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+40); firma(x,I,ACC,y+88,fpro); return stickerBlob(cv); }
   if(mode==='card'){
-    LG(92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro); title(420);
-    if(ruta){ rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
-    else { lista(560,770); stat('Duración', String(d.duracion||'—'), 'min', 80, 1400); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 600, 1400); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, 1600); }
+    LG(92); x.fillStyle=MUTED; x.font=I(34,600); x.fillText(quien,80,H-120); firma(x,I,ACC,H-66,fpro);
+    if(ruta){ title(420); rutaDraw([80,500,W-160,820]); stat('Distancia', String(d.distancia), 'km', 80, 1400); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 600, 1400); stat(d.ritmo?'Ritmo':'Velocidad', d.ritmo||String(d.velocidad), d.ritmo?'/km':'km/h', 80, 1600); }
+    // bloque título + lista + datos centrado entre los logos y la firma: con pocos ejercicios no queda un hueco al medio
+    else { const sv=vol?320:130, sp=1760-330-260-90-sv, lh=lista(0,sp,150,44,54,true), y0=330+Math.max(0,(1430-(260+lh+90+sv))/2), sy=y0+260+lh+90;
+      title(y0+120); lista(y0+260,sp); stat('Duración', String(d.duracion||'—'), 'min', 80, sy); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 600, sy); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 80, sy+200); }
     return new Promise(r=>cv.toBlob(r,'image/png'));
   }
   if(mode==='foto'){
     LG(90,.9);
     if(ruta){ rutaDraw([80,980,W-160,380]); title(1450,120); stat('Distancia', String(d.distancia), 'km', 80, 1520, 100); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, 1520, 100); }
-    else { const ly=1620-Math.min(lista(0,448,112,38,46,true),448); title(ly-80,120); lista(ly,448,112,38,46);
+    else { const ly=1620-Math.min(lista(0,780,112,38,46,true),780);
+      // si la lista sube más allá del degradado, se extiende la sombra para que se lea sobre la foto
+      if(ly-300<880){ const sb=x.shadowBlur; x.shadowBlur=0; const g=x.createLinearGradient(0,ly-300,0,880); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.35)'); x.fillStyle=g; x.fillRect(0,ly-300,W,1180-ly); x.fillStyle='rgba(0,0,0,.35)'; x.fillRect(0,880,W,240); x.shadowBlur=sb; }
+      title(ly-80,120); lista(ly,780,112,38,46);
       stat('Duración', String(d.duracion||'—'), 'min', 80, 1640, 96); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, 1640, 96); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, 1640, 96); }
     x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,H-100); firma(x,I,ACC,H-52,fpro);
     return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
@@ -5590,7 +5597,7 @@ async function storyBlob(p, d, mode='card', foto=null){
   // sticker sin fondo: bloque compacto que luego se recorta a su contenido
   LG(60,.9); title(300,130); let y;
   if(ruta){ rutaDraw([80,340,W-160,520]); y=900; stat('Distancia', String(d.distancia), 'km', 80, y, 104); stat('Tiempo', d.segundos?fmtClock(d.segundos):String(d.duracion), d.segundos?'':'min', 560, y, 104); y+=150; }
-  else { y=lista(390, 720, 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
+  else { y=lista(390, 1500, 118, 40, 50); y+=10; stat('Duración', String(d.duracion||'—'), 'min', 80, y, 104); stat(d.recovery?'Terapias':'Series', String((d.recovery?(d.terapias||[]).length:series)||'—'), '', 420, y, 104); if(vol) stat('Volumen', Math.round(vol).toLocaleString('es-CL'), 'kg', 700, y, 104); y+=150; }
   x.fillStyle=MUTED; x.font=I(30,600); x.fillText(quien,80,y+10); firma(x,I,ACC,y+58,fpro);
   return stickerBlob(cv);
 }

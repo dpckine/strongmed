@@ -5637,6 +5637,10 @@ async function storyBlob(p, d, mode='card', foto=null){
   const title=(y,max=150)=>{ x.fillStyle=ACC; const ttl=String(ruta ? (d.tipoActividad||d.nombreSesion||'Actividad') : 'Sesión de entrenamiento').toUpperCase().slice(0,28); let fs=max; x.font=F(fs); while(x.measureText(ttl).width>W-160 && fs>60){ fs-=6; x.font=F(fs); } x.fillText(ttl,80,y); };
   const fitT=(s,max)=>{ s=String(s||''); if(x.measureText(s).width<=max) return s; while(s.length>1 && x.measureText(s+'…').width>max) s=s.slice(0,-1); return s.trimEnd()+'…'; };
   const det=e=>{ if(e.txt!=null) return e.txt;
+    /* series distintas (p. ej. 1×12 con 40 kg y 2×10 con 50 kg): se agrupan las iguales seguidas y se muestran todas */
+    const ss=(e.sets||[]).filter(s=>s && !s.ap && s.min==null && (num(s.reps) || num(s.seg)));
+    if(ss.length && e.tipo!=='cardio'){ const g=[]; ss.forEach(s=>{ const r=num(s.seg)?`${num(s.seg)} s`:num(s.reps), k=num(s.kg), l=g[g.length-1]; if(l && l.r===r && l.k===k) l.n++; else g.push({n:1, r, k}); });
+      if(g.length>1) return g.map(x=>`${x.n}×${x.r}${x.k?` · ${x.k} kg`:''}`).join(' + '); }
     if(e.tipo==='cardio') return [num(e.min)?`${num(e.min)} min`:'', num(e.km)?`${num(e.km)} km`:''].filter(Boolean).join(' · ');
     if(e.tipo==='tiempo') return [`${e.series||'–'} × ${e.seg||'–'} s`, num(e.kilos)?`${num(e.kilos)} kg`:''].filter(Boolean).join(' · ');
     const kg=num(e.kilos??e.kg), sr=e.series||e.reps ? `${e.series||'–'} × ${e.reps||'–'}` : ''; return [sr, kg?`${kg} kg`:''].filter(Boolean).join(' · '); };
@@ -5647,7 +5651,7 @@ async function storyBlob(p, d, mode='card', foto=null){
     // con muchos ejercicios se achica un poco la fila (hasta 80 %) para que quepan todos antes de recurrir a "+N más"
     f1=Math.round(f1*Math.max(.8, Math.min(1, space/(n*f1*1.55))));
     const ch=Math.round(f1*1.55), fn=Math.round(f1*.88), fd=Math.round(f1*1.1), mas=Math.round(f1*1.3); let k=Math.min(n, Math.floor(space/ch)); if(k<n) k=Math.max(1,Math.floor((space-mas)/ch));
-    if(!dry){ ej.slice(0,k).forEach((e,i)=>{ const yy=y0+i*ch, dt=det(e); x.font=F(fd); const dw=dt?x.measureText(dt).width:0; x.fillStyle=ACC; x.textAlign='right'; if(dt) x.fillText(dt,W-80,yy); x.textAlign='left';
+    if(!dry){ ej.slice(0,k).forEach((e,i)=>{ const yy=y0+i*ch; x.font=F(fd); const dt=fitT(det(e),(W-160)*.66); const dw=dt?x.measureText(dt).width:0; x.fillStyle=ACC; x.textAlign='right'; if(dt) x.fillText(dt,W-80,yy); x.textAlign='left';
         x.fillStyle='#fff'; x.font=I(fn,700); x.fillText(fitT(e.ejercicio,W-160-dw-(dt?28:0)),80,yy); });
       if(n>k){ x.fillStyle=MUTED; x.font=I(Math.round(f1*.8),600); x.fillText(`+ ${n-k} ejercicio${n-k>1?'s':''} más`,80,y0+k*ch); } }
     return y0+k*ch+(n>k?mas:0)+Math.round(f1*.4); };

@@ -5563,11 +5563,11 @@ async function marcaAlt(mk){ if(mk==='sm' || mk==='online') return 'solo';
   if(mk==='md'){ const im=await logoImg('mdkine'); return im ? {im} : null; }
   return null; }
 /* profesional que atendió: el de la sesión presencial, el que dio la rutina, el de la última cita o el de la ficha */
-function proFirma(p, fecha, d=null){ const f=toISO(fecha)||todayISO(), ok=n=>n && !/^equipo/i.test(String(n).trim()) ? String(n).trim() : '';
-  const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return conProfesion(n, pres.proId); }
-  const r=d?.rutinaId ? (p.rutinasAsignadas||[]).find(x=>x.id===d.rutinaId) : null; if(ok(r?.pro)) return conProfesion(ok(r.pro));
+function proFirma(p, fecha, d=null){ const cpK=(n,id)=>conProfesion(n,id).replace(/^(Kinesi[oó]log[oa]|Klg[oa]\.)\s+/i,'Kine '), f=toISO(fecha)||todayISO(), ok=n=>n && !/^equipo/i.test(String(n).trim()) ? String(n).trim() : '';
+  const pres=d?.presencial; if(pres){ const n=ok(pres.por) || ok((prosSala().find(x=>x.id===pres.proId)||{}).nombre); if(n) return cpK(n, pres.proId); }
+  const r=d?.rutinaId ? (p.rutinasAsignadas||[]).find(x=>x.id===d.rutinaId) : null; if(ok(r?.pro)) return cpK(ok(r.pro));
   const cs=(p.citas||[]).filter(c=>c.estado!=='cancelada' && c.servicio!=='oral' && ok(c.pro)).sort((a,b)=>toISO(a.fecha).localeCompare(toISO(b.fecha)));
-  const c=cs.filter(c=>toISO(c.fecha)<=f).pop() || cs[0]; return ok(c?.pro) ? conProfesion(ok(c.pro), c.proId) : conProfesion(ok(p.klgo)); }
+  const c=cs.filter(c=>toISO(c.fecha)<=f).pop() || cs[0]; return ok(c?.pro) ? cpK(ok(c.pro), c.proId) : cpK(ok(p.klgo)); }
 /* nombre con su profesión, igual que en la firma de informes (título configurable en la agenda; por defecto Kinesiólogo/a) */
 function conProfesion(n, id){ if(!n) return ''; const sinT=s=>String(s).replace(/^(Klg[oa]\.|Kinesi[oó]log[oa]|Dra?\.)\s*/i,'').trim(), fem=/^(Klga\.|Kinesi[oó]loga|Dra\.)/i.test(n);
   const ags=S.agendas||[], ag=(id&&ags.find(a=>a.id===id)) || ags.find(a=>a.nombre && sinT(a.nombre)===sinT(n));

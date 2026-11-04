@@ -1158,10 +1158,8 @@ const keyOf = p => `${p.org||'sm'}|${normRut(p.rut)}`;
 const splitKey = k => { const i=k.indexOf('|'); return {org:k.slice(0,i), rut:k.slice(i+1)}; };
 const evalsOf = k => { const {org,rut}=splitKey(k); return S.all.filter(x=>(x.org||'sm')===org && normRut(x.rut)===rut).sort((a,b)=>a.id-b.id); };
 const prof = k => { const e=evalsOf(k); return oralAttach(e[e.length-1]); };
-/* perfil por completar creado en la Sala: solo lo ve el profesional que lo creó */
-const ocultoPro = p => !!(p && p.soloPro && S.role==='pro' && S.pro && p.soloPro!==S.pro.id);
 const rutTxt = p => p.sinRut ? 'Sin RUT' : (p.rut||'');
-function people(){ const m={}; S.all.forEach(p=>{ if(ocultoPro(p)) return; const k=keyOf(p); if(!m[k] || m[k].id<p.id) m[k]=p; });
+function people(){ const m={}; S.all.forEach(p=>{ const k=keyOf(p); if(!m[k] || m[k].id<p.id) m[k]=p; });
   return Object.values(m).map(oralAttach).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))); }
 const me = () => S.me ? prof(S.me) : null;
 function visibleOrgs(){ if(S.role==='pro') return S.pro.org==='all' ? ['sm','kah'] : [S.pro.org]; return ['sm','kah']; }
@@ -2391,10 +2389,10 @@ window.sheetPresAgregar = modo => { const ag=modo==='agendar', ps=people().filte
   sheet(`<h2 class="disp h2">${ag?'Agendar hora hoy':'Agregar a la Sala de hoy'}</h2><p class="muted sm" style="margin-top:6px">${ag?'Elige la persona; se abre la agenda con la fecha de hoy.':'Elige la persona. Puedes iniciar su sesión de inmediato o dejarla en la agenda de hoy.'}</p>
   <div class="searchbox" style="margin-top:12px">${ic('search','s')}<input class="inp" placeholder="Buscar persona…" oninput="document.querySelectorAll('#pa-l .li').forEach(l=>l.style.display=l.dataset.n.includes(this.value.toLowerCase())?'':'none')"></div>
   <div class="list" id="pa-l" style="margin-top:10px;max-height:55dvh;overflow:auto">${ps.map(p=>`<button class="li" data-n="${esc(String(p.nombre).toLowerCase())}" onclick="${ag?`salaAgendar(${q(keyOf(p))})`:`sheetPresIniciar(${q(keyOf(p))})`}">${avatar(p,36)}<div class="grow"><div class="b sm">${esc(p.nombre)}</div><div class="xs muted">${p.incompleto?'Por completar · ':''}${p.soloSala?'Solo Sala':PERFIL[perfilOf(p)]?.label||''}${presEnCurso(p)?' · en sala':presSig(p)?` · le toca ${esc(presSig(p).titulo)}`:''}</div></div>${ic('chevr','s chev')}</button>`).join('')||'<div class="empty">No hay personas activas</div>'}</div>
-  ${ag?'':`<button class="btn sec block" style="margin-top:12px" onclick="sheetSalaNueva()">${ic('plus','s')} Persona nueva (solo Sala)</button><button class="btn ghost block" style="margin-top:8px" onclick="sheetPresAgregar('agendar')">${ic('cal','s')} Mejor agendar una hora</button>`}`); };
+  ${ag?'':`<button class="btn sec block" style="margin-top:12px" onclick="sheetSalaNueva()">${ic('plus','s')} Persona nueva o de otro centro</button><div class="xs muted" style="margin-top:4px;text-align:center">Si no aparece en la lista, regístrala con su RUT: si ya existe en StrongMed o Kin At Home, se trae su perfil.</div><button class="btn ghost block" style="margin-top:8px" onclick="sheetPresAgregar('agendar')">${ic('cal','s')} Mejor agendar una hora</button>`}`); };
 /* alta rápida en la Sala: solo nombre, RUT y edad o fecha de nacimiento. Queda su perfil para guardar rutinas y sesiones, sin acceso a la app (soloSala) */
 window.sheetSalaNueva = () => { S.snC=S.snC||'kah';
-  sheet(`<h2 class="disp h2">Persona nueva</h2><p class="muted sm" style="margin-top:6px">Basta con el nombre completo: queda su perfil para guardar rutinas y sesiones de Sala. Mientras falte el RUT o la edad, el perfil queda <b>por completar</b> y solo lo ves tú. No recibe acceso a la app.</p><div class="stack" style="margin-top:14px">
+  sheet(`<h2 class="disp h2">Persona nueva</h2><p class="muted sm" style="margin-top:6px">Basta con el nombre completo: queda su perfil para guardar rutinas y sesiones de Sala. Mientras falte el RUT o la edad, el perfil queda <b>por completar</b>. Lo ven todos los profesionales; la persona no puede entrar a la app.</p><div class="stack" style="margin-top:14px">
     <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="sn-n" autocomplete="off"></label>
     <label class="field"><span class="lbl">RUT (opcional)</span><input class="inp" id="sn-r" placeholder="18.500.200-K" autocomplete="off"></label>
     <div class="grid2"><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="sn-f" max="${todayISO()}"></label><label class="field"><span class="lbl">O edad</span><input class="inp" id="sn-e" inputmode="numeric" maxlength="3" placeholder="Años"></label></div>
@@ -2404,14 +2402,20 @@ window.salaNuevaCrear = async () => { const nombre=val('sn-n').replace(/\s+/g,' 
   if(nombre.split(' ').length<2) return toast('Escribe el nombre completo','err'); if(rut && normRut(rut).length<7) return toast('Revisa el RUT','err');
   if(!f && val('sn-e') && !(ed>=1 && ed<=110)) return toast('Revisa la edad','err');
   const org=S.pro.org==='kah'?'kah':'sm', ex=rut && (prof(`${org}|${normRut(rut)}`) || people().find(x=>normRut(x.rut)===normRut(rut))); if(ex){ toast('Esa persona ya existe'); return sheetPresIniciar(keyOf(ex)); }
+  if(rut){ const y=await rutEnOtros(rut); if(y){ if(!S.all.some(x=>x.id===y.id && x.org===y.org)) S.all.push(y); atiendeTodos(y); if(!(await save(y))) return; toast(`${first(y.nombre)} ya estaba registrada: ahora la ves tú también`); return sheetPresIniciar(keyOf(y)); } }
   const id=Date.now(), falta=!rut || !(f || ed>=1);
-  const p={id, org, marca:'sm', estado:'activo', creadoPor:'pro', soloSala:true, fecha:todayISO(), nombre, rut:rut||('sr'+id), ...(rut?{}:{sinRut:true}), ...(falta?{incompleto:true, soloPro:S.pro.id}:{}), pin:String(Math.floor(100000+Math.random()*900000)), ...(f?nacDe(f):ed>=1?{edad:String(ed)}:{}),
+  const p={id, org, marca:'sm', estado:'activo', creadoPor:'pro', soloSala:true, fecha:todayISO(), nombre, rut:rut||('sr'+id), ...(rut?{}:{sinRut:true}), ...(falta?{incompleto:true}:{}), pin:String(Math.floor(100000+Math.random()*900000)), ...(f?nacDe(f):ed>=1?{edad:String(ed)}:{}),
     perfil:'entrenamiento', klgo:S.pro.nombre, pres:{rutinas:[], planes:[], sesiones:[], sig:0, centro:S.snC||'kah'},
     resultados:[], diarios:[], rutinasAsignadas:[], tareasClinicas:[], sesionesRehab:[], checkins:[], citas:[], avisos:[], rmLog:[]};
-  if(!(await save(p))) return; toast(`${first(nombre)} quedó registrado`); sheetPresIniciar(keyOf(p)); };
-/* completar el perfil creado solo con nombre: con RUT y edad queda visible para el equipo */
+  atiendeTodos(p); if(!(await save(p))) return; toast(`${first(nombre)} quedó registrado`); sheetPresIniciar(keyOf(p)); };
+/* todos los profesionales, de cualquier empresa, ven a quien pasa por la Sala (atención cruzada, como al agendar) */
+const atiendeTodos = p => { const o=p.org||'sm', otros=Object.keys(ORGS).filter(x=>x!==o && S.dbs[x]); if(otros.every(x=>(p.atiende||[]).includes(x))) return; p.atiende=[...new Set([...(p.atiende||[]), ...otros])];
+  otros.forEach(x=>{ try{ S.fb.setDoc(S.fb.doc(S.dbs[o],'atiende',`${normRut(p.rut)}_${x}`), {rut:normRut(p.rut), org:x, ts:Date.now()}).catch(e=>console.warn('atiende',e)); }catch(e){} }); };
+/* persona que ya existe en la otra empresa (este profesional no la tiene cargada): se busca por RUT */
+async function rutEnOtros(rut){ const r=normRut(rut); if(!S.fb?.where) return null; for(const o of Object.keys(ORGS)){ if(!S.dbs[o]) continue; try{ const sn=await S.fb.getDocs(S.fb.query(S.fb.collection(S.dbs[o],'evaluaciones'), S.fb.where('rutN','==',r))); let x=null; sn.forEach(d=>{ const y=d.data(); if(y && (!x || x.id<y.id)) x={...y, org:y.org||o}; }); if(x) return x; }catch(e){ console.warn('rut otros', e); } } return null; }
+/* completar el perfil creado solo con nombre: con RUT y edad queda activo */
 window.sheetCompletar = k => { const p=prof(k); if(!p) return;
-  sheet(`<h2 class="disp h2">Completar perfil</h2><p class="muted sm" style="margin-top:6px">${esc(p.nombre)} · con RUT y fecha de nacimiento o edad, el perfil queda completo y visible para el equipo. Todo lo de Sala se mantiene.</p><div class="stack" style="margin-top:14px">
+  sheet(`<h2 class="disp h2">Completar perfil</h2><p class="muted sm" style="margin-top:6px">${esc(p.nombre)} · con RUT y fecha de nacimiento o edad, el perfil queda completo y activo. Todo lo de Sala se mantiene.</p><div class="stack" style="margin-top:14px">
     <label class="field"><span class="lbl">Nombre completo *</span><input class="inp" id="cp-n" value="${esc(p.nombre)}" autocomplete="off"></label>
     <label class="field"><span class="lbl">RUT *</span><input class="inp" id="cp-r" value="${p.sinRut?'':esc(p.rut)}" placeholder="18.500.200-K" autocomplete="off"></label>
     <div class="grid2"><label class="field"><span class="lbl">Fecha de nacimiento</span><input class="inp" type="date" id="cp-f" value="${esc(p.fechaNac||'')}" max="${todayISO()}"></label><label class="field"><span class="lbl">O edad</span><input class="inp" id="cp-e" value="${esc(p.edad||'')}" inputmode="numeric" maxlength="3" placeholder="Años"></label></div>
@@ -2422,8 +2426,8 @@ window.completarGuardar = async k => { const p=prof(k); if(!p) return; const nom
   if(!f && val('cp-e') && !(ed>=1 && ed<=110)) return toast('Revisa la edad','err');
   if(rut){ const ex=S.all.find(x=>x!==p && normRut(x.rut)===normRut(rut)); if(ex) return toast('Ese RUT ya es de otra persona','err'); }
   p.nombre=nombre; if(rut){ p.rut=rut; delete p.sinRut; } if(f) Object.assign(p, nacDe(f)); else if(ed>=1) p.edad=String(ed); p.contacto=val('cp-t')||p.contacto||'';
-  const listo=!p.sinRut && (p.fechaNac || +p.edad>=1); if(listo){ delete p.incompleto; delete p.soloPro; }
-  if(await save(p)){ closeSheet(); toast(listo?'Perfil completo: ya lo ve el equipo':'Guardado. Aún falta el RUT o la edad'); S.proArg=keyOf(p); keepScroll(render); } };
+  const listo=!p.sinRut && (p.fechaNac || +p.edad>=1); if(listo) delete p.incompleto; atiendeTodos(p);
+  if(await save(p)){ closeSheet(); toast(listo?'Perfil completo y activo':'Guardado. Aún falta el RUT o la edad'); S.proArg=keyOf(p); keepScroll(render); } };
 window.salaAgendar = k => { const p=prof(k); sheetCita(k, 0, {fecha:todayISO(), sala:p?salaTipo(p):'entrenamiento'}); };
 window.jorToggle = k => { S.jCol=S.jCol||{}; S.jCol[k]=!S.jCol[k]; keepScroll(render); };
 window.jorIr = k => { if(S.jCol && S.jCol[k]){ S.jCol[k]=false; render(); } const el=document.getElementById('jc-'+presDom(k)); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); };
@@ -2454,7 +2458,7 @@ window.piTerBox = () => { const b=$('#pi-ter'); if(!b) return; if(S.piTipo!=='re
 window.piTerT = n => { S.piTer=S.piTer||[]; if(!n){ n=(prompt('Nombre de la terapia')||'').trim(); if(!n) return; } const i=S.piTer.findIndex(y=>y.n===n); if(i>-1) S.piTer.splice(i,1); else S.piTer.push({n, min:''}); piTerBox(); };
 window.piTerM = (n,v) => { const x=(S.piTer||[]).find(y=>y.n===n); if(x) x.min=v; };
 const piTerSet = w => { if(S.piTipo!=='recovery' || !w) return; w.ter=(S.piTer||[]).map(x=>({n:x.n, min:x.min||''})); w.terT=Date.now(); };
-window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p); if(w && presNoPuede(w)) return; if(S.piCentro) spOf(p).centro=S.piCentro;
+window.presIniciar = async k => { const p=prof(k); if(!p) return; const w=presEnCurso(p); if(w && presNoPuede(w)) return; if(S.piCentro) spOf(p).centro=S.piCentro; atiendeTodos(p);
   if(w && String(val('pi-r'))===String(w.rid||'')){ w.tipo=S.piTipo||w.tipo; w.centro=S.piCentro||w.centro||''; w.planId=val('pi-p'); piTerSet(w); if(await save(p)){ closeSheet(); toast('Sesión actualizada'); keepScroll(render); } return; }
   if(w && presCuenta(w).d && !confirm('Ya hay series marcadas en esta sesión. ¿Cambiar la rutina igual? Se pierden.')) return;
   const nw=presNueva(p, val('pi-r'), S.piTipo, val('pi-p'), 'pro'); if(w){ nw.id=w.id; nw.inicio=w.inicio; nw.abre=w.abre; nw.pro=w.pro; nw.proId=w.proId||''; nw.permisos=w.permisos||[]; if(w.ter) nw.ter=w.ter; } nw.centro=S.piCentro||nw.centro; piTerSet(nw);
@@ -3513,7 +3517,7 @@ function vPersona(){
   const per=perfilOf(p), seg=S.pSeg, tel=String(p.contacto||'').replace(/\D/g,''), wa= tel.length===9 ? '56'+tel : tel, k=keyOf(p);
   const bodies={resumen:pResumen, rutinas:pRutinas, presencial:pPresencial, clinico:pClinico, agenda:pAgenda, progreso:pProgreso};
   return `<header class="top"><button class="back" onclick="pgo('personas')">${ic('chevl','s')} Personas</button></header><div class="stack">
-  <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${isPending(p)||esOral(p)&&soloOral(p)?perfilBadge(p):`<button onclick="sheetPerfil()" title="Cambiar tipo de seguimiento">${perfilBadge(p)}</button>`}${orgChip(p)}<span class="badge">${esc(rutTxt(p))}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.soloSala?`<span class="badge" title="Registrada desde la Sala, sin acceso a la app">Solo Sala</span>`:''}${p.incompleto?`<button class="badge acc" onclick="sheetCompletar(${q(k)})" title="Solo tú ves este perfil hasta completarlo">Por completar · completar ›</button>`:''}${p.deporte?`<span class="badge">${esc(p.deporte)}</span>`:''}</div></div></div>
+  <section class="card"><div class="row" style="align-items:flex-start;gap:14px">${avatar(p,64)}<div class="grow"><h1 class="disp h2">${esc(p.nombre)}</h1><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px">${isPending(p)||esOral(p)&&soloOral(p)?perfilBadge(p):`<button onclick="sheetPerfil()" title="Cambiar tipo de seguimiento">${perfilBadge(p)}</button>`}${orgChip(p)}<span class="badge">${esc(rutTxt(p))}</span>${p.edad?`<span class="badge">${esc(p.edad)} años</span>`:''}${p.soloSala?`<span class="badge" title="Registrada desde la Sala, sin acceso a la app">Solo Sala</span>`:''}${p.incompleto?`<button class="badge acc" onclick="sheetCompletar(${q(k)})" title="Falta RUT o edad para activarlo">Por completar · completar ›</button>`:''}${p.deporte?`<span class="badge">${esc(p.deporte)}</span>`:''}</div></div></div>
     <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;align-items:center">${brands(p.marca)}${consentPro(p)}${isPending(p)?'':segBadge(p)+modBadge(p)}</div>
     ${videoOn(p)?`<div class="aviso red" style="margin-top:12px"><span class="ico red">${ic('video')}</span><div class="grow"><div class="b sm">Videollamada en curso</div><div class="xs muted">Desde ${relTs(p.videoActiva.ts)}</div></div><a class="btn sec sm" href="${safeUrl(p.videoActiva.url)}" target="_blank" rel="noopener">Entrar</a><button class="btn danger sm" onclick="finalizarVideo(${q(k)})">Finalizar</button></div>`:''}
     <div class="grid4" style="margin-top:14px;gap:8px"><button class="btn sec sm" onclick="pgo('mensajes',${q(k)})">${ic('chat','s')} Mensaje</button>${videoOn(p)?`<button class="btn danger sm" onclick="finalizarVideo(${q(k)})">${ic('video','s')} Finalizar llamada</button>`:`<button class="btn sec sm" onclick="iniciarVideo(${q(k)})">${ic('video','s')} Videollamada</button>`}<button class="btn sec sm" onclick="sheetCita(${q(k)})">${ic('cal','s')} Agendar</button>${wa?`<a class="btn sec sm" href="https://wa.me/${wa}" target="_blank" rel="noopener">${ic('phone','s')} WhatsApp</a>`:''}<button class="btn sec sm" onclick="pgo('informe',${q(k)})">${ic('file','s')} Informe</button>${!isPending(p)&&ultimaShare(p)?`<button class="btn sec sm" onclick="compartir(${q(ultimaShare(p).id)},'sticker',${q(k)})" title="Sticker de su última sesión, para difusión">${ic('upload','s')} Sticker</button>`:''}${!isPending(p)?`<button class="btn pri sm" onclick="S.evMode='${per==='entrenamiento'?'funcional':'kinesica'}';pgo('evaluar',${q(k)})">${ic('steth','s')} Evaluar</button>`:''}</div></section>
@@ -5552,9 +5556,9 @@ const enFisiomet = (p, d) => { const f=toISO(d?.fecha); return !!f && (p?.citas|
 const logoP={}; const logoImg = f => logoP[f] || (logoP[f]=new Promise(ok=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>{ delete logoP[f]; ok(null); }; im.src='icons/'+f+'.png'; }));
 /* logo que acompaña a StrongMed en stickers, fotos y tarjetas: el centro que marcó el profesional al iniciar la sesión en la Sala;
    sin eso, FISIOMET si la cita de ese día fue allí, si no Kin At Home. La persona no lo elige */
-const CENTROS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','StrongMed']];
+const CENTROS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','StrongMed'],['online','Online']];
 const marcaDe = (p, d) => d?.centro || (enFisiomet(p,d) ? 'fisiomet' : 'kah');
-async function marcaAlt(mk){ if(mk==='sm') return 'solo';
+async function marcaAlt(mk){ if(mk==='sm' || mk==='online') return 'solo';
   if(mk==='fisiomet'){ const im=await logoImg('fisiomet'); return im ? {im, t:'FISIOMET', s:'Kinesiología · Concepción'} : null; }
   if(mk==='md'){ const im=await logoImg('mdkine'); return im ? {im} : null; }
   return null; }

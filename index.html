@@ -2782,7 +2782,7 @@ async function logroBlob(p, o, mode='sticker', foto=null){
 window.compartirLogro = async (id, mode) => { const p=me(), o=(p.objetivos||[]).find(x=>x.id===id); if(!o) return; mode=mode||'sticker'; S.shareMode=mode; S.shareAgain=()=>compartirLogro(id,'foto');
   if(mode==='foto' && !S.shareFoto) return elegirFotoHistoria();
   const blob=await logroBlob(p,o,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
-  sheet(`<h2 class="disp h2">Compartir logro</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?`S.shareAgain=()=>compartirLogro(${q(id)},'foto');elegirFotoHistoria()`:`compartirLogro(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>${mode==='sticker'?`<p class="muted sm" style="margin-top:8px">${AYUDA_STK}</p>`:''}
+  sheet(`<h2 class="disp h2">Compartir logro</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?`S.shareAgain=()=>compartirLogro(${q(id)},'foto');elegirFotoHistoria()`:`compartirLogro(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>${mode==='sticker'?`${stkTono(`compartirLogro(${q(id)},'sticker')`)}<p class="muted sm" style="margin-top:8px">${AYUDA_STK}</p>`:''}
   <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   ${shareBtns(mode, `StrongMed_logro${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}`); };
@@ -5711,8 +5711,14 @@ async function storyBlob(p, d, mode='card', foto=null){
 function stickerBlob(cv, pad=16){ const W=cv.width, H=cv.height, a=cv.getContext('2d').getImageData(0,0,W,H).data; let x0=W, y0=H, x1=-1, y1=-1;
   for(let yy=0; yy<H; yy++) for(let xx=0; xx<W; xx++) if(a[(yy*W+xx)*4+3]>24){ if(xx<x0) x0=xx; if(xx>x1) x1=xx; if(yy<y0) y0=yy; if(yy>y1) y1=yy; }
   if(x1<0){ x0=0; y0=0; x1=W-1; y1=H-1; } x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W-1,x1+pad); y1=Math.min(H-1,y1+pad);
-  const w=x1-x0+1, h=y1-y0+1, out=document.createElement('canvas'); out.width=w; out.height=h; out.getContext('2d').drawImage(cv,x0,y0,w,h,0,0,w,h);
+  const w=x1-x0+1, h=y1-y0+1, out=document.createElement('canvas'); out.width=w; out.height=h; const o=out.getContext('2d');
+  /* versión para fotos claras: contorno oscuro alrededor de cada letra y dibujo (estilo sticker troquelado), sigue sin fondo */
+  if(S.stkClaro){ const m=document.createElement('canvas'); m.width=w; m.height=h; const mx=m.getContext('2d'); mx.drawImage(cv,x0,y0,w,h,0,0,w,h); mx.globalCompositeOperation='source-in'; mx.fillStyle='#0b0b0c'; mx.fillRect(0,0,w,h);
+    const R=Math.min(9, pad-2); for(let i=0;i<24;i++){ const a=i*Math.PI/12; o.drawImage(m,Math.cos(a)*R,Math.sin(a)*R); } }
+  o.drawImage(cv,x0,y0,w,h,0,0,w,h);
   return new Promise(r=>out.toBlob(r,'image/png')); }
+/* elegir el tono del sticker: normal (fotos oscuras) o con contorno (fotos claras) */
+const stkTono = redo => `<div class="pills" style="margin-top:8px;flex-wrap:wrap"><button class="pill ${S.stkClaro?'':'on'}" onclick="S.stkClaro=false;${redo}">Para fotos oscuras</button><button class="pill ${S.stkClaro?'on':''}" onclick="S.stkClaro=true;${redo}">Para fotos claras</button></div>`;
 const SHARE_MODOS=[['sticker','Sticker sin fondo'],['foto','Con mi foto'],['card','Tarjeta']];
 const AYUDA_STK='Sticker <b>sin fondo</b>: guárdalo en tu galería y luego, en tu historia, toca el ícono de stickers → <b>Foto</b> y ponlo donde quieras sobre tu foto. Si lo compartes directo, la red social le agrega un fondo.';
 /* en sticker lo principal es guardarlo en la galería; en iPhone se guarda desde el menú de compartir (Guardar imagen) */
@@ -5753,7 +5759,7 @@ window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined)
   const ayuda = mode==='sticker' ? AYUDA_STK
     : mode==='foto' ? 'Tu foto con tu entrenamiento y los logos, lista para subir como historia.' : 'Imagen lista para tus historias de Instagram, WhatsApp o donde quieras.';
   sheet(`<h2 class="disp h2">Compartir</h2><div class="pills" style="margin-top:10px">${SHARE_MODOS.filter(([k])=>!(d.recovery&&k==='foto')).map(([k,l])=>`<button class="pill ${mode===k?'on':''}" onclick="${k==='foto'?'elegirFotoHistoria()':`compartir(${q(id)},'${k}')`}">${l}</button>`).join('')}</div>
-  <p class="muted sm" style="margin-top:8px">${ayuda}</p>  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
+  ${mode==='sticker'?stkTono(`compartir(${q(id)},'sticker')`):''}<p class="muted sm" style="margin-top:8px">${ayuda}</p>  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${!pk&&!d.recovery&&!String(d.id).startsWith('sala-')&&(d.ejercicios||[]).length&&!d.guardadaComoRutina&&!(p.rutinasAsignadas||[]).some(r=>r.id===d.rutinaId)?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
 /* stickers de respaldo (todos los profesionales de kine y entrenamiento): TRAINING, REHAB o RECOVERY DAY con el logo del centro, sin persona.
@@ -5772,7 +5778,7 @@ async function srDraw(){ const o=S.sr; if(!o) return; let mode=o.m; if(mode==='f
     <div><div class="lbl">Logo</div><div class="pills" style="margin-top:6px;flex-wrap:wrap">${CENTROS.map(([c,l])=>pill('c',c,l,o.c===c)).join('')}</div></div>
     ${o.t==='recovery'?`<div><div class="lbl">Terapias (opcional)</div><div class="pills" style="margin-top:6px;flex-wrap:wrap">${PRES_TER.map(n=>`<button class="pill ${o.ter.includes(n)?'on':''}" onclick="srTer(${q(n)})">${esc(n)}</button>`).join('')}</div></div>`:''}
     <div class="grid2"><label class="field"><span class="lbl">Fecha</span><input class="inp" type="date" value="${esc(o.f)}" max="${todayISO()}" onchange="srSet('f',this.value)"></label><label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" ${o.firma?'checked':''} onchange="srSet('firma',this.checked)"><span>Con mi firma</span></label></div>
-    <div><div class="lbl">Formato</div><div class="pills" style="margin-top:6px">${SHARE_MODOS.map(([k,l])=>pill('m',k,l,mode===k)).join('')}</div></div></div>
+    <div><div class="lbl">Formato</div><div class="pills" style="margin-top:6px">${SHARE_MODOS.map(([k,l])=>pill('m',k,l,mode===k)).join('')}</div>${mode==='sticker'?stkTono(`srSet('m','sticker')`):''}</div></div>
     <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
     ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="srSet('m','foto')">${ic('upload','s')} Cambiar foto</button>`:''}
     ${shareBtns(mode, `StrongMed_${SR_T.find(x=>x[0]===o.t)[1].replace(' ','_')}_${o.c}_${o.f}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}`); }

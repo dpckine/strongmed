@@ -3418,7 +3418,7 @@ function shellPro(){
   const nav= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['nueva','plus','Nueva'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']]
     : [['inicio','home','Inicio'],['personas','users','Personas'],['nueva','plus','Nueva'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']];
   const side= od ? [['inicio','home','Inicio'],['personas','users','Pacientes'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes']]
-    : [['inicio','home','Inicio'],['personas','users','Personas'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['stickers','upload','Stickers de respaldo']]:[])];
+    : [['inicio','home','Inicio'],['personas','users','Personas'],['jornada','target','Sala'],['agenda','cal','Agenda'],['mensajes','chat','Mensajes'],['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Ejercicios'], ['stickers','upload','Stickers de respaldo'], ...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase']]:[])];
   const org=S.pro.org;
   return `<div class="shell pro"><aside class="side">${brands(org==='kah'?'sm+kah':'sm')}
     <div class="row" style="margin-top:16px;gap:10px"><span class="ico">${ic('user','s')}</span><div class="grow"><div class="b sm trunc">${esc(S.pro.nombre)}</div><div class="xs muted">${od?'Odontología general':org==='all'?'StrongMed + Kin At Home':ORGS[org].label}${isAdmin()?' · Admin':''}</div></div></div>
@@ -3849,7 +3849,7 @@ function proPerfilCard(){ const d=credInfo(); if(!d) return ''; const c=PLAN_C.e
     <div class="grow"><div class="pc-ey">Mi credencial</div><h2 class="pc-n">${esc(d.nombre)}</h2><span class="pc-plan">${ic(c.i,'s')} ${esc(d.plan)} · ${esc(d.filas[0][1])}</span></div></div>
     <div class="row" style="gap:8px;margin-top:14px;position:relative;z-index:1"><button class="btn sm pc-b" onclick="verCredencial()">${ic('idcard','s')} Credencial</button><button class="btn sm pc-b2" onclick="credCompartir()">${ic('upload','s')} Compartir</button></div></section>`; }
 function vMas(){ return `<header class="top"><h1 class="disp h1">Más</h1></header><div class="stack">${proPerfilCard()}<div class="list">
-  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas'],['stickers','upload','Stickers de respaldo']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="${k==='rutinasbib'?`sheetPlantillas('gestionar')`:k==='stickers'?'sheetStickers()':`pgo('${k}')`}"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
+  ${(isOdonto()?[['ajustes','sliders','Ajustes']]:[['rutinas','dumbbell','Rutinas'],['faq','spark','KIN IA'],['biblioteca','book','Biblioteca de ejercicios'],['stickers','upload','Stickers de respaldo'],...(isAdmin()?[['profesionales','shield','Profesionales'],['uso','pulse','Uso de Firebase'],['reportes','alert','Reportes de problemas']]:[]),['ajustes','sliders','Ajustes']]).map(([k,i,l])=>`<button class="li" onclick="${k==='rutinasbib'?`sheetPlantillas('gestionar')`:k==='stickers'?'sheetStickers()':`pgo('${k}')`}"><span class="ico">${ic(i,'s')}</span><span class="grow">${l}</span>${ic('chevr','s chev')}</button>`).join('')}</div>
   <button class="btn sec block" onclick="sheetReporte()">${ic('alert','s')} Reportar un problema</button>
   <p class="xs muted center" style="opacity:.7;margin-top:4px">© ${new Date().getFullYear()} StrongMed × Kin At Home by Klgo. David Ponce · Todos los derechos reservados</p>
   <button class="btn danger block" onclick="logout()">${ic('logout','s')} Cerrar sesión</button></div>`; }
@@ -5544,6 +5544,11 @@ function storyLogos(x, F, I, ACC, y0, sc0=1, alt=null){
   const s1=84*sc0, sc=s1/368; x.save(); x.translate(80-72*sc, y0-96*sc); x.scale(sc,sc); x.fillStyle='#ccff33'; x.fill(new Path2D(SM_TOP)); x.fill(new Path2D(SM_BOT)); x.fillStyle='#fff'; SM_BAR.forEach(([a,b,w,h,r])=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); x.fill(); }); x.restore();
   const by=y0+58*sc0, lx=80+s1+18; x.fillStyle='#fff'; x.font=F(64*sc0); x.fillText('STRONG',lx,by); const sw=x.measureText('STRONG').width; x.fillStyle=ACC; x.fillText('MED',lx+sw,by); const smw=sw+x.measureText('MED').width+(lx-80);
   if(alt==='solo') return; // solo StrongMed, sin centro asociado
+  if(alt?.online){ // sesión online: cápsula con contorno, punto en vivo y señal, en vez del logo de un centro
+    const px=80+smw+30*sc0, ph=78*sc0, py=y0-8*sc0; x.save(); x.font=F(52*sc0,800); const pw=ph+34*sc0+x.measureText('ONLINE').width+70*sc0; x.lineWidth=5*sc0; x.strokeStyle=ACC; x.beginPath(); x.roundRect ? x.roundRect(px,py,pw,ph,ph/2) : x.rect(px,py,pw,ph); x.stroke();
+    const dx=px+ph/2, dy=py+ph/2; x.fillStyle='#ff4d4d'; x.beginPath(); x.arc(dx,dy,11*sc0,0,7); x.fill(); x.globalAlpha=.35; x.beginPath(); x.arc(dx,dy,20*sc0,0,7); x.fill(); x.globalAlpha=1;
+    x.fillStyle='#fff'; x.font=F(52*sc0,800); x.fillText('ONLINE',dx+34*sc0,dy+18*sc0); const ow=x.measureText('ONLINE').width, wx=dx+34*sc0+ow+52*sc0, wy=dy+14*sc0;
+    x.strokeStyle=ACC; x.lineCap='round'; x.lineWidth=5*sc0; [14,26,38].forEach(r=>{ x.beginPath(); x.arc(wx,wy,r*sc0,-Math.PI*.78,-Math.PI*.22); x.stroke(); }); x.fillStyle=ACC; x.beginPath(); x.arc(wx,wy,5*sc0,0,7); x.fill(); x.restore(); return; }
   x.fillStyle='#b4b4bc'; x.font=F(48*sc0,700); x.fillText('×',80+smw+24*sc0,by-4*sc0); const kx=80+smw+76*sc0, ky=y0-4*sc0, ks=72*sc0;
   // otro centro (FISIOMET, MD Kine): su logo con colores originales en lugar de Kin At Home
   if(alt?.im && alt.t){ const ls=104*sc0; x.drawImage(alt.im,kx,y0-20*sc0,ls,ls); x.fillStyle='#fff'; x.font=F(46*sc0,800); x.fillText(alt.t,kx+ls+12*sc0,ky+38*sc0); x.fillStyle='#d0d0d6'; x.font=I(22*sc0,600); x.fillText(alt.s,kx+ls+12*sc0,ky+68*sc0); return; }
@@ -5558,7 +5563,7 @@ const logoP={}; const logoImg = f => logoP[f] || (logoP[f]=new Promise(ok=>{ con
    sin eso, FISIOMET si la cita de ese día fue allí, si no Kin At Home. La persona no lo elige */
 const CENTROS = [['kah','Kin At Home'],['fisiomet','FISIOMET'],['md','MD Kine'],['sm','StrongMed'],['online','Online']];
 const marcaDe = (p, d) => d?.centro || (enFisiomet(p,d) ? 'fisiomet' : 'kah');
-async function marcaAlt(mk){ if(mk==='sm' || mk==='online') return 'solo';
+async function marcaAlt(mk){ if(mk==='sm') return 'solo'; if(mk==='online') return {online:true};
   if(mk==='fisiomet'){ const im=await logoImg('fisiomet'); return im ? {im, t:'FISIOMET', s:'Kinesiología · Concepción'} : null; }
   if(mk==='md'){ const im=await logoImg('mdkine'); return im ? {im} : null; }
   return null; }
@@ -5604,17 +5609,21 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr
       x.lineWidth=16; x.strokeStyle=ACC; x.stroke(); x.beginPath(); x.moveTo(...P(.2,.3)); x.quadraticCurveTo(...P(.22,.16),...P(.34,.14)); x.lineWidth=12; x.strokeStyle='#fff'; x.stroke();
       const star=(cx,cy,r)=>{ x.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4, rr=i%2?r*.28:r; x.lineTo(cx+Math.sin(a)*rr, cy-Math.cos(a)*rr); } x.closePath(); x.fill(); };
       x.fillStyle='#fff'; star(ox+w+34, oy+30, 40); x.fillStyle=ACC; star(ox+w+70, oy+h*.55, 24); x.fillStyle='#fff'; star(ox-18, oy+h*.86, 20);
-    } else if(tr){ // mancuerna: barra blanca y discos de color, los internos más grandes
-      const cy=by+bh/2, X=a=>bx+a*bw, rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
-      x.fillStyle='#fff'; rr(X(.04),cy-11,bw*.92,22,11); x.fill();
-      x.fillStyle=ACC; [[.18,.92,46],[.82,.92,46],[.08,.6,34],[.92,.6,34]].forEach(([a,h,w])=>{ rr(X(a)-w/2,cy-bh*h/2,w,bh*h,14); x.fill(); });
-      x.fillStyle='#fff'; x.globalAlpha=.9; rr(X(.18)-6,cy-bh*.3,12,bh*.6,6); x.fill(); rr(X(.82)-6,cy-bh*.3,12,bh*.6,6); x.fill(); x.globalAlpha=1;
+    } else if(tr){ // pesa rusa con contorno grueso (como la batería de RECOVERY) y barras que suben dentro: progreso
+      const rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
+      const r=bh*.5, cx=bx+r+30, cyb=by+bh-r+8, hw=r*.6, yT=cyb-r*1.62, yS=cyb-r*.78, k=r*.34;
+      x.lineWidth=16; x.strokeStyle=ACC;
+      x.beginPath(); x.moveTo(cx-hw,yS); x.lineTo(cx-hw,yT+k); x.quadraticCurveTo(cx-hw,yT,cx-hw+k,yT); x.lineTo(cx+hw-k,yT); x.quadraticCurveTo(cx+hw,yT,cx+hw,yT+k); x.lineTo(cx+hw,yS); x.stroke();
+      x.beginPath(); x.arc(cx,cyb,r,Math.PI*.64,Math.PI*2.36); x.closePath(); x.stroke();
+      const n=3, bw2=r*.3, gap=r*.14, b0=cyb+r*.62, x0=cx-(n*bw2+(n-1)*gap)/2; for(let i=0;i<n;i++){ const h=r*(.42+.34*i); x.globalAlpha=.4+.6*(i+1)/n; x.fillStyle=i===n-1?'#fff':ACC; rr(x0+i*(bw2+gap),b0-h,bw2,h,8); x.fill(); } x.globalAlpha=1;
+      // flecha que sube, a la derecha de la pesa
+      const ax=cx+r+56, ay0=cyb+r*.6, ay1=by+10; if(ax+30<1000){ x.lineWidth=14; x.strokeStyle='#fff'; x.beginPath(); x.moveTo(ax,ay0); x.lineTo(ax,ay1+26); x.stroke(); x.fillStyle='#fff'; x.beginPath(); x.moveTo(ax-30,ay1+40); x.lineTo(ax,ay1); x.lineTo(ax+30,ay1+40); x.closePath(); x.fill(); }
     } else { // pulso tipo electro que sube: plano, latido y flecha hacia arriba
       const m=by+bh*.62, X=a=>bx+a*bw, Y=b=>by+b*bh, pts=[[0,m],[X(.2),m],[X(.28),Y(.4)],[X(.36),Y(.92)],[X(.48),Y(.04)],[X(.58),Y(.8)],[X(.66),m],[X(.8),m]];
       x.lineWidth=16; x.strokeStyle=ACC; x.beginPath(); pts.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(bx,b)); x.stroke();
       x.fillStyle='#fff'; x.beginPath(); x.arc(X(.92),m,22,0,7); x.fill(); x.globalAlpha=.35; x.fillStyle=ACC; x.beginPath(); x.arc(X(.92),m,42,0,7); x.fill(); x.globalAlpha=1; }
     x.restore(); }
-  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':tr?'Cada repetición suma':'Paso a paso, volviendo más fuerte',80,yD+80);
+  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':d.centro==='online'?(tr?'Entrenando desde donde estés':'Tu rehabilitación, donde estés'):tr?'Cada repetición suma':'Paso a paso, volviendo más fuerte',80,yD+80);
   return yD+80; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=mode==='sticker'?2700:1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
@@ -5738,10 +5747,10 @@ window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined)
   <p class="muted sm" style="margin-top:8px">${ayuda}</p>  <div class="${mode==='sticker'?'stkprev':''}" style="margin:14px auto;max-width:300px;border-radius:16px;overflow:hidden;border:1px solid var(--line2)"><img src="${url}" alt="Vista previa" style="width:100%;display:block"></div>
   ${mode==='foto'?`<button class="btn sec block" style="margin-bottom:8px" onclick="elegirFotoHistoria()">${ic('upload','s')} Cambiar foto</button>`:''}
   ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${!pk&&!d.recovery&&!String(d.id).startsWith('sala-')&&(d.ejercicios||[]).length&&!d.guardadaComoRutina&&!(p.rutinasAsignadas||[]).some(r=>r.id===d.rutinaId)?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
-/* stickers de respaldo (solo cuenta principal): TRAINING, REHAB o RECOVERY DAY con el logo del centro, sin persona.
+/* stickers de respaldo (todos los profesionales de kine y entrenamiento): TRAINING, REHAB o RECOVERY DAY con el logo del centro, sin persona.
    Para cuando no alcanza a anotar a alguien en la Sala; no queda nada guardado en ningún perfil */
 const SR_T = [['entrenamiento','Training day'],['rehab','Rehab day'],['recovery','Recovery day']];
-window.sheetStickers = () => { if(!isAdmin()) return; S.sr=S.sr||{t:'entrenamiento', c:'kah', f:todayISO(), m:'sticker', ter:[], firma:false}; S.shareFoto=null; srDraw(); };
+window.sheetStickers = () => { if(!S.pro || isOdonto()) return; S.sr=S.sr||{t:'entrenamiento', c:'kah', f:todayISO(), m:'sticker', ter:[], firma:false}; S.shareFoto=null; srDraw(); };
 window.srSet = (k, v) => { S.sr[k]=v; if(k==='m' && v==='foto'){ S.shareAgain=srDraw; return elegirFotoHistoria(); } srDraw(); };
 window.srTer = n => { const L=S.sr.ter, i=L.indexOf(n); if(i>-1) L.splice(i,1); else L.push(n); srDraw(); };
 async function srDraw(){ const o=S.sr; if(!o) return; let mode=o.m; if(mode==='foto' && !S.shareFoto) mode=o.m='sticker';

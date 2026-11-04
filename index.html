@@ -12,6 +12,7 @@
 <meta name="author" content="David Ponce Caro">
 <meta name="copyright" content="© 2026 StrongMed × Kin At Home by Klgo. David Ponce. Todos los derechos reservados.">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
+<script>if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)) document.documentElement.classList.add('ios');</script>
 <meta name="theme-color" content="#060607">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -121,6 +122,8 @@ button.li:active{background:var(--card2)}
 /* forms */
 .inp{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;font-size:15px;min-height:46px}
 .inp:focus{border-color:var(--acc)}
+/* iPhone: Safari hace zoom al tocar campos con letra < 16px */
+html.ios input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),html.ios select,html.ios textarea{font-size:16px!important}
 textarea.inp{resize:vertical;min-height:84px;line-height:1.45}
 select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mu) 50%),linear-gradient(135deg,var(--mu) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
 .lbl{display:block;font-size:12px;font-weight:600;color:var(--mu);margin:0 0 6px 2px}

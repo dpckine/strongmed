@@ -5632,7 +5632,7 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr
       x.lineWidth=16; x.strokeStyle=ACC; x.beginPath(); pts.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(bx,b)); x.stroke();
       x.fillStyle='#fff'; x.beginPath(); x.arc(X(.92),m,22,0,7); x.fill(); x.globalAlpha=.35; x.fillStyle=ACC; x.beginPath(); x.arc(X(.92),m,42,0,7); x.fill(); x.globalAlpha=1; }
     x.restore(); }
-  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':ev?'Punto de control':tr?'Cada rep, más cerca del objetivo':'Mejorando cada día',80,yD+80);
+  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':ev?'Check point':tr?'Cada rep, más cerca del objetivo':'Mejorando cada día',80,yD+80);
   return yD+80; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=mode==='sticker'?2700:1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');

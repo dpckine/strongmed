@@ -5597,8 +5597,8 @@ function recoveryBlock(x, F, I, ACC, d, y){ const rr=(a,b,w,h,r)=>{ x.beginPath(
   L.slice(0,3).forEach(l=>{ x.fillText(l,80,yy); yy+=50; }); if(L.length) yy-=30;
   return yy; }
 /* sesión de un servicio, mismo estilo que RECOVERY DAY: REHAB DAY + pulso (kinesiología), SMILE DAY + diente con brillos (odontología); devuelve dónde termina */
-function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr=d.servicio==='Entrenamiento';
-  x.fillStyle=ACC; let fs=190; x.font=F(fs); const tt=od?'SMILE':tr?'TRAINING':'REHAB'; while(x.measureText(tt).width>920 && fs>120){ fs-=6; x.font=F(fs); } x.fillText(tt,80,y+165);
+function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr=d.servicio==='Entrenamiento', ev=d.servicio==='Evaluación';
+  x.fillStyle=ACC; let fs=190; x.font=F(fs); const tt=od?'SMILE':tr?'TRAINING':ev?'EVALUATION':'REHAB'; while(x.measureText(tt).width>920 && fs>120){ fs-=6; x.font=F(fs); } x.fillText(tt,80,y+165);
   x.fillStyle='#fff'; x.font=F(300); const yD=y+165+290; x.fillText('DAY',72,yD); const wD=x.measureText('DAY').width;
   const bh=210, by=yD-bh+4, bx=72+wD+44, bw=Math.min(1000-bx-26, 400);
   if(bw>200){ x.save(); x.lineCap='round'; x.lineJoin='round';
@@ -5609,6 +5609,14 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr
       x.lineWidth=16; x.strokeStyle=ACC; x.stroke(); x.beginPath(); x.moveTo(...P(.2,.3)); x.quadraticCurveTo(...P(.22,.16),...P(.34,.14)); x.lineWidth=12; x.strokeStyle='#fff'; x.stroke();
       const star=(cx,cy,r)=>{ x.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4, rr=i%2?r*.28:r; x.lineTo(cx+Math.sin(a)*rr, cy-Math.cos(a)*rr); } x.closePath(); x.fill(); };
       x.fillStyle='#fff'; star(ox+w+34, oy+30, 40); x.fillStyle=ACC; star(ox+w+70, oy+h*.55, 24); x.fillStyle='#fff'; star(ox-18, oy+h*.86, 20);
+    } else if(ev){ // portapapeles con contorno grueso, pinza arriba y tres ítems chequeados
+      const rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
+      const ch=bh*1.08, cw=ch*.78, cx0=bx+24, cy0=by+bh-ch+6; x.lineWidth=16; x.strokeStyle=ACC; rr(cx0,cy0,cw,ch,26); x.stroke();
+      x.fillStyle=ACC; rr(cx0+cw*.28,cy0-22,cw*.44,46,14); x.fill(); x.fillStyle='#0b0b0c'; x.beginPath(); x.arc(cx0+cw/2,cy0-2,8,0,7); x.fill();
+      for(let i=0;i<3;i++){ const ry=cy0+ch*(.34+.22*i), kx=cx0+cw*.2; x.lineWidth=11; x.strokeStyle='#fff'; x.beginPath(); x.moveTo(kx-14,ry); x.lineTo(kx-2,ry+12); x.lineTo(kx+20,ry-14); x.stroke();
+        x.globalAlpha=.45+.25*i; x.strokeStyle=ACC; x.lineWidth=12; x.beginPath(); x.moveTo(kx+46,ry); x.lineTo(cx0+cw*.82,ry); x.stroke(); x.globalAlpha=1; }
+      // lupa a la derecha: analizar
+      const lx=cx0+cw+90, ly=cy0+ch*.42, lr=46; if(lx+lr+50<1000){ x.lineWidth=14; x.strokeStyle='#fff'; x.beginPath(); x.arc(lx,ly,lr,0,7); x.stroke(); x.lineCap='round'; x.lineWidth=18; x.beginPath(); x.moveTo(lx+lr*.72,ly+lr*.72); x.lineTo(lx+lr*1.6,ly+lr*1.6); x.stroke(); }
     } else if(tr){ // pesa rusa con contorno grueso (como la batería de RECOVERY) y barras que suben dentro: progreso
       const rr=(a,b,w,h,r)=>{ x.beginPath(); x.roundRect ? x.roundRect(a,b,w,h,r) : x.rect(a,b,w,h); };
       const r=bh*.5, cx=bx+r+30, cyb=by+bh-r+8, hw=r*.6, yT=cyb-r*1.62, yS=cyb-r*.78, k=r*.34;
@@ -5623,7 +5631,7 @@ function servBlock(x, F, I, ACC, d, y){ const od=d.servicio==='Odontología', tr
       x.lineWidth=16; x.strokeStyle=ACC; x.beginPath(); pts.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(bx,b)); x.stroke();
       x.fillStyle='#fff'; x.beginPath(); x.arc(X(.92),m,22,0,7); x.fill(); x.globalAlpha=.35; x.fillStyle=ACC; x.beginPath(); x.arc(X(.92),m,42,0,7); x.fill(); x.globalAlpha=1; }
     x.restore(); }
-  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':d.centro==='online'?(tr?'Entrenando desde donde estés':'Tu rehabilitación, donde estés'):tr?'Cada repetición suma':'Paso a paso, volviendo más fuerte',80,yD+80);
+  x.fillStyle='#fff'; x.font=I(40,700); x.fillText(od?'Sonrisa en mantención':ev?'Medimos para avanzar':d.centro==='online'?(tr?'Entrenando desde donde estés':'Tu rehabilitación, donde estés'):tr?'Cada repetición suma':'Paso a paso, volviendo más fuerte',80,yD+80);
   return yD+80; }
 async function storyBlob(p, d, mode='card', foto=null){
   const W=1080, H=mode==='sticker'?2700:1920, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
@@ -5749,13 +5757,13 @@ window.compartir = async (id, mode, k) => { S.shareAgain=null; if(k!==undefined)
   ${shareBtns(mode, `StrongMed_${toISO(d.fecha)}${mode==='sticker'?'_sticker':''}.${mode==='foto'?'jpg':'png'}`)}${!pk&&!d.recovery&&!String(d.id).startsWith('sala-')&&(d.ejercicios||[]).length&&!d.guardadaComoRutina&&!(p.rutinasAsignadas||[]).some(r=>r.id===d.rutinaId)?`<button class="btn sec block" style="margin-top:8px" onclick="guardarComoRutina(${q(d.id)})">${ic('clip','s')} Guardar como rutina para repetir</button>`:''}`); };
 /* stickers de respaldo (todos los profesionales de kine y entrenamiento): TRAINING, REHAB o RECOVERY DAY con el logo del centro, sin persona.
    Para cuando no alcanza a anotar a alguien en la Sala; no queda nada guardado en ningún perfil */
-const SR_T = [['entrenamiento','Training day'],['rehab','Rehab day'],['recovery','Recovery day']];
+const SR_T = [['entrenamiento','Training day'],['rehab','Rehab day'],['recovery','Recovery day'],['evaluacion','Evaluation day']];
 window.sheetStickers = () => { if(!S.pro || isOdonto()) return; S.sr=S.sr||{t:'entrenamiento', c:'kah', f:todayISO(), m:'sticker', ter:[], firma:false}; S.shareFoto=null; srDraw(); };
 window.srSet = (k, v) => { S.sr[k]=v; if(k==='m' && v==='foto'){ S.shareAgain=srDraw; return elegirFotoHistoria(); } srDraw(); };
 window.srTer = n => { const L=S.sr.ter, i=L.indexOf(n); if(i>-1) L.splice(i,1); else L.push(n); srDraw(); };
 async function srDraw(){ const o=S.sr; if(!o) return; let mode=o.m; if(mode==='foto' && !S.shareFoto) mode=o.m='sticker';
   const p={nombre:'', perfil:o.t==='rehab'?'rehabilitacion':'entrenamiento', citas:[], diarios:[]};
-  const d={id:'resp', fecha:o.f||todayISO(), centro:o.c, presencial:o.firma?{por:S.pro.nombre, proId:S.pro.id}:{}, ...(o.t==='recovery' ? {recovery:true, nombreSesion:'Recovery day', terapias:o.ter.map(n=>({n}))} : {servicio:o.t==='rehab'?'Kinesiología':'Entrenamiento', nombreSesion:o.t==='rehab'?'Rehab day':'Training day'})};
+  const d={id:'resp', fecha:o.f||todayISO(), centro:o.c, presencial:o.firma?{por:S.pro.nombre, proId:S.pro.id}:{}, ...(o.t==='recovery' ? {recovery:true, nombreSesion:'Recovery day', terapias:o.ter.map(n=>({n}))} : {servicio:o.t==='rehab'?'Kinesiología':o.t==='evaluacion'?'Evaluación':'Entrenamiento', nombreSesion:o.t==='rehab'?'Rehab day':o.t==='evaluacion'?'Evaluation day':'Training day'})};
   const blob=await storyBlob(p,d,mode,mode==='foto'?S.shareFoto:null); if(S.shareUrl) URL.revokeObjectURL(S.shareUrl); const url=URL.createObjectURL(blob); S.shareUrl=url; S.shareBlob=blob;
   const pill=(k,v,l,on)=>`<button class="pill ${on?'on':''}" onclick="srSet('${k}',${q(v)})">${esc(l)}</button>`;
   sheet(`<h2 class="disp h2">Stickers de respaldo</h2><p class="muted sm" style="margin-top:6px">Sin nombre de nadie y sin guardar nada en los perfiles. Para cuando no alcanzas a anotar a alguien en la Sala.</p><div class="stack" style="margin-top:12px">

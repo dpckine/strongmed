@@ -1,28 +1,34 @@
 # Video "¿Sabías que…?" — Entrenamiento de fuerza
 
-Formato vertical 1080×1920, 39,5 s, 30 fps, **con voz en off** (voz neuronal masculina en español latino, Piper `es_MX-ald-medium`). Las personas animadas son las mismas figuras de ejercicios de la app (`js/sm-anim.js`), con el músculo que trabaja resaltado en verde.
+Formato vertical 1080×1920, ~34 s, 30 fps, con voz en off masculina en español (Chatterbox Multilingual, licencia MIT).
+Las personas son el cuerpo 3D de la app (`js/sm-3d.js` + `modelos/cuerpo.glb`) haciendo los ejercicios de la biblioteca, con el músculo trabajado en verde.
 
-`voz-en-off.srt` tiene los subtítulos con tiempos (para Instagram o CapCut). `voz/voz-en-off.wav` es solo la pista de voz.
+- `sabias-que-fuerza.mp4`: video final con voz.
+- `voz-en-off.srt`: subtítulos con tiempos (para Instagram o CapCut).
+- `voz/voz-en-off.wav`: solo la pista de voz.
 
-## Guion de voz en off (≈ 2,5 palabras por segundo, tono cercano y con energía)
+## Guion
 
-| Tiempo | Escena en pantalla | Voz en off |
-|---|---|---|
-| 0:00–0:05 | ¿Sabías que…? + sentadilla | "¿Sabías que tu músculo empieza a desaparecer antes de lo que crees?" |
-| 0:05–0:13 | Dato 1: 3–8 % por década. Una persona camina sobre las barras y se va apagando | "Desde los 30 años, si no entrenas fuerza, pierdes entre un 3 y un 8 % de tu masa muscular por década." |
-| 0:13–0:22 | Dato 2: peso muerto + anillo de hasta -20 % | "La buena noticia: solo 30 a 60 minutos de fuerza a la semana se asocian a un 10 a 20 % menos de riesgo de muerte." |
-| 0:22–0:33 | Dato 3: curl de bíceps que libera mioquinas hacia sus beneficios | "Y tu músculo funciona como un órgano: al contraerse libera mioquinas, que ayudan a bajar la inflamación, controlar la glucosa y cuidar tus huesos y tu cerebro." |
-| 0:33–0:39 | Estocada, swing y remo + CTA | "Nunca es tarde para empezar. Entrena fuerza con tu kinesiólogo en StrongMed." |
+| Escena | Voz en off |
+|---|---|
+| ¿Sabías que…? + sentadilla 3D | "¿Sabías que tu músculo empieza a desaparecer antes de lo que crees?" |
+| Dato 1: 3–8 % por década. Caminata 3D que pierde color + barras por edad | "Desde los 30 años, si no entrenas fuerza, pierdes entre un 3 y un 8 % de tu masa muscular por década." |
+| Dato 2: peso muerto 3D + anillo de hasta -20 % | "La buena noticia: solo 30 a 60 minutos de fuerza a la semana se asocian a un 10 a 20 % menos de riesgo de muerte." |
+| Dato 3: curl de bíceps 3D que libera mioquinas hacia cada beneficio (aparecen cuando la voz los nombra) | "Y tu músculo funciona como un órgano: al contraerse libera mioquinas, que ayudan a bajar la inflamación, controlar la glucosa y cuidar tus huesos y tu cerebro." |
+| Estocada, swing y remo en 3D + CTA | "Nunca es tarde para empezar. Empieza hoy a entrenar fuerza con tu kinesiólogo en StrongMed." |
 
 ## Fuentes
 - Volpi E. et al., Curr Opin Clin Nutr Metab Care, 2004.
 - Momma H. et al., Br J Sports Med, 2022 (metaanálisis).
 - Pedersen BK & Febbraio MA, Nat Rev Endocrinol, 2012.
 
-## Volver a generar
-1. Imagen: edita `scene.html` y ejecuta `node render.js video` → `video_sin_audio.mp4` (requiere Playwright y ffmpeg).
-2. Voz: edita `voz/guion.txt` (números escritos en palabras) y ejecuta `python3 voz/voz.py <modelo.onnx>` → `sabias-que-fuerza.mp4`.
-   Requiere `pip install piper-tts` y el modelo `es_MX-ald-medium` de huggingface.co/rhasspy/piper-voices.
-   Si cambias el largo de una frase, ajusta `OFFS` en `voz/voz.py` y los tiempos `S` en `scene.html`.
 
-`node render.js stills` genera capturas de prueba.
+## Volver a generar
+1. Voz: edita `voz/guion.txt` (números en palabras) y, en un entorno con `pip install chatterbox-tts faster-whisper librosa "setuptools<81"`:
+   - `HF_HUB_DISABLE_XET=1 python voz/generar_tomas.py voz/guion.txt` → 3 tomas por frase en `cbout/`.
+   - `HF_HUB_DISABLE_XET=1 python voz/elegir_tomas.py <carpeta>` → transcribe cada toma con Whisper, elige la que dice
+     exactamente el guion, arma la pista y escribe `timing.json` (tiempos de escena sincronizados con la voz). Copia ese `timing.json` a `voz/`.
+2. Imagen: `node render.js video <carpeta>` → `video_sin_audio.mp4` (requiere Playwright y ffmpeg; usa `voz/timing.json`).
+3. Mezcla: `ffmpeg -i video_sin_audio.mp4 -i voz-en-off.wav -c:v copy -c:a aac -b:a 192k sabias-que-fuerza.mp4`.
+
+`node render.js stills` genera capturas de prueba. Three.js se carga desde `marketing/vendor/` (copia local de three@0.147.0).

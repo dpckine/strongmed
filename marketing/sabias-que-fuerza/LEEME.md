@@ -1,6 +1,6 @@
 # Video "¿Sabías que…?" — Entrenamiento de fuerza
 
-Formato vertical 1080×1920, 39,5 s, 30 fps, **con voz en off** (voz neuronal en español latino, Piper `es_MX-claude-high`). Las personas animadas son las mismas figuras de ejercicios de la app (`js/sm-anim.js`), con el músculo que trabaja resaltado en verde.
+Formato vertical 1080×1920, 39,5 s, 30 fps, **con voz en off** (voz neuronal masculina en español latino, Piper `es_MX-ald-medium`). Las personas animadas son las mismas figuras de ejercicios de la app (`js/sm-anim.js`), con el músculo que trabaja resaltado en verde.
 
 `voz-en-off.srt` tiene los subtítulos con tiempos (para Instagram o CapCut). `voz/voz-en-off.wav` es solo la pista de voz.
 
@@ -22,7 +22,7 @@ Formato vertical 1080×1920, 39,5 s, 30 fps, **con voz en off** (voz neuronal en
 ## Volver a generar
 1. Imagen: edita `scene.html` y ejecuta `node render.js video` → `video_sin_audio.mp4` (requiere Playwright y ffmpeg).
 2. Voz: edita `voz/guion.txt` (números escritos en palabras) y ejecuta `python3 voz/voz.py <modelo.onnx>` → `sabias-que-fuerza.mp4`.
-   Requiere `pip install piper-tts` y el modelo `es_MX-claude-high` de huggingface.co/rhasspy/piper-voices.
+   Requiere `pip install piper-tts` y el modelo `es_MX-ald-medium` de huggingface.co/rhasspy/piper-voices.
    Si cambias el largo de una frase, ajusta `OFFS` en `voz/voz.py` y los tiempos `S` en `scene.html`.
 
 `node render.js stills` genera capturas de prueba.

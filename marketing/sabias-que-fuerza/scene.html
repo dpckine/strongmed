@@ -1,0 +1,141 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{--bg:#060607;--lime:#ccff33;--tx:#f4f4f6;--mu:#8a8a93;--card:#111114;--red:#ff5a4f}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;background:var(--bg);overflow:hidden;color:var(--tx);font-family:Inter,sans-serif}
+.bc{font-family:'Barlow Condensed',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.01em;line-height:.92}
+#stage{position:absolute;inset:0}
+.scene{position:absolute;inset:0;padding:0 90px;display:flex;flex-direction:column;justify-content:center;opacity:0}
+.glow{position:absolute;width:1400px;height:1400px;border-radius:50%;background:radial-gradient(circle,rgba(204,255,51,.16),transparent 60%);left:-160px;top:260px}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:90px 90px}
+#top{position:absolute;top:90px;left:90px;right:90px;display:flex;align-items:center;gap:22px;z-index:5}
+#top img{width:86px;height:86px;border-radius:20px}
+#top .n{font-size:44px}
+#top .s{font-family:Inter;font-size:24px;color:var(--mu);font-weight:600;letter-spacing:.04em;margin-top:4px}
+#prog{position:absolute;bottom:90px;left:90px;right:90px;height:8px;background:rgba(255,255,255,.1);border-radius:8px;z-index:5}
+#prog i{display:block;height:100%;width:0;background:var(--lime);border-radius:8px}
+.tag{display:inline-block;font-family:Inter;font-weight:800;font-size:28px;letter-spacing:.14em;color:#060607;background:var(--lime);padding:12px 22px;border-radius:12px;align-self:flex-start;margin-bottom:44px}
+.big{font-size:200px}
+.h{font-size:118px}
+.p{font-size:46px;line-height:1.3;color:#d6d6dc;font-weight:500;margin-top:40px}
+.lime{color:var(--lime)}
+.num{font-size:330px;color:var(--lime);line-height:.85}
+.src{position:absolute;bottom:140px;left:90px;right:90px;font-size:24px;color:var(--mu);line-height:1.4}
+.bars{display:flex;align-items:flex-end;gap:34px;height:520px;margin-top:70px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar b{display:block;width:100%;background:var(--lime);border-radius:14px 14px 4px 4px}
+.bar span{font-size:34px;color:var(--mu);font-weight:700;margin-top:18px}
+.mark{font-size:90px;line-height:1}
+.ring{position:relative;width:560px;height:560px;align-self:center;margin:30px 0 20px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:20px;margin-top:50px}
+.chip{font-size:36px;font-weight:700;padding:20px 30px;border-radius:999px;border:3px solid var(--lime);color:var(--lime)}
+.cta{font-size:42px;font-weight:800;color:#060607;background:var(--lime);padding:30px 44px;border-radius:24px;align-self:flex-start;margin-top:60px}
+</style></head>
+<body>
+<div class="grid"></div><div class="glow" id="glow"></div>
+<div id="top"><img src="../../icons/icon-512.png"><div><div class="bc n">StrongMed</div><div class="s">× KIN AT HOME</div></div></div>
+
+<div id="stage">
+  <!-- 1 HOOK -->
+  <section class="scene" id="s1">
+    <div class="bc big" id="s1a">¿Sabías</div>
+    <div class="bc big lime" id="s1b">que…?</div>
+    <div class="p" id="s1c">Lo que pasa con tu músculo si <b style="color:#fff">no</b> entrenas fuerza 👇</div>
+  </section>
+
+  <!-- 2 SARCOPENIA -->
+  <section class="scene" id="s2">
+    <div class="tag">DATO 1</div>
+    <div class="bc h">Desde los 30 años pierdes</div>
+    <div class="bc num" id="s2n">3–8%</div>
+    <div class="bc h">de tu músculo <span class="lime">por década</span></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <!-- 3 MORTALIDAD -->
+  <section class="scene" id="s3">
+    <div class="tag">DATO 2</div>
+    <div class="bc h">Solo <span class="lime">30–60 min</span> de fuerza a la semana</div>
+    <div class="ring"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="16"/><circle id="arc" cx="100" cy="100" r="86" fill="none" stroke="#ccff33" stroke-width="16" stroke-linecap="round" stroke-dasharray="540.35" stroke-dashoffset="540.35"/></svg>
+      <div class="c"><div style="font-size:30px;color:var(--mu);font-weight:700;letter-spacing:.1em">HASTA</div><div class="bc lime" style="font-size:200px" id="s3n">-0%</div><div style="font-size:30px;color:var(--mu);font-weight:700;letter-spacing:.1em">RIESGO</div></div></div>
+    <div class="p" style="margin-top:10px">se asocian a un <b class="lime">10–20% menos</b> de riesgo de muerte por cualquier causa.</div>
+  </section>
+
+  <!-- 4 MIOQUINAS -->
+  <section class="scene" id="s4">
+    <div class="tag">DATO 3</div>
+    <div class="bc h">Tu músculo es un <span class="lime">órgano</span></div>
+    <div class="p">Al contraerse libera <b style="color:#fff">mioquinas</b>: mensajeros que viajan por la sangre y ayudan a…</div>
+    <div class="chips" id="chips">
+      <div class="chip">↓ Inflamación</div><div class="chip">Controlar la glucosa</div><div class="chip">Cuidar tus huesos</div><div class="chip">Tu cerebro</div>
+    </div>
+  </section>
+
+  <!-- 5 CTA -->
+  <section class="scene" id="s5">
+    <div class="bc h">Nunca es tarde para</div>
+    <div class="bc big lime">entrenar fuerza</div>
+    <div class="p">Con guía de tu kinesiólogo/a, a tu ritmo y con progresión segura.</div>
+    <div class="cta">strongmed.vercel.app</div>
+  </section>
+</div>
+<div class="src" id="src"></div>
+<div id="prog"><i id="pi"></i></div>
+
+<script>
+const D=30; // seconds
+const S=[ // id, start, end
+ ['s1',0,4.2],['s2',4.2,11.2],['s3',11.2,18.6],['s4',18.6,25],['s5',25,30]];
+const SRC={s2:'Fuente: Volpi E. et al., Curr Opin Clin Nutr Metab Care, 2004.',
+ s3:'Fuente: Momma H. et al., Br J Sports Med, 2022 (metaanálisis).',
+ s4:'Fuente: Pedersen BK & Febbraio MA, Nat Rev Endocrinol, 2012.',
+ s5:'Información educativa. Consulta a un profesional antes de iniciar un programa.'};
+const cl=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const eo=x=>1-Math.pow(1-cl(x),3);
+const eb=x=>{x=cl(x);const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const $=id=>document.getElementById(id);
+function fadeIO(el,t,a,b,dur=.45){
+  const i=eo((t-a)/dur), o=eo((b-t)/dur);
+  const v=Math.min(i,o); el.style.opacity=v;
+  el.style.transform=`translateY(${(1-i)*80 - (1-o)*-0}px) scale(${.96+.04*v})`;
+}
+function stagger(el,t,a,k){ // child reveal
+  const v=eo((t-a)/.5); el.style.opacity=v; el.style.transform=`translateY(${(1-v)*60}px)`; }
+// bars
+const ages=['30','40','50','60','70','80'], vals=[100,94.5,89,83.5,78,72.5];
+$('bars').innerHTML=ages.map((a,i)=>`<div class="bar"><b id="b${i}" style="height:0"></b><span>${a}</span></div>`).join('');
+window.render=function(t){
+  $('pi').style.width=(t/D*100)+'%';
+  $('glow').style.transform=`translate(${Math.sin(t*.4)*120}px,${Math.cos(t*.3)*160}px)`;
+  let srcTxt='';
+  for(const [id,a,b] of S){
+    const el=$(id); if(t<a-.01||t>b+.01){el.style.opacity=0;continue}
+    fadeIO(el,t,a,id==='s5'?D+1:b);
+    if(SRC[id] && t>a+.3) srcTxt=SRC[id];
+  }
+  const src=$('src'); src.textContent=srcTxt;
+  // scene 1
+  stagger($('s1a'),t,.1); stagger($('s1b'),t,.45);
+  const s1b=$('s1b'); s1b.style.transform+=` rotate(${(1-eb((t-.45)/.6))*-6}deg)`;
+  stagger($('s1c'),t,1.2);
+  // scene 2
+  const t2=t-4.2;
+  ages.forEach((_,i)=>{const v=eo((t2-1.2-i*.25)/.7);const b=$('b'+i);b.style.height=(vals[i]*4.6*v)+'px';
+    b.style.background=i===0?'#ccff33':`color-mix(in srgb,#ccff33 ${100-i*13}%,#ff5a4f)`;});
+  const n2=$('s2n'); const p=eb((t2-.3)/.7); n2.style.transform=`scale(${.6+.4*p})`; n2.style.transformOrigin='left center';
+  // scene 3
+  const t3=t-11.2; const v3=eo((t3-.6)/2.2);
+  $('arc').setAttribute('stroke-dashoffset',540.35*(1-.2*v3*1));
+  $('s3n').textContent='-'+Math.round(20*v3)+'%';
+  // scene 4
+  const t4=t-18.6;
+  [...$('chips').children].forEach((c,i)=>{const v=eb((t4-1.4-i*.35)/.5);c.style.opacity=cl(v);c.style.transform=`scale(${.5+.5*v})`;
+    if(v>=1){c.style.background='rgba(204,255,51,.12)'}});
+};
+render(0);
+</script>
+</body></html>

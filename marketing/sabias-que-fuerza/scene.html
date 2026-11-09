@@ -108,8 +108,10 @@ html,body{width:1080px;height:1920px;background:var(--bg);overflow:hidden;color:
 
 <script src="../../js/sm-anim.js"></script>
 <script>
-const D=36;
-const S=[['s1',0,4.5],['s2',4.5,12.5],['s3',12.5,21],['s4',21,30.5],['s5',30.5,D]];
+const D=39.5;
+// tiempos de escena ajustados a la voz en off (ver voz/voz.py)
+const S=[['s1',0,4.8],['s2',4.8,13.3],['s3',13.3,21.8],['s4',21.8,32.8],['s5',32.8,D]];
+const ST=Object.fromEntries(S.map(([id,a])=>[id,a]));
 const SRC={s2:'Fuente: Volpi E. et al., Curr Opin Clin Nutr Metab Care, 2004.',
  s3:'Fuente: Momma H. et al., Br J Sports Med, 2022 (metaanálisis).',
  s4:'Fuente: Pedersen BK & Febbraio MA, Nat Rev Endocrinol, 2012.',
@@ -145,15 +147,15 @@ window.render=function(t){
   // 1 — sentadilla grande
   rise($('s1a'),t,.1); const vb=rise($('s1b'),t,.45); $('s1b').style.transform+=` rotate(${(1-eb((t-.45)/.6))*-6}deg)`;
   rise($('s1c'),t,1.1);
-  if(t<5) { fig('f1','squat',t,{quads:1,glutes:1}); rise($('f1'),t,.6,120); }
+  if(t<ST.s2+.5) { fig('f1','squat',t,{quads:1,glutes:1}); rise($('f1'),t,.6,120); }
 
   // 2 — persona que camina sobre las barras y va perdiendo músculo
-  const t2=t-4.5;
-  if(t2>-.1&&t2<8.2){
+  const t2=t-ST.s2;
+  if(t2>-.1&&t2<8.7){
     ages.forEach((_,i)=>{const v=eo((t2-1.0-i*.2)/.6);const b=$('b'+i);b.style.height=(vals[i]*4.4*v)+'px';
       b.style.background=i===0?'#ccff33':`color-mix(in srgb,#ccff33 ${100-i*15}%,#ff5a4f)`;});
     const n2=$('s2n'); const p=eb((t2-.3)/.7); n2.style.transform=`scale(${.6+.4*p})`; n2.style.transformOrigin='left center';
-    const u=cl((t2-2.4)/5.2), barW=(900-5*34)/6, k=u*5, i0=Math.floor(k), fr=k-i0;
+    const u=cl((t2-2.4)/5.8), barW=(900-5*34)/6, k=u*5, i0=Math.floor(k), fr=k-i0;
     const x=90+ (barW+34)*k + barW/2, hgt=vals[Math.min(5,i0)]*4.4*(1-fr)+vals[Math.min(5,i0+1)]*4.4*fr;
     const f2=$('f2'); const sc=1-.18*u; // la figura "se achica"
     f2.style.left=(x-210)+'px'; f2.style.top=(1920-300-hgt-420*.93)+'px';
@@ -163,8 +165,8 @@ window.render=function(t){
   }
 
   // 3 — peso muerto + anillo
-  const t3=t-12.5;
-  if(t3>-.1&&t3<8.6){
+  const t3=t-ST.s3;
+  if(t3>-.1&&t3<8.7){
     fig('f3','deadlift',t3,{glutes:1,hams:1,quads:2});
     const v3=eio((t3-1.2)/2.4);
     $('arc').setAttribute('stroke-dashoffset',540.35*(1-.2*v3));
@@ -174,25 +176,26 @@ window.render=function(t){
   }
 
   // 4 — curl de bíceps que "libera" mioquinas hacia los beneficios
-  const t4=t-21;
-  if(t4>-.1&&t4<9.6){
+  const t4=t-ST.s4;
+  if(t4>-.1&&t4<11.2){
     fig('f4','curl',t4,{biceps:1,forearm:2});
     const src=[555,1000]; // brazo aprox.
+    const ARR=[6.3,7.8,9.1,9.9]; // llegada de cada beneficio, sincronizada con la voz
     const chipC=[[290,1440],[760,1440],[290,1580],[760,1580]];
     for(let i=0;i<28;i++){
-      const target=chipC[i%4], start=1.4+i*.24, u=cl((t4-start)/1.1), d=$('d'+i);
+      const c=i%4, target=chipC[c], start=3.8+(Math.floor(i/4)/6)*(ARR[c]-1.1-3.8), u=cl((t4-start)/1.1), d=$('d'+i);
       if(u<=0||u>=1){d.style.opacity=0;continue}
       const e=eio(u), mx=(src[0]+target[0])/2+(i%2?-160:160), my=src[1]-60;
       const x=(1-e)*(1-e)*src[0]+2*(1-e)*e*mx+e*e*target[0], y=(1-e)*(1-e)*src[1]+2*(1-e)*e*my+e*e*target[1];
       d.style.opacity=Math.sin(u*Math.PI); d.style.left=(x-14)+'px'; d.style.top=(y-14)+'px';
     }
-    for(let c=0;c<4;c++){const el=$('c'+c), arr=1.4+c*.24+1.0; const v=eb((t4-arr)/.45);
+    for(let c=0;c<4;c++){const el=$('c'+c), arr=ARR[c]; const v=eb((t4-arr)/.45);
       el.style.opacity=cl(v); el.style.transform=`scale(${.5+.5*v})`;
       const pulse=Math.max(0,Math.sin((t4-arr)*2.4)); el.style.boxShadow=v>=1?`0 0 ${20+20*pulse}px rgba(204,255,51,${.25+.25*pulse})`:'none';}
   }
 
   // 5 — tres personas entrenando + CTA
-  const t5=t-30.5;
+  const t5=t-ST.s5;
   if(t5>-.1){
     fig('f5a','lunge',t5,{quads:1,glutes:1}); fig('f5b','swing',t5,{glutes:1,hams:1}); fig('f5c','row_db',t5,{lats:1,biceps:2});
     ['f5a','f5b','f5c'].forEach((id,i)=>rise($(id),t5,.5+i*.2,100));

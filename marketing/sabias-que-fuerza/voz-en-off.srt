@@ -1,19 +1,20 @@
 1
-00:00:00,300 --> 00:00:04,300
+00:00:00,420 --> 00:00:04,420
 ¿Sabías que tu músculo empieza a desaparecer antes de lo que crees?
 
 2
-00:00:04,700 --> 00:00:12,300
+00:00:05,250 --> 00:00:12,790
 Desde los 30 años, si no entrenas fuerza, pierdes entre un 3 y un 8 % de tu masa muscular por década.
 
 3
-00:00:12,700 --> 00:00:20,800
+00:00:13,740 --> 00:00:21,290
 La buena noticia: solo 30 a 60 minutos de fuerza a la semana se asocian a un 10 a 20 % menos de riesgo de muerte.
 
 4
-00:00:21,200 --> 00:00:30,300
-Y tu músculo funciona como un órgano: al contraerse libera mioquinas, que ayudan a bajar la inflamación, controlar la glucosa y cuidar tus huesos y tu cerebro.
+00:00:22,200 --> 00:00:32,540
+Y tu músculo funciona como un órgano: al contraerse, libera mioquinas, que ayudan a bajar la inflamación, controlar la glucosa, y cuidar tus huesos y tu cerebro.
 
 5
-00:00:30,700 --> 00:00:35,800
+00:00:33,220 --> 00:00:37,880
 Nunca es tarde para empezar. Entrena fuerza con tu kinesiólogo en StrongMed.
+

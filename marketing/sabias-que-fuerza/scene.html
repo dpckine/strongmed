@@ -15,25 +15,28 @@ html,body{width:1080px;height:1920px;background:var(--bg);overflow:hidden;color:
 #top .s{font-size:24px;color:var(--mu);font-weight:600;letter-spacing:.04em;margin-top:4px}
 #prog{position:absolute;bottom:90px;left:90px;right:90px;height:8px;background:rgba(255,255,255,.1);border-radius:8px;z-index:5}
 #prog i{display:block;height:100%;width:0;background:var(--lime);border-radius:8px}
-.tag{display:inline-block;font-weight:800;font-size:28px;letter-spacing:.14em;color:#060607;background:var(--lime);padding:12px 22px;border-radius:12px;margin-bottom:36px}
+.tag{display:inline-block;font-weight:800;font-size:28px;letter-spacing:.14em;color:#060607;background:var(--lime);padding:12px 22px;border-radius:12px;margin-bottom:30px}
 .abs{position:absolute;left:90px;right:90px}
-.big{font-size:200px}.h{font-size:112px}.hm{font-size:96px}
-.p{font-size:44px;line-height:1.3;color:#d6d6dc;font-weight:500}
+.big{font-size:190px}.h{font-size:104px}.hm{font-size:90px}
+.p{font-size:42px;line-height:1.3;color:#d6d6dc;font-weight:500}
 .lime{color:var(--lime)}
-.num{font-size:300px;color:var(--lime);line-height:.85}
+.num{font-size:250px;color:var(--lime);line-height:.85}
 .src{position:absolute;bottom:130px;left:90px;right:90px;font-size:24px;color:var(--mu);line-height:1.4;z-index:5}
-.fig{position:absolute;overflow:visible}
-.bars{position:absolute;left:90px;right:90px;bottom:300px;height:480px;display:flex;align-items:flex-end;gap:34px}
+/* tarjeta con el cuerpo 3D de la app */
+.card{position:absolute;border-radius:40px;overflow:hidden;background:#16191d;border:2px solid rgba(204,255,51,.22);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(204,255,51,.08)}
+.card .lbl{position:absolute;right:22px;top:20px;z-index:10;font-size:24px;font-weight:800;letter-spacing:.08em;color:var(--lime);background:rgba(10,11,12,.8);border:1.5px solid rgba(204,255,51,.45);padding:10px 16px;border-radius:99px;text-transform:uppercase}
+#k5a .lbl,#k5b .lbl,#k5c .lbl{font-size:20px;padding:8px 12px;right:14px;top:14px}
+.bars{position:absolute;display:flex;align-items:flex-end;gap:20px}
 .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
-.bar b{display:block;width:100%;border-radius:14px 14px 4px 4px}
-.bar span{font-size:34px;color:var(--mu);font-weight:700;margin-top:18px}
-.ring{position:absolute;width:440px;height:440px}
+.bar b{display:block;width:100%;border-radius:12px 12px 4px 4px}
+.bar span{font-size:28px;color:var(--mu);font-weight:700;margin-top:12px}
+.ring{position:absolute;width:400px;height:400px}
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.chip{position:absolute;font-size:38px;font-weight:700;padding:20px 32px;border-radius:999px;border:3px solid var(--lime);color:var(--lime);background:#0b0c0a;white-space:nowrap}
-.dot{position:absolute;width:28px;height:28px;border-radius:50%;background:var(--lime);box-shadow:0 0 24px 6px rgba(204,255,51,.6)}
+.chip{position:absolute;font-size:36px;font-weight:700;padding:18px 30px;border-radius:999px;border:3px solid var(--lime);color:var(--lime);background:#0b0c0a;white-space:nowrap;z-index:4}
+.dot{position:absolute;width:28px;height:28px;border-radius:50%;background:var(--lime);box-shadow:0 0 24px 6px rgba(204,255,51,.6);z-index:4}
 .cta{display:inline-block;font-size:44px;font-weight:800;color:#060607;background:var(--lime);padding:30px 44px;border-radius:24px}
-.pill{display:inline-block;font-size:40px;font-weight:800;padding:16px 28px;border-radius:18px;background:rgba(204,255,51,.12);color:var(--lime);border:2px solid rgba(204,255,51,.4)}
+.pill{display:inline-block;font-size:38px;font-weight:800;padding:14px 26px;border-radius:18px;background:rgba(204,255,51,.12);color:var(--lime);border:2px solid rgba(204,255,51,.4)}
 </style></head>
 <body>
 <div class="grid"></div><div class="glow" id="glow"></div>
@@ -41,76 +44,83 @@ html,body{width:1080px;height:1920px;background:var(--bg);overflow:hidden;color:
 
 <!-- 1 HOOK -->
 <section class="scene" id="s1">
-  <div class="abs" style="top:300px">
-    <div class="bc big" id="s1a">¿Sabías</div>
-    <div class="bc big lime" id="s1b">que…?</div>
-    <div class="p" id="s1c" style="margin-top:36px">Tu músculo empieza a desaparecer <b style="color:#fff">antes de lo que crees</b> 👇</div>
+  <div class="abs" style="top:250px">
+    <div class="bc big" id="s1a">¿Sabías <span class="lime" id="s1b" style="display:inline-block">que…?</span></div>
+    <div class="p" id="s1c" style="margin-top:30px">Tu músculo empieza a desaparecer <b style="color:#fff">antes de lo que crees</b> 👇</div>
   </div>
-  <svg class="fig" id="f1" style="left:140px;top:860px;width:800px;height:800px"></svg>
+  <div class="card" id="k1" style="left:90px;top:620px;width:900px;height:1080px"></div>
 </section>
 
 <!-- 2 SARCOPENIA -->
 <section class="scene" id="s2">
-  <div class="abs" style="top:250px">
+  <div class="abs" style="top:240px">
     <div class="tag">DATO 1</div>
     <div class="bc hm">Desde los 30 años pierdes</div>
     <div class="bc num" id="s2n">3–8%</div>
     <div class="bc hm">de tu músculo <span class="lime">por década</span></div>
   </div>
-  <div class="bars" id="bars"></div>
-  <svg class="fig" id="f2" style="width:420px;height:420px"></svg>
+  <div class="card" id="k2" style="left:90px;top:900px;width:440px;height:820px"></div>
+  <div class="bars" id="bars" style="left:570px;right:90px;top:1080px;height:640px"></div>
 </section>
 
 <!-- 3 MORTALIDAD -->
 <section class="scene" id="s3">
-  <div class="abs" style="top:250px">
+  <div class="abs" style="top:240px">
     <div class="tag">DATO 2</div>
     <div class="bc h">La buena noticia:</div>
     <div class="bc h">solo <span class="lime">30–60 min</span> de fuerza a la semana</div>
-    <div style="margin-top:34px"><span class="pill" id="s3pill">≈ 2 sesiones de 20–30 min</span></div>
+    <div style="margin-top:30px"><span class="pill" id="s3pill">≈ 2 sesiones de 20–30 min</span></div>
   </div>
-  <svg class="fig" id="f3" style="left:20px;top:930px;width:620px;height:620px"></svg>
-  <div class="ring" style="left:560px;top:1010px"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="16"/><circle id="arc" cx="100" cy="100" r="86" fill="none" stroke="#ccff33" stroke-width="16" stroke-linecap="round" stroke-dasharray="540.35" stroke-dashoffset="540.35"/></svg>
-    <div class="c"><div style="font-size:26px;color:var(--mu);font-weight:700;letter-spacing:.1em">HASTA</div><div class="bc lime" style="font-size:160px" id="s3n">-0%</div><div style="font-size:26px;color:var(--mu);font-weight:700;letter-spacing:.1em">RIESGO DE MUERTE</div></div></div>
-  <div class="abs p" style="top:1520px" id="s3p">se asocian a un <b class="lime">10–20% menos</b> de riesgo de muerte por cualquier causa.</div>
+  <div class="card" id="k3" style="left:90px;top:900px;width:500px;height:820px"></div>
+  <div class="ring" style="left:610px;top:980px;width:380px;height:380px"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="16"/><circle id="arc" cx="100" cy="100" r="86" fill="none" stroke="#ccff33" stroke-width="16" stroke-linecap="round" stroke-dasharray="540.35" stroke-dashoffset="540.35"/></svg>
+    <div class="c"><div style="font-size:24px;color:var(--mu);font-weight:700;letter-spacing:.1em">HASTA</div><div class="bc lime" style="font-size:140px" id="s3n">-0%</div><div style="font-size:22px;color:var(--mu);font-weight:700;letter-spacing:.08em;text-align:center">RIESGO DE<br>MUERTE</div></div></div>
+  <div class="p" style="position:absolute;left:620px;right:90px;top:1400px;font-size:36px" id="s3p"><b class="lime">10–20% menos</b> de riesgo de muerte por cualquier causa.</div>
 </section>
 
 <!-- 4 MIOQUINAS -->
 <section class="scene" id="s4">
-  <div class="abs" style="top:250px">
+  <div class="abs" style="top:240px">
     <div class="tag">DATO 3</div>
     <div class="bc h">Tu músculo es un <span class="lime">órgano</span></div>
-    <div class="p" style="margin-top:28px">Al contraerse libera <b style="color:#fff">mioquinas</b>, mensajeros que viajan por tu sangre.</div>
+    <div class="p" style="margin-top:24px">Al contraerse libera <b style="color:#fff">mioquinas</b>, mensajeros que viajan por tu sangre.</div>
   </div>
-  <svg class="fig" id="f4" style="left:180px;top:640px;width:760px;height:760px"></svg>
+  <div class="card" id="k4" style="left:190px;top:700px;width:700px;height:760px"></div>
   <div id="dots"></div>
-  <div class="chip" id="c0" style="left:90px;top:1400px">↓ Inflamación</div>
-  <div class="chip" id="c1" style="left:530px;top:1400px">Controla la glucosa</div>
-  <div class="chip" id="c2" style="left:90px;top:1540px">Huesos fuertes</div>
-  <div class="chip" id="c3" style="left:530px;top:1540px">Cerebro sano</div>
+  <div class="chip" id="c0" style="left:90px;top:1490px">↓ Inflamación</div>
+  <div class="chip" id="c1" style="left:520px;top:1490px">Controla la glucosa</div>
+  <div class="chip" id="c2" style="left:90px;top:1610px">Huesos fuertes</div>
+  <div class="chip" id="c3" style="left:520px;top:1610px">Cerebro sano</div>
 </section>
 
 <!-- 5 CTA -->
 <section class="scene" id="s5">
-  <div class="abs" style="top:260px">
+  <div class="abs" style="top:240px">
     <div class="bc h">Nunca es tarde para</div>
     <div class="bc big lime">entrenar fuerza</div>
-    <div class="p" style="margin-top:30px">Con guía de tu kinesiólogo/a, a tu ritmo y con progresión segura.</div>
+    <div class="p" style="margin-top:24px">Con guía de tu kinesiólogo/a, a tu ritmo y con progresión segura.</div>
   </div>
-  <svg class="fig" id="f5a" style="left:20px;top:950px;width:380px;height:380px"></svg>
-  <svg class="fig" id="f5b" style="left:350px;top:950px;width:380px;height:380px"></svg>
-  <svg class="fig" id="f5c" style="left:680px;top:950px;width:380px;height:380px"></svg>
-  <div class="abs" style="top:1400px"><div class="cta" id="cta">strongmed.vercel.app</div></div>
+  <div class="card" id="k5a" style="left:90px;top:930px;width:280px;height:500px"></div>
+  <div class="card" id="k5b" style="left:400px;top:930px;width:280px;height:500px"></div>
+  <div class="card" id="k5c" style="left:710px;top:930px;width:280px;height:500px"></div>
+  <div class="abs" style="top:1490px"><div class="cta" id="cta">strongmed.vercel.app</div></div>
 </section>
 
 <div class="src" id="src"></div>
 <div id="prog"><i id="pi"></i></div>
 
-<script src="../../js/sm-anim.js"></script>
 <script>
-const D=39.5;
-// tiempos de escena ajustados a la voz en off (ver voz/voz.py)
-const S=[['s1',0,4.8],['s2',4.8,13.3],['s3',13.3,21.8],['s4',21.8,32.8],['s5',32.8,D]];
+/* Reloj controlado: render.js avanza los visores 3D cuadro a cuadro con __step(ms),
+   así el video sale fluido y siempre igual, aunque el render tarde. */
+(function(){const q=[];window.requestAnimationFrame=cb=>{q.push(cb);return q.length};window.cancelAnimationFrame=()=>{};
+ window.__step=ms=>{const cbs=q.splice(0);cbs.forEach(cb=>{try{cb(ms)}catch(e){console.error(e)}})};})();
+</script>
+<script src="../vendor/three.min.js"></script><script src="../vendor/GLTFLoader.js"></script>
+<script src="../../js/sm-anim.js"></script><script src="../../js/sm-3d.js"></script>
+<script>
+/* Tiempos de cada escena (s). Se ajustan a la voz en off: ver voz/timing.json */
+const TIMING=window.__TIMING||{D:39.5,S:[0,4.8,13.3,21.8,32.8],ARR:[6.3,7.8,9.1,9.9]};
+const D=TIMING.D, IDS=['s1','s2','s3','s4','s5'];
+const S=IDS.map((id,i)=>[id,TIMING.S[i],i<4?TIMING.S[i+1]:D]);
 const ST=Object.fromEntries(S.map(([id,a])=>[id,a]));
 const SRC={s2:'Fuente: Volpi E. et al., Curr Opin Clin Nutr Metab Care, 2004.',
  s3:'Fuente: Momma H. et al., Br J Sports Med, 2022 (metaanálisis).',
@@ -121,71 +131,71 @@ const eo=x=>1-Math.pow(1-cl(x),3);
 const eio=x=>{x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
 const eb=x=>{x=cl(x);const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
 const $=id=>document.getElementById(id);
-const VB='-6 -12 212 212';
-// figura de la app (sin fondo), con su propio ciclo de movimiento
-function fig(id,name,T,hl,speed=1){
-  const tpl=SMAnim.tpl(name), dur=(tpl.dur||2.6)/speed, ph=((T%dur)+dur)%dur/dur;
-  const el=$(id); el.setAttribute('viewBox',VB);
-  el.innerHTML=SMAnim.DEFS+SMAnim.frameSVG(name,ph,hl,ph*(tpl.dur||2.6));
-}
 function rise(el,t,a,dist=60){const v=eo((t-a)/.5);el.style.opacity=v;el.style.transform=`translateY(${(1-v)*dist}px)`;return v}
+
+// cuerpos 3D (mismo visor que la app)
+const CARDS={k1:['squat',{quads:1,glutes:1}],k2:['walk',{quads:1,glutes:1,calves:2}],k3:['deadlift',{glutes:1,hams:1,quads:2}],
+  k4:['curl',{biceps:1,forearm:2}],k5a:['lunge',{quads:1,glutes:1}],k5b:['swing',{glutes:1,hams:1}],k5c:['row_db',{lats:1,biceps:2}]};
+const PL={}; for(const k in CARDS){PL[k]=SM3D.mount($(k),CARDS[k][0],CARDS[k][1],{phase:0});}
+const LBL={"k1": "Sentadilla", "k3": "Peso muerto", "k4": "Curl de bíceps", "k5a": "Estocada", "k5b": "Swing", "k5c": "Remo"};
+for(const k in LBL){const l=document.createElement('span');l.className='lbl';l.textContent=LBL[k];$(k).appendChild(l);}
+window.ready3D=()=>Object.values(PL).every(P=>P.is3d);
+const SCENE_OF={k1:'s1',k2:'s2',k3:'s3',k4:'s4',k5a:'s5',k5b:'s5',k5c:'s5'};
+
 const ages=['30','40','50','60','70','80'], vals=[100,94.5,89,83.5,78,72.5];
 $('bars').innerHTML=ages.map((a,i)=>`<div class="bar"><b id="b${i}" style="height:0"></b><span>${a}</span></div>`).join('');
 $('dots').innerHTML=Array.from({length:28},(_,i)=>`<div class="dot" id="d${i}"></div>`).join('');
+
 window.render=function(t){
   $('pi').style.width=(t/D*100)+'%';
   $('glow').style.transform=`translate(${Math.sin(t*.4)*120}px,${Math.cos(t*.3)*160}px)`;
   let srcTxt='';
   for(const [id,a,b] of S){
-    const el=$(id); if(t<a-.01||t>b+.01){el.style.opacity=0;continue}
+    const el=$(id), on=!(t<a-.01||t>b+.01);
+    // solo se dibujan los visores 3D de la escena visible
+    for(const k in SCENE_OF) if(SCENE_OF[k]===id) $(k).style.display=on?'':'none';
+    if(!on){el.style.opacity=0;continue}
     const i=eo((t-a)/.45), o=id==='s5'?1:eo((b-t)/.45), v=Math.min(i,o);
     el.style.opacity=v; el.style.transform=`translateY(${(1-i)*80}px) scale(${.97+.03*v})`;
     if(SRC[id]&&t>a+.3) srcTxt=SRC[id];
   }
   $('src').textContent=srcTxt;
 
-  // 1 — sentadilla grande
-  rise($('s1a'),t,.1); const vb=rise($('s1b'),t,.45); $('s1b').style.transform+=` rotate(${(1-eb((t-.45)/.6))*-6}deg)`;
-  rise($('s1c'),t,1.1);
-  if(t<ST.s2+.5) { fig('f1','squat',t,{quads:1,glutes:1}); rise($('f1'),t,.6,120); }
+  // 1
+  rise($('s1a'),t,.1); $('s1b').style.transform=`rotate(${(1-eb((t-.45)/.6))*-6}deg)`;
+  rise($('s1c'),t,1.0); rise($('k1'),t,.5,140);
 
-  // 2 — persona que camina sobre las barras y va perdiendo músculo
+  // 2
   const t2=t-ST.s2;
-  if(t2>-.1&&t2<8.7){
-    ages.forEach((_,i)=>{const v=eo((t2-1.0-i*.2)/.6);const b=$('b'+i);b.style.height=(vals[i]*4.4*v)+'px';
+  if(t2>-.1&&t2<9.5){
+    ages.forEach((_,i)=>{const v=eo((t2-1.0-i*.25)/.6);const b=$('b'+i);b.style.height=(vals[i]*5.4*v)+'px';
       b.style.background=i===0?'#ccff33':`color-mix(in srgb,#ccff33 ${100-i*15}%,#ff5a4f)`;});
     const n2=$('s2n'); const p=eb((t2-.3)/.7); n2.style.transform=`scale(${.6+.4*p})`; n2.style.transformOrigin='left center';
-    const u=cl((t2-2.4)/5.8), barW=(900-5*34)/6, k=u*5, i0=Math.floor(k), fr=k-i0;
-    const x=90+ (barW+34)*k + barW/2, hgt=vals[Math.min(5,i0)]*4.4*(1-fr)+vals[Math.min(5,i0+1)]*4.4*fr;
-    const f2=$('f2'); const sc=1-.18*u; // la figura "se achica"
-    f2.style.left=(x-210)+'px'; f2.style.top=(1920-300-hgt-420*.93)+'px';
-    f2.style.transform=`scale(${sc})`; f2.style.transformOrigin='50% 93%';
-    f2.style.opacity=cl((t2-2)/.5); f2.style.filter=`saturate(${1-u}) brightness(${1-.25*u})`;
-    fig('f2','walk',t2,{quads:1-u*.6,glutes:1-u*.6,calves:1-u*.6},.8);
+    rise($('k2'),t2,.6,140);
+    // el cuerpo "pierde" color con los años
+    const u=cl((t2-2.4)/5.5); $('k2').style.filter=`saturate(${1-.9*u}) brightness(${1-.3*u})`;
   }
 
-  // 3 — peso muerto + anillo
+  // 3
   const t3=t-ST.s3;
-  if(t3>-.1&&t3<8.7){
-    fig('f3','deadlift',t3,{glutes:1,hams:1,quads:2});
+  if(t3>-.1&&t3<9.5){
+    rise($('k3'),t3,.5,140);
     const v3=eio((t3-1.2)/2.4);
     $('arc').setAttribute('stroke-dashoffset',540.35*(1-.2*v3));
     $('s3n').textContent='-'+Math.round(20*v3)+'%';
-    const pl=$('s3pill'); const pv=eb((t3-.9)/.5); pl.style.display='inline-block'; pl.style.transform=`scale(${.4+.6*pv})`; pl.style.opacity=cl(pv);
+    const pl=$('s3pill'); const pv=eb((t3-.9)/.5); pl.style.transform=`scale(${.4+.6*pv})`; pl.style.opacity=cl(pv);
     rise($('s3p'),t3,3.2);
   }
 
-  // 4 — curl de bíceps que "libera" mioquinas hacia los beneficios
+  // 4 — las mioquinas salen del brazo hacia cada beneficio, al ritmo de la voz
   const t4=t-ST.s4;
-  if(t4>-.1&&t4<11.2){
-    fig('f4','curl',t4,{biceps:1,forearm:2});
-    const src=[555,1000]; // brazo aprox.
-    const ARR=[6.3,7.8,9.1,9.9]; // llegada de cada beneficio, sincronizada con la voz
-    const chipC=[[290,1440],[760,1440],[290,1580],[760,1580]];
+  if(t4>-.1&&t4<12){
+    rise($('k4'),t4,.5,140);
+    const ARR=TIMING.ARR, src=[560,1000], chipC=[[270,1530],[760,1530],[270,1650],[760,1650]];
     for(let i=0;i<28;i++){
-      const c=i%4, target=chipC[c], start=3.8+(Math.floor(i/4)/6)*(ARR[c]-1.1-3.8), u=cl((t4-start)/1.1), d=$('d'+i);
+      const c=i%4, target=chipC[c], start=3.6+(Math.floor(i/4)/6)*(ARR[c]-1.1-3.6), u=cl((t4-start)/1.1), d=$('d'+i);
       if(u<=0||u>=1){d.style.opacity=0;continue}
-      const e=eio(u), mx=(src[0]+target[0])/2+(i%2?-160:160), my=src[1]-60;
+      const e=eio(u), mx=(src[0]+target[0])/2+(i%2?-180:180), my=src[1]-80;
       const x=(1-e)*(1-e)*src[0]+2*(1-e)*e*mx+e*e*target[0], y=(1-e)*(1-e)*src[1]+2*(1-e)*e*my+e*e*target[1];
       d.style.opacity=Math.sin(u*Math.PI); d.style.left=(x-14)+'px'; d.style.top=(y-14)+'px';
     }
@@ -194,11 +204,10 @@ window.render=function(t){
       const pulse=Math.max(0,Math.sin((t4-arr)*2.4)); el.style.boxShadow=v>=1?`0 0 ${20+20*pulse}px rgba(204,255,51,${.25+.25*pulse})`:'none';}
   }
 
-  // 5 — tres personas entrenando + CTA
+  // 5
   const t5=t-ST.s5;
   if(t5>-.1){
-    fig('f5a','lunge',t5,{quads:1,glutes:1}); fig('f5b','swing',t5,{glutes:1,hams:1}); fig('f5c','row_db',t5,{lats:1,biceps:2});
-    ['f5a','f5b','f5c'].forEach((id,i)=>rise($(id),t5,.5+i*.2,100));
+    ['k5a','k5b','k5c'].forEach((id,i)=>rise($(id),t5,.4+i*.2,120));
     const c=$('cta'); const v=eb((t5-1.4)/.5); c.style.opacity=cl(v); c.style.transform=`scale(${.6+.4*v})`;
   }
 };
